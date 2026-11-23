@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PROTOTYP – Historik och återställning</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+  :root { --bg:#081026; --panel:#0b1530; --line:#1d2a4d; --chalk:#e8e4d8; --dim:#8b93ad; --red:#e0503a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--chalk); font:14px/1.5 Barlow, system-ui, sans-serif; }
+  main { max-width:1200px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:22px; font-weight:600; margin:0 0 4px; }
+  h2 { font-size:15px; font-weight:600; margin:0 0 10px; }
+  p { margin:0 0 8px; }
+  .dim { color:var(--dim); }
+  .proto { display:inline-block; border:1px dashed var(--dim); color:var(--dim); padding:2px 8px; border-radius:4px; font-size:13px; margin-bottom:12px; }
+  .intro { max-width:760px; margin-bottom:20px; }
+  .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+  @media (max-width:900px){ .grid { grid-template-columns:1fr; } }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:16px; }
+  button { font:inherit; font-size:13px; color:var(--chalk); background:transparent; border:1px solid var(--line); border-radius:6px; padding:5px 10px; cursor:pointer; }
+  button:hover { border-color:var(--dim); }
+  button.primary { background:var(--red); border-color:var(--red); color:#fff; }
+  button.done { opacity:.4; }
+  select, input { font:inherit; font-size:13px; background:var(--bg); color:var(--chalk); border:1px solid var(--line); border-radius:6px; padding:4px 8px; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  td, th { text-align:left; padding:3px 6px; border-bottom:1px solid var(--line); }
+  th { color:var(--dim); font-weight:500; }
+  .msg { min-height:22px; margin:10px 0; padding:8px 12px; border-left:3px solid var(--dim); background:var(--panel); }
+  .msg.bad { border-color:var(--red); }
+  .hist { list-style:none; margin:0; padding:0; max-height:520px; overflow:auto; }
+  .hist li { padding:8px 6px; border-bottom:1px solid var(--line); }
+  .hist li.sel { background:#13204a; }
+  .hist .meta { color:var(--dim); font-size:13px; }
+  .hist .acts { margin-top:4px; display:flex; gap:6px; flex-wrap:wrap; }
+  .hist details { margin-top:4px; color:var(--dim); font-size:13px; }
+  .tag { font-size:12px; border:1px solid var(--dim); border-radius:10px; padding:0 6px; color:var(--dim); margin-left:4px; }
+  .tabs { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:10px; }
+  .tabs button.on { border-color:var(--chalk); }
+  ol.steps { padding-left:20px; margin:8px 0 0; }
+  ol.steps li { margin-bottom:6px; }
+  .changed { color:#ffb36b; }
+  svg text { fill:var(--chalk); font-size:11px; }
+</style>
+</head>
+<body>
+<main>
+  <span class="proto">PROTOTYP – slängkod, inte appen</span>
+  <h1>Historik och återställning för en Hill chart</h1>
+  <div class="intro">
+    <p><b>Frågan:</b> Hur ser man en Hill charts Uppdateringar, och hur återställer man den? Prototypen har <b>två sätt</b> att återställa, så att du kan känna på skillnaden:</p>
+    <p>• <b>Återställ hit</b>: hela diagrammet går tillbaka till hur det såg ut efter en viss Uppdatering. Allt som hänt sedan dess försvinner ur diagrammet.<br>
+       • <b>Ångra bara denna</b>: bara den ändringen tas tillbaka. Senare ändringar ligger kvar. Går inte om samma sak har ändrats igen efteråt.</p>
+    <p>Båda blir själva en ny Uppdatering i historiken, så inget raderas och allt kan ångras. Det bärande antagandet (som du gärna får ifrågasätta): <b>en Uppdatering är en lista ändringar, var och en med Scopets värden före och efter</b>.</p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Guidade scenarier</h2>
+    <div class="tabs" id="tabs"></div>
+    <div id="scenario"></div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Fritt spel</h2>
+    <div class="row">
+      <span class="dim">Du är:</span>
+      <select id="vem"><option>Anna</option><option>Erik</option><option value="">(inget namn)</option></select>
+      <span class="dim" id="klocka"></span>
+      <button id="vanta">Vänta en dag</button>
+      <button id="nollstall">Börja om</button>
+    </div>
+    <div class="row">
+      <select id="scope"></select>
+      <span class="dim">Läge</span><input id="lage" type="number" min="0" max="100" style="width:70px">
+      <button id="flytta">Flytta</button>
+      <input id="namn" placeholder="Nytt namn" style="width:130px"><button id="byt">Byt namn</button>
+      <input id="agare" placeholder="Ny Ägare" style="width:110px"><button id="agarbyte">Byt Ägare</button>
+      <button id="tabort">Ta bort</button>
+    </div>
+    <div class="row">
+      <input id="nytt" placeholder="Namn på nytt Scope" style="width:170px"><button id="lagtill">Lägg till Scope</button>
+    </div>
+  </div>
+
+  <div class="msg" id="msg"></div>
+
+  <div class="grid">
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <h2>Diagrammet nu</h2>
+        <div id="nu"></div>
+      </div>
+      <div class="card">
+        <h2 id="forhandsrubrik">Förhandsvisning</h2>
+        <div id="forhand"><p class="dim">Klicka <b>Visa</b> på en Uppdatering för att se hur diagrammet såg ut då.</p></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Historik <span class="dim" style="font-weight:400">(nyast först)</span></h2>
+      <label class="dim" style="font-size:13px"><input type="checkbox" id="gruppera" checked> Slå ihop snabba drag av samma person</label>
+      <ul class="hist" id="hist"></ul>
+    </div>
+  </div>
+</main>
+
+<script>
+// ================= Ren modul: det här är biten som kan lyftas in i kärnan =================
+// Scope-värden: { namn, läge, ägare }. Ett diagram: { [scopeId]: värden }.
+// En Uppdatering: { id, typ, vem, tid, mål?, ändringar: [{ scopeId, före, efter }] }
+//   före/efter är hela Scope-värden, eller null (= finns inte).
+// Diagrammet är alltid resultatet av att spela upp historiken från början.
+const Historik = (() => {
+  const lika = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  let nästa = 1;
+  const nyttId = () => 'u' + (nästa++);
+
+  function tillämpa(diagram, upd) {
+    const ny = { ...diagram };
+    for (const ä of upd.ändringar) {
+      if (ä.efter === null) delete ny[ä.scopeId];
+      else ny[ä.scopeId] = { ...ä.efter };
+    }
+    return ny;
+  }
+  // Diagrammet efter Uppdatering nr index (index -1 = tomt)
+  function diagramEfter(logg, index) {
+    let d = {};
+    for (let i = 0; i <= index; i++) d = tillämpa(d, logg[i]);
+    return d;
+  }
+  const nuvarande = logg => diagramEfter(logg, logg.length - 1);
+
+  // En vanlig redigering: ett Scope får nya värden (eller null = tas bort)
+  function redigera(logg, { typ, scopeId, efter, vem, tid }) {
+    const före = nuvarande(logg)[scopeId] ?? null;
+    if (lika(före, efter)) return null;
+    return { id: nyttId(), typ, vem, tid, ändringar: [{ scopeId, före, efter }] };
+  }
+
+  // Sätt A: hela diagrammet tillbaka till läget efter Uppdatering nr index
+  function återställHit(logg, index, vem, tid) {
+    const från = nuvarande(logg), till = diagramEfter(logg, index);
+    const ids = new Set([...Object.keys(från), ...Object.keys(till)]);
+    const ändringar = [];
+    for (const id of ids) {
+      const före = från[id] ?? null, efter = till[id] ?? null;
+      if (!lika(före, efter)) ändringar.push({ scopeId: id, före, efter });
+    }
+    if (!ändringar.length) return { ok: false, skäl: 'Diagrammet ser redan ut så. Inget att återställa.' };
+    return { ok: true, upd: { id: nyttId(), typ: 'återställning', mål: logg[index].id, vem, tid, ändringar } };
+  }
+
+  // Sätt B: ta tillbaka bara en Uppdatering. Fältvis: bara fält den Uppdateringen ändrade.
+  // Krock om något av de fälten har ändrats igen sedan dess.
+  function ångraEn(logg, index, vem, tid) {
+    const u = logg[index], nu = nuvarande(logg);
+    const ändringar = [], krockar = [];
+    for (const ä of u.ändringar) {
+      const just = nu[ä.scopeId] ?? null;
+      if (ä.före === null) {                       // var ett tillägg → ta bort
+        if (just === null) krockar.push({ scopeId: ä.scopeId, varför: 'är redan borttaget' });
+        else ändringar.push({ scopeId: ä.scopeId, före: just, efter: null });
+      } else if (ä.efter === null) {               // var en borttagning → lägg tillbaka
+        if (just !== null) krockar.push({ scopeId: ä.scopeId, varför: 'finns redan' });
+        else ändringar.push({ scopeId: ä.scopeId, före: null, efter: { ...ä.före } });
+      } else {                                     // fältändring
+        if (just === null) { krockar.push({ scopeId: ä.scopeId, varför: 'har tagits bort sedan dess' }); continue; }
+        const fält = Object.keys(ä.efter).filter(k => ä.före[k] !== ä.efter[k]);
+        const ändrade = fält.filter(k => just[k] !== ä.efter[k]);
+        if (ändrade.length) { krockar.push({ scopeId: ä.scopeId, varför: 'har ändrats igen sedan dess (' + ändrade.join(', ') + ')' }); continue; }
+        const efter = { ...just }; for (const k of fält) efter[k] = ä.före[k];
+        ändringar.push({ scopeId: ä.scopeId, före: just, efter });
+      }
+    }
+    if (krockar.length) return { ok: false, krockar };
+    return { ok: true, upd: { id: nyttId(), typ: 'ångrad', mål: u.id, vem, tid, ändringar } };
+  }
+
+  // Slå ihop i följd: samma person, bara flyttar av samma Scope, inom 10 min
+  function gruppera(logg, fönster = 10) {
+    const grupper = [];
+    logg.forEach((u, i) => {
+      const g = grupper[grupper.length - 1];
+      const flytt = u.typ === 'flyttad';
+      if (g && flytt && g.flytt && g.vem === u.vem && g.scopeId === u.ändringar[0].scopeId && u.tid - logg[g.slut].tid <= fönster) {
+        g.slut = i;
+      } else grupper.push({ start: i, slut: i, vem: u.vem, flytt, scopeId: flytt ? u.ändringar[0].scopeId : null });
+    });
+    return grupper;
+  }
+
+  return { tillämpa, diagramEfter, nuvarande, redigera, återställHit, ångraEn, gruppera, lika };
+})();
+
+// ================= Sidan (slängkod) =================
+const START = new Date('2026-11-02T09:00:00');
+let S;
+function seed() {
+  S = { logg: [], tid: 0, vald: null };
+  const vem = 'Anna';
+  [['s1','Prislista',72,'Anna'],['s2','Kassaflöde',38,'Erik'],['s3','Kvittomejl',12,'Anna'],['s4','Rabattkoder',55,'Erik']]
+    .forEach(([id,namn,läge,ägare]) => { S.logg.push(Historik.redigera(S.logg, { typ:'tillagd', scopeId:id, efter:{namn,läge,ägare}, vem, tid:S.tid })); S.tid += 1; });
+  S.tid += 1440;
+}
+let scopeRäknare = 5;
+
+function tidText(min) {
+  const d = new Date(START.getTime() + min * 60000);
+  return d.toLocaleDateString('sv-SE', { weekday:'short', day:'numeric', month:'short' }) + ' ' + d.toLocaleTimeString('sv-SE', { hour:'2-digit', minute:'2-digit' });
+}
+const namnPå = (id, logg) => {
+  for (let i = logg.length - 1; i >= 0; i--) for (const ä of logg[i].ändringar) if (ä.scopeId === id) return (ä.efter || ä.före).namn;
+  return id;
+};
+const vemText = v => v || 'Någon utan namn';
+
+function beskrivÄndring(ä) {
+  const n = (ä.efter || ä.före).namn;
+  if (ä.före === null) return `${n} lades till (Läge ${ä.efter.läge})`;
+  if (ä.efter === null) return `${n} togs bort`;
+  const delar = [];
+  if (ä.före.läge !== ä.efter.läge) delar.push(`Läge ${ä.före.läge} → ${ä.efter.läge}`);
+  if (ä.före.namn !== ä.efter.namn) delar.push(`namn ”${ä.före.namn}” → ”${ä.efter.namn}”`);
+  if (ä.före.ägare !== ä.efter.ägare) delar.push(`Ägare ${ä.före.ägare || '–'} → ${ä.efter.ägare || '–'}`);
+  return `${ä.efter.namn}: ${delar.join(', ')}`;
+}
+function beskriv(u, utanVem) {
+  const v = utanVem ? '' : vemText(u.vem);
+  const målU = u.mål && S.logg.find(x => x.id === u.mål);
+  if (u.typ === 'återställning') return `${v} återställde diagrammet till ${målU ? tidText(målU.tid) : '?'}`.trim();
+  if (u.typ === 'ångrad') return `${v} ångrade: ${målU ? beskriv(målU, true) + ' (' + vemText(målU.vem) + ')' : '?'}`;
+  const ä = u.ändringar[0];
+  if (u.typ === 'tillagd') return `${v} lade till ${ä.efter.namn}`;
+  if (u.typ === 'borttagen') return `${v} tog bort ${ä.före.namn}`;
+  if (u.typ === 'flyttad') return `${v} flyttade ${ä.efter.namn} ${ä.före.läge} → ${ä.efter.läge}`;
+  if (u.typ === 'namnbyte') return `${v} bytte namn på ${ä.före.namn} till ${ä.efter.namn}`;
+  if (u.typ === 'ägarbyte') return `${v} gjorde ${ä.efter.ägare || 'ingen'} till Ägare för ${ä.efter.namn}`;
+  return u.typ;
+}
+const _b = beskriv; beskriv = (u, x) => _b(u, x).trim();
+
+// Läge-färg (natt-rampen från Stjärnatlas)
+const STOPP = [[0,'#ff7a4d'],[25,'#ffb36b'],[50,'#fff1c9'],[75,'#cfe0ff'],[100,'#8fb8ff']];
+function färg(l) {
+  for (let i = 0; i < STOPP.length - 1; i++) {
+    const [a, ca] = STOPP[i], [b, cb] = STOPP[i+1];
+    if (l <= b) { const t = (l - a) / (b - a); const h = c => [1,3,5].map(j => parseInt(c.slice(j, j+2), 16));
+      const [x, y] = [h(ca), h(cb)]; return 'rgb(' + x.map((v, k) => Math.round(v + (y[k] - v) * t)).join(',') + ')'; }
+  }
+  return STOPP[4][1];
+}
+function rita(diagram, ändrade = new Set()) {
+  const W = 520, H = 170, bas = 140, höjd = 110;
+  const y = l => bas - höjd * Math.sin(Math.PI * l / 100);
+  let p = ''; for (let l = 0; l <= 100; l += 2) p += (l ? 'L' : 'M') + (20 + l / 100 * (W - 40)) + ' ' + y(l);
+  let prickar = '';
+  const ids = Object.keys(diagram).sort((a, b) => diagram[a].läge - diagram[b].läge);
+  ids.forEach((id, i) => {
+    const s = diagram[id], x = 20 + s.läge / 100 * (W - 40), yy = y(s.läge);
+    prickar += `<circle cx="${x}" cy="${yy}" r="7" fill="${färg(s.läge)}" ${ändrade.has(id) ? 'stroke="#e0503a" stroke-width="2"' : ''}/>`
+      + `<text x="${x}" y="${yy - 12 - (i % 2) * 12}" text-anchor="middle">${s.namn}</text>`;
+  });
+  const rader = ids.map(id => { const s = diagram[id];
+    return `<tr class="${ändrade.has(id) ? 'changed' : ''}"><td>${s.namn}</td><td>${s.läge}</td><td>${s.ägare || '–'}</td></tr>`; }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%"><line x1="20" x2="${W-20}" y1="${bas}" y2="${bas}" stroke="#1d2a4d"/><path d="${p}" fill="none" stroke="#8b93ad" stroke-width="1"/>${prickar}</svg>`
+    + `<table><tr><th>Scope</th><th>Läge</th><th>Ägare</th></tr>${rader || '<tr><td colspan="3" class="dim">Inga Scopes</td></tr>'}</table>`;
+}
+
+function meddela(t, dålig) { const m = document.getElementById('msg'); m.innerHTML = t; m.className = 'msg' + (dålig ? ' bad' : ''); }
+function vem() { return document.getElementById('vem').value; }
+function lägg(upd, text) {
+  if (!upd) { meddela('Ingen ändring – inget sparades.'); return render(); }
+  S.logg.push(upd); S.tid += 2; S.senaste = new Set(upd.ändringar.map(ä => ä.scopeId));
+  meddela(text || ('Ny Uppdatering: ' + beskriv(upd)));
+  render();
+}
+
+// --- Åtgärder (används av både fritt spel och scenarier)
+const Gör = {
+  flytta(id, läge, v = vem()) { const s = Historik.nuvarande(S.logg)[id]; if (!s) return meddela('Det Scopet finns inte längre.', true);
+    lägg(Historik.redigera(S.logg, { typ:'flyttad', scopeId:id, efter:{ ...s, läge }, vem:v, tid:S.tid })); },
+  bytNamn(id, namn, v = vem()) { const s = Historik.nuvarande(S.logg)[id]; if (!s) return;
+    lägg(Historik.redigera(S.logg, { typ:'namnbyte', scopeId:id, efter:{ ...s, namn }, vem:v, tid:S.tid })); },
+  bytÄgare(id, ägare, v = vem()) { const s = Historik.nuvarande(S.logg)[id]; if (!s) return;
+    lägg(Historik.redigera(S.logg, { typ:'ägarbyte', scopeId:id, efter:{ ...s, ägare }, vem:v, tid:S.tid })); },
+  taBort(id, v = vem()) { lägg(Historik.redigera(S.logg, { typ:'borttagen', scopeId:id, efter:null, vem:v, tid:S.tid })); },
+  läggTill(namn, v = vem()) { const id = 's' + (scopeRäknare++);
+    lägg(Historik.redigera(S.logg, { typ:'tillagd', scopeId:id, efter:{ namn, läge:0, ägare:'' }, vem:v, tid:S.tid })); },
+  vänta(min = 1440) { S.tid += min; meddela('Tiden gick: ' + tidText(S.tid)); render(); },
+  återställHit(i, v = vem()) { const r = Historik.återställHit(S.logg, i, v, S.tid);
+    if (!r.ok) return meddela(r.skäl, true);
+    lägg(r.upd, `Diagrammet återställdes till ${tidText(S.logg[i].tid)}. ${r.upd.ändringar.length} Scope(s) ändrades – i en enda ny Uppdatering. Inget raderades ur historiken.`); },
+  ångra(i, v = vem()) { const r = Historik.ångraEn(S.logg, i, v, S.tid);
+    if (!r.ok) return meddela('Går inte att ångra bara den här: ' + r.krockar.map(k => `<b>${namnPå(k.scopeId, S.logg)}</b> ${k.varför}`).join('; ')
+      + '. Använd <b>Återställ hit</b> på Uppdateringen före i stället, eller ändra för hand.', true);
+    lägg(r.upd); },
+  visa(i) { S.vald = i; render(); },
+};
+
+function render() {
+  const nu = Historik.nuvarande(S.logg);
+  document.getElementById('klocka').textContent = 'Klockan: ' + tidText(S.tid);
+  document.getElementById('nu').innerHTML = rita(nu, S.senaste || new Set());
+  const sel = document.getElementById('scope'), förra = sel.value;
+  sel.innerHTML = Object.entries(nu).map(([id, s]) => `<option value="${id}">${s.namn}</option>`).join('');
+  if (nu[förra]) sel.value = förra;
+  if (nu[sel.value]) document.getElementById('lage').value = nu[sel.value].läge;
+
+  const fh = document.getElementById('forhand');
+  if (S.vald !== null && S.logg[S.vald]) {
+    const efter = Historik.diagramEfter(S.logg, S.vald);
+    const skillnad = new Set(Object.keys({ ...efter, ...nu }).filter(id => !Historik.lika(efter[id] ?? null, nu[id] ?? null)));
+    document.getElementById('forhandsrubrik').textContent = 'Så såg det ut ' + tidText(S.logg[S.vald].tid);
+    fh.innerHTML = rita(efter, skillnad) + `<p class="dim" style="margin-top:8px">Markerat = skiljer sig från nu (${skillnad.size} st).</p>`
+      + `<button class="primary" onclick="Gör.återställHit(${S.vald})">Återställ hit</button> <button onclick="S.vald=null;render()">Stäng</button>`;
+  } else { document.getElementById('forhandsrubrik').textContent = 'Förhandsvisning'; }
+
+  const grp = document.getElementById('gruppera').checked;
+  const grupper = grp ? Historik.gruppera(S.logg) : S.logg.map((_, i) => ({ start:i, slut:i }));
+  const ångrade = new Set(S.logg.filter(u => u.typ === 'ångrad').map(u => u.mål));
+  const återställdaÖver = new Set(); // Uppdateringar som en senare återställning hoppade över
+  S.logg.forEach((u, i) => { if (u.typ === 'återställning') { const m = S.logg.findIndex(x => x.id === u.mål); for (let k = m + 1; k < i; k++) återställdaÖver.add(S.logg[k].id); } });
+  document.getElementById('hist').innerHTML = grupper.slice().reverse().map(g => {
+    const u = S.logg[g.slut], antal = g.slut - g.start + 1;
+    let titel = beskriv(u);
+    if (antal > 1) { const f = S.logg[g.start].ändringar[0].före.läge; titel = `${vemText(u.vem)} flyttade ${u.ändringar[0].efter.namn} ${f} → ${u.ändringar[0].efter.läge} <span class="tag">${antal} drag</span>`; }
+    const taggar = (ångrade.has(u.id) ? '<span class="tag">ångrad</span>' : '') + (återställdaÖver.has(u.id) ? '<span class="tag">bortåterställd</span>' : '');
+    const detaljer = S.logg.slice(g.start, g.slut + 1).flatMap(x => x.ändringar.map(beskrivÄndring));
+    const kanÅngra = antal === 1;
+    return `<li class="${S.vald === g.slut ? 'sel' : ''}"><div>${titel}${taggar}</div><div class="meta">${tidText(u.tid)}</div>`
+      + (u.ändringar.length > 1 || antal > 1 ? `<details><summary>${detaljer.length} ändringar</summary>${detaljer.join('<br>')}</details>` : '')
+      + `<div class="acts"><button onclick="Gör.visa(${g.slut})">Visa</button><button onclick="Gör.återställHit(${g.slut})">Återställ hit</button>`
+      + (kanÅngra ? `<button onclick="Gör.ångra(${g.slut})">Ångra bara denna</button>` : '') + `</div></li>`;
+  }).join('');
+}
+
+// --- Fritt spel
+const $ = id => document.getElementById(id);
+$('flytta').onclick = () => Gör.flytta($('scope').value, Math.max(0, Math.min(100, +$('lage').value)));
+$('byt').onclick = () => $('namn').value && Gör.bytNamn($('scope').value, $('namn').value);
+$('agarbyte').onclick = () => Gör.bytÄgare($('scope').value, $('agare').value);
+$('tabort').onclick = () => Gör.taBort($('scope').value);
+$('lagtill').onclick = () => $('nytt').value && Gör.läggTill($('nytt').value);
+$('vanta').onclick = () => Gör.vänta();
+$('nollstall').onclick = () => { seed(); S.senaste = null; meddela('Började om från ett diagram med fyra Scopes som Anna lade till igår.'); render(); };
+$('scope').onchange = render;
+$('gruppera').onchange = render;
+
+// --- Guidade scenarier
+const index = pred => S.logg.map((u, i) => [u, i]).filter(([u]) => pred(u)).pop()?.[1];
+const SCENARIER = [
+  { namn:'1. Klotter', text:'Någon utan namn drar alla Scopes till 100 och tar bort ett. Du hittar det i historiken, förhandsvisar läget innan och återställer. <b>Titta på:</b> det borttagna Scopet kommer tillbaka, och återställningen blir en enda ny Uppdatering – klottret ligger kvar i historiken, märkt.',
+    steg:[
+      ['Anna flyttar Kassaflöde till 45', () => Gör.flytta('s2', 45, 'Anna')],
+      ['Klottraren drar Prislista till 100', () => Gör.flytta('s1', 100, '')],
+      ['…och Kvittomejl till 100', () => Gör.flytta('s3', 100, '')],
+      ['…och tar bort Rabattkoder', () => Gör.taBort('s4', '')],
+      ['Visa läget efter Annas flytt', () => Gör.visa(index(u => u.vem === 'Anna' && u.typ === 'flyttad'))],
+      ['Återställ hit', () => Gör.återställHit(index(u => u.vem === 'Anna' && u.typ === 'flyttad'), 'Erik')],
+    ]},
+  { namn:'2. Bra arbete efter klottret', text:'Klottraren flyttar ett Scope. Först dagen efter gör Erik en riktig ändring. Sen upptäcks klottret. <b>Titta på:</b> "Återställ hit" tar även bort Eriks ändring. "Ångra bara denna" tar bara bort klottret. Prova båda (Börja om mellan).',
+    steg:[
+      ['Klottraren drar Kvittomejl till 95', () => Gör.flytta('s3', 95, '')],
+      ['En dag går', () => Gör.vänta()],
+      ['Erik flyttar Kassaflöde till 60', () => Gör.flytta('s2', 60, 'Erik')],
+      ['Anna lägger till Scopet "Fraktval"', () => Gör.läggTill('Fraktval', 'Anna')],
+      ['Ångra bara klottret', () => Gör.ångra(index(u => u.vem === '' && u.typ === 'flyttad'), 'Anna')],
+    ]},
+  { namn:'3. Ångra krockar', text:'Anna flyttar ett Scope, sedan flyttar Erik samma Scope igen. Någon vill ångra bara Annas flytt. <b>Titta på:</b> det blockeras, eftersom det inte finns ett självklart svar på var Scopet ska hamna. Men en namnändring av samma Scope krockar inte med en flytt.',
+    steg:[
+      ['Anna flyttar Kassaflöde till 50', () => Gör.flytta('s2', 50, 'Anna')],
+      ['Erik byter namn på Kassaflöde till "Kassa"', () => Gör.bytNamn('s2', 'Kassa', 'Erik')],
+      ['Erik flyttar Kassa till 70', () => Gör.flytta('s2', 70, 'Erik')],
+      ['Försök ångra bara Annas flytt', () => Gör.ångra(index(u => u.vem === 'Anna' && u.typ === 'flyttad'), 'Anna')],
+      ['Ångra bara Eriks namnbyte (krockar inte)', () => Gör.ångra(index(u => u.typ === 'namnbyte'), 'Anna')],
+    ]},
+  { namn:'4. Ångra en återställning', text:'Någon återställer av misstag till en för gammal tidpunkt. <b>Titta på:</b> eftersom återställningen är en vanlig Uppdatering kan den själv ångras, och allt kommer tillbaka.',
+    steg:[
+      ['Erik flyttar Kassaflöde till 66', () => Gör.flytta('s2', 66, 'Erik')],
+      ['Anna lägger till "Fraktval"', () => Gör.läggTill('Fraktval', 'Anna')],
+      ['Erik återställer av misstag till gårdagen', () => Gör.återställHit(3, 'Erik')],
+      ['Ångra återställningen', () => Gör.ångra(index(u => u.typ === 'återställning'), 'Erik')],
+    ]},
+  { namn:'5. Många små drag', text:'Anna drar ett Scope fram och tillbaka och släpper det sex gånger på två minuter. Varje släpp är en Uppdatering. <b>Titta på:</b> historiken slår ihop dem till en rad (stäng av rutan "Slå ihop" för att se alla). En hopslagen rad går att återställa till men inte att ångra ensam.',
+    steg:[
+      ['Sex snabba drag', () => { [42, 48, 46, 55, 61, 64].forEach(l => { Gör.flytta('s2', l, 'Anna'); S.tid -= 1; }); }],
+      ['Erik flyttar Prislista till 80', () => Gör.flytta('s1', 80, 'Erik')],
+    ]},
+];
+let aktiv = 0, stegNr = 0;
+function visaScenario(i) {
+  aktiv = i; stegNr = 0; seed(); S.senaste = null; scopeRäknare = 5;
+  meddela('Scenariot startar från samma diagram varje gång: fyra Scopes som Anna lade till igår.');
+  ritaScenario(); render();
+}
+function ritaScenario() {
+  $('tabs').innerHTML = SCENARIER.map((s, i) => `<button class="${i === aktiv ? 'on' : ''}" onclick="visaScenario(${i})">${s.namn}</button>`).join('');
+  const s = SCENARIER[aktiv];
+  $('scenario').innerHTML = `<p>${s.text}</p><ol class="steps">` + s.steg.map(([t], i) =>
+    `<li><button class="${i < stegNr ? 'done' : i === stegNr ? 'primary' : ''}" ${i !== stegNr ? 'disabled' : ''} onclick="körSteg(${i})">${t}</button></li>`).join('') + '</ol>';
+}
+function körSteg(i) { SCENARIER[aktiv].steg[i][1](); stegNr = i + 1; ritaScenario(); }
+
+visaScenario(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+# What does Notion's embed allow for an editable Hill chart?
+
+Research for issue #3. Researched 2026-11-23.
+
+**Question:** Can a Projekt's Hill chart, served from our own site, be embedded in a Notion page with `/embed` and still be edited there (dragging Scopes), with a remembered optional name in browser storage and, ideally, live updates?
+
+**Short answer:** Probably yes on desktop and web. Notion's own content security policy allows any HTTPS iframe, and an iframe can run scripts, use partitioned `localStorage` and open WebSockets. Three things are not documented anywhere and need a hands-on test: the exact `sandbox`/`allow` attributes Notion puts on the embed iframe, whether an unknown URL is iframed directly or through Notion's Iframely wrapper, and how touch drag behaves inside the iOS and Android apps. The remembered name will work, but it is stored separately per embedding site: a name typed inside Notion is not the same as one typed on our own site. On iOS it may be wiped when the app quits. Design the name as a convenience, not something we rely on.
+
+Legend: **[verified]** = stated by a primary source or observed directly. **[unverified]** = not found in any primary source; the reason is given.
+
+---
+
+## 1. Accepted URLs and how `/embed` renders them
+
+- **[verified]** Notion renders embeds through Iframely: "Notion allows you to embed external content from over 1,900 domains via the Iframely service." You paste an `https` URL, not `<iframe>` HTML. Sites that forbid framing show "Failed to load". The same page says embeds that need a login on the external site do not work in the desktop or mobile apps. Source: [Notion Help, Embeds, bookmarks & link mentions](https://www.notion.com/help/embed-and-connect-other-apps).
+- **[verified]** Notion's Iframely endpoint is `embed.notion.co`. It redirects to iframely.com, and `embed.notion.co/api/iframe?url=…` returns an Iframely-hosted iframe page. This was checked with `curl` on 2026-11-23. `embed.notion.co` also appears in notion.so's CSP `script-src` and `connect-src`.
+- **[verified]** Notion's developer docs say the app "uses iFramely to fetch embed metadata". They also say embed blocks created through the API "may not look exactly like" ones created in the app. Source: [Notion API, Block reference: embed](https://developers.notion.com/reference/block#embed).
+- **[verified]** Iframely's own rules for unknown domains: "Iframely isn't designed to wrap arbitrary web pages into iframes". Without known embed code it produces a summary card. A host app can build its own "iframe fallback", using Iframely's `xframe`/`csp` meta to tell whether a URL may be framed. Sources: [Iframely, Converting a URL into an iframe](https://iframely.com/help/070077-converting-a-url-into-an-iframe) and [Iframely docs, cards](https://iframely.com/docs/cards).
+- **[verified]** A publisher can be recognised as rich media with `<link rel="iframely" href="…" media="(aspect-ratio: …)">` or an oEmbed discovery link. Iframely reviews and approves new providers ("We would need to review and approve your media"). The framed page must not send `X-Frame-Options` or a restrictive `frame-ancestors`. Source: [Iframely, Publish your rich media](https://iframely.com/docs/publish).
+- **[unverified]** How Notion picks between an Iframely card and a raw iframe. Notion applies a fallback, apparently the one Iframely describes. Many widget vendors tell users to paste a plain URL into `/embed`, and it renders as a live iframe ([Common Ninja help](https://help.commoninja.com/hc/en-us/articles/21436352707997-How-To-Add-Common-Ninja-s-Widgets-to-Notion), a secondary source). That suggests "Create embed" on an unknown, frameable HTTPS URL produces a raw iframe. Notion does not document this, and it is not known whether the iframe is nested inside an `embed.notion.co` wrapper. *Test:* deploy a page that renders `window.location.ancestorOrigins` (Chrome/Safari) and `document.referrer`, embed it, and read the result.
+- **Implication:** Serve the embed view, e.g. `/projekt/<id>/embed`, without `X-Frame-Options`. Send `Content-Security-Policy: frame-ancestors https://www.notion.so https://*.notion.so https://*.notion.site https://*.notion.com https://embed.notion.co` (or `*` for the embed route only). Adding `<link rel="iframely">` is optional, and getting Iframely approval is not needed if the raw-iframe fallback works.
+
+## 2. iframe `sandbox` / `allow` attributes
+
+- **[verified]** notion.so's CSP allows any HTTPS frame: `frame-src 'self' https: http: …`. Observed in the `www.notion.so` response headers on 2026-11-23. The parent page's CSP does not restrict what our iframe document fetches or connects to, because our own response headers govern that.
+- **[unverified]** The exact `sandbox` and `allow` attribute values on Notion's embed iframe. Neither Notion's help center nor its developer docs state them, and no Notion statement was found. The only Notion docs that mention a sandbox cover *different* features: HTML blocks, uploaded `.html` files rendered "interactively in a sandboxed iframe" ([Block reference: HTML](https://developers.notion.com/reference/block#html)), and Custom Blocks (see §7). If the embed sandbox lacks `allow-same-origin`, our document gets an opaque origin, and then `localStorage` throws and cookies do not work. If it lacks `allow-scripts`, nothing works. Given how many interactive widgets work in Notion embeds, `allow-scripts` and `allow-same-origin` are very likely present, but this is unconfirmed. *Test:* in Notion web, open DevTools and inspect the embed `<iframe>` (and any wrapper iframe) for `sandbox`, `allow` and `referrerpolicy`. Do the same in the desktop app with View > Toggle Developer Tools if it is enabled.
+- **Implication:** Code defensively. Wrap all storage in `try/catch`, and keep the chart fully usable with no storage at all.
+
+## 3. Pointer and touch drag inside the iframe
+
+- **[verified]** In general browsers, pointer events inside a cross-origin iframe go to the iframe document. A WebKit bug notes that `touch-action` set on the iframe element is not effective ([WebKit bug 209486](https://bugs.webkit.org/show_bug.cgi?id=209486)). Inside our own document, though, `touch-action: none` on the drag surface is the standard way to stop the browser from scrolling during a pointer drag.
+- **[unverified]** Behaviour in each Notion client. Notion publishes nothing on interacting with embeds by mouse or touch.
+  - *Web and desktop (Electron):* very likely fine, because mouse pointer events reach the iframe. One risk is that Notion's block-level drag handle (`⋮⋮`) and selection only start outside the iframe. Another is that, at least in the desktop app, Notion may show embeds as a preview until the block is clicked or focused.
+  - *iOS app (WKWebView) and Android app (WebView or native):* the main risk. Notion's page scroll and block gestures may capture vertical swipes before the iframe sees them, and some apps show embeds as a static preview with a "View original" button that opens a browser. The help center confirms "View original" exists. Whether the mobile apps render the embed live at all is not documented.
+  - *Test:* build a minimal page with a draggable dot (`pointerdown`/`pointermove`/`pointerup`, `touch-action: none`, `setPointerCapture`) that logs events to the screen. Embed it and try it in Notion web (Chrome, Safari, Firefox), the macOS/Windows desktop app, and the iOS and Android apps.
+- **Implication:** Drag along the hill is mostly horizontal, which helps on touch because vertical page scroll stays with Notion. Provide a non-drag fallback (tap a Scope, then use buttons or arrow keys to step it). Also add an "Öppna i webbläsaren" link, which acts as the escape hatch on mobile.
+
+## 4. Sizing and height
+
+- **[verified]** Users resize most embeds by dragging the bars on the sides of the block. Notion documents no height field. Source: [Notion Help](https://www.notion.com/help/embed-and-connect-other-apps).
+- **[verified]** Iframely sizes rich media through `media` hints on `<link rel="iframely">` (an aspect ratio, a fixed `height: 420`, or `max-width`). Iframely-hosted iframes "adjust the height to the exact actual value when it becomes known" via postMessage. Iframely does not document the resize message format for third-party publishers. Sources: [Iframely, Publish](https://iframely.com/docs/publish) and [Iframely, iframes](https://iframely.com/docs/iframes).
+- **[unverified]** Whether Notion listens for any postMessage resize request from a raw-iframe embed. No Notion documentation exists; assume it does not. *Test:* post `{method:'resize', height}` (Iframely's convention) and `{type:'resize', height}` to `parent`, and check whether the block height changes.
+- **Implication:** Design the embed view so it works in whatever box the user drags: a responsive SVG with the hill scaled to the width, a sensible minimum height, and the Scope list scrolling inside the iframe. Do not count on auto-height.
+
+## 5. `localStorage` and cookies inside the iframe (the remembered name)
+
+The embed is a third-party iframe. The top-level site is `notion.so`, `notion.com`, or `notion.site` for public pages. Each of these is a different partition.
+
+- **Chrome:** **[verified]** Storage partitioning has been on for everyone since Chrome 115. `localStorage`, `sessionStorage`, IndexedDB, Cache and others are keyed by (origin, top-level site). The iframe can read and write `localStorage`, but only in the partition for the site that embeds it. Source: [Chrome, Storage partitioning](https://privacysandbox.google.com/cookies/storage-partitioning). **[verified]** Chrome is *not* phasing out third-party cookies. On 2025-04-22 Google said it will "maintain our current approach to offering users third-party cookie choice in Chrome" ([Privacy Sandbox next steps](https://privacysandbox.google.com/blog/privacy-sandbox-next-steps)). Third-party cookies therefore still work by default (they need `SameSite=None; Secure`), except in Incognito or for users who block them.
+- **Firefox:** **[verified]** Total Cookie Protection double-keys all client-side state by origin and top-level site. `localStorage` and IndexedDB are statically partitioned, and cookies are dynamically partitioned. The Storage Access API can unpartition cookies. Source: [MDN, State partitioning](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/State_Partitioning).
+- **Safari / WebKit:** **[verified]** All third-party cookies are blocked, with no exceptions except through the Storage Access API. "Third-party LocalStorage and IndexedDB are partitioned per first-party website and also made ephemeral": the data is kept in memory only and is lost when the browser quits. Script-writable storage is also deleted after 7 days without interaction. Sources: [WebKit, Tracking Prevention](https://webkit.org/tracking-prevention/) and [WebKit blog, Full third-party cookie blocking](https://webkit.org/blog/10218/full-third-party-cookie-blocking-and-more/).
+- **Storage Access API:** **[verified]** `document.requestStorageAccess()` needs a user gesture, HTTPS, a non-null origin, and, if the iframe is sandboxed, `allow-storage-access-by-user-activation` plus `allow-scripts` and `allow-same-origin`. Browsers deny it if the user has not interacted with our site first-party recently (Firefox: within 30 days). Safari and Chrome prompt the user. Source: [MDN, Storage Access API](https://developer.mozilla.org/en-US/docs/Web/API/Storage_Access_API). This is too heavy for an optional name.
+- **Notion desktop (Electron):** **[unverified]** Electron is Chromium, so Chrome-style partitioned, persistent `localStorage` is expected under the `notion.so`/`notion.com` partition. Whether third-party cookies are allowed depends on Notion's session configuration, which is not documented.
+- **Notion iOS app (WKWebView):** **[verified]** ITP is "enabled by default in all `WKWebView` applications" since iOS 14 ([WebKit, App-Bound Domains](https://webkit.org/blog/10882/app-bound-domains/)). **[unverified]** Whether the ephemeral third-party storage rule applies the same way inside WKWebView, and whether Notion iOS even renders the embed live (see §3). Assume the name is forgotten when the app is killed.
+- **Notion Android app:** **[unverified]** Android System WebView is Chromium-based, but no source found states its partitioning or third-party cookie defaults for apps. Expect Chrome-like partitioned `localStorage`.
+- **Implication for the design:** Use `localStorage`, not cookies, for the name. Chrome, Firefox and Electron should keep it per embedding site. Safari and iOS keep it only for the session. Users will be asked for their name once in Notion and once on our own site; that is acceptable for an optional field. Do not try to sync the name across contexts. Ask for it inline and lazily, e.g. on the first drag, prefilled if stored. The edit itself must never depend on storage.
+
+## 6. Live updates (WebSocket / SSE) from inside the iframe
+
+- **[verified]** Nothing in the parent page limits the iframe's own network connections. The parent's CSP only controls whether the frame loads (`frame-src https:`, see §2), and our document's CSP is the one that governs its `connect-src`. Fetch, SSE (`EventSource`) and WebSockets from a third-party iframe are ordinary cross-origin requests to our own origin. No browser source found partitions or blocks them in third-party iframes. The partitioned items are caches and connection pools, which do not affect correctness ([MDN, State partitioning](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/State_Partitioning): network partitioning).
+- **[unverified]** Any Notion-specific limit, for example if the sandbox lacked `allow-scripts` (which would break everything, see §2), or the mobile apps suspending background webviews. Mobile webviews will drop the socket when the app is in the background, so the client must reconnect and refetch.
+- **Implication:** Live sync works the same in the embed as on our site. Use SSE or WebSocket with reconnect-and-refetch, and make the server the source of truth with last-write-wins per Scope position. Cookies are not reliable in the embed (Safari blocks them), so do not depend on cookie-based sessions for the socket.
+
+## 7. Related Notion features (not the answer, but worth knowing)
+
+- **Custom Blocks** (private alpha, enabled per workspace): code runs in a sandboxed iframe served from `https://<definition-id>.notion-custom.com`. `fetch`, `XMLHttpRequest` and `WebSocket` can reach declared, workspace-approved origins, and `localStorage` is shared across instances. This is a first-class path for an interactive block, but it needs alpha access and per-workspace install, so it does not fit "anyone can embed a link". Source: [Notion, Custom blocks security](https://developers.notion.com/custom-blocks/guides/security).
+- **Link Previews**: these are for "selected partner services" and use OAuth. Not applicable. Source: [Notion, Link previews](https://developers.notion.com/guides/link-previews/introduction).
+
+## 8. Hands-on test that settles the unverified items (about 1 hour)
+
+Deploy one HTTPS page, `/notion-probe`, with no `X-Frame-Options` and a permissive `frame-ancestors`, that shows on screen:
+
+1. `location.ancestorOrigins`, `document.referrer` and `window.origin` (detects a wrapper iframe or an opaque origin from the sandbox);
+2. a `try { localStorage.setItem/getItem }` result and a counter that persists across reloads;
+3. `document.cookie` after setting a `SameSite=None; Secure` cookie from the server;
+4. a draggable dot that logs pointer and touch events;
+5. an SSE or WebSocket connection status and a server-pushed tick;
+6. a button that posts resize messages to `parent`.
+
+Paste the URL with `/embed` into a Notion page. Open it in Notion web (Chrome, Safari, Firefox), the desktop app, the iOS app and the Android app, and inspect the iframe attributes in web DevTools. Record the results in this file.

@@ -1,0 +1,83 @@
+<!doctype html><html lang="sv"><head><meta charset="utf-8"><title>Ephemeris</title>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--rail:#1b1f4b;--ink:#161a3a;--mid:#5b6185;--hair:#cfd4e6;--ground:#f4f6fb;--card:#fff}
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;display:grid;grid-template-columns:248px 1fr;font-family:"Schibsted Grotesk",sans-serif;color:var(--ink);background:var(--ground);font-variant-numeric:tabular-nums}
+nav{background:var(--rail);color:#c9cdea;padding:28px 20px;display:flex;flex-direction:column;gap:4px}
+.mark{color:#fff;font-weight:700;font-size:24px;letter-spacing:-.01em;margin-bottom:28px;display:flex;align-items:center;gap:10px}
+.mark svg{width:26px;height:26px}
+nav h4{font-size:12px;font-weight:500;color:#8c92c4;margin:8px 0 6px;text-transform:none}
+nav a{display:block;padding:8px 10px;border-radius:6px;font-size:15px;color:#c9cdea;text-decoration:none}
+nav a.on{background:#2a2f66;color:#fff}
+nav a.sub{padding-left:22px;font-size:14px}
+nav a.sub.on{background:none;color:#fff;box-shadow:inset 2px 0 0 #8fa8ff}
+main{padding:28px 40px;display:grid;grid-template-rows:auto 1fr auto;gap:18px}
+.crumb{font-size:14px;color:var(--mid)}
+h1{font-size:34px;font-weight:700;letter-spacing:-.02em;margin-top:4px}
+.meta{font-size:14px;color:var(--mid);margin-top:6px}
+.work{display:grid;grid-template-columns:1fr 300px;gap:28px;min-height:0}
+.chart{background:var(--card);border:1px solid var(--hair);border-radius:10px;padding:18px 18px 8px}
+.list{background:var(--card);border:1px solid var(--hair);border-radius:10px;padding:16px 0}
+.list h3{font-size:14px;font-weight:500;color:var(--mid);padding:0 18px 10px;border-bottom:1px solid var(--hair)}
+.row{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:center;padding:11px 18px;border-bottom:1px solid #eef0f7;font-size:15px}
+.row i{width:12px;height:12px;border-radius:50%}
+.row small{display:block;font-size:12.5px;color:var(--mid)}
+.row b{font-weight:500}
+.row.sel{background:#f0f3ff}
+.ramp{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--mid)}
+.ramp span.bar{width:360px;height:8px;border-radius:4px;background:linear-gradient(90deg,#7a4fd6,#2f7fe0 50%,#0f9a6e)}
+button{font:inherit;font-size:14px;border:1px solid var(--hair);background:#fff;border-radius:6px;padding:7px 12px;color:var(--ink)}
+.top{display:flex;justify-content:space-between;align-items:flex-end}
+</style></head><body>
+<nav><div class="mark"><svg viewBox="0 0 26 26"><path d="M2 22 Q13 -2 24 22" fill="none" stroke="#8fa8ff" stroke-width="1.5"/><circle cx="13" cy="10" r="3" fill="#fff"/></svg>Apogee</div>
+<h4>Funktionsområden</h4>
+<a class="on" href="#">Kundupplevelse</a><a class="sub on" href="#">Nytt bokningsflöde</a><a class="sub" href="#">Lojalitetsprogram</a><a class="sub" href="#">Supportchatt</a>
+<a href="#">Plattform</a><a href="#">Ekonomi</a><a href="#">HR &amp; Personal</a></nav>
+<main>
+<div class="top"><div><div class="crumb">Kundupplevelse</div><h1>Nytt bokningsflöde</h1><div class="meta">7 Scopes · senast uppdaterad i dag 14:02 av Sara</div></div><div style="display:flex;gap:8px"><button>Historik</button><button>Dela</button><button>+ Scope</button></div></div>
+<div class="work"><div class="chart"><svg viewBox="0 0 920 430" width="100%">
+<g stroke="#e3e7f2" stroke-width="1"><line x1='40' y1='60' x2='40' y2='380'/>
+<line x1='124' y1='60' x2='124' y2='380'/>
+<line x1='208' y1='60' x2='208' y2='380'/>
+<line x1='292' y1='60' x2='292' y2='380'/>
+<line x1='376' y1='60' x2='376' y2='380'/>
+<line x1='460' y1='60' x2='460' y2='380'/>
+<line x1='544' y1='60' x2='544' y2='380'/>
+<line x1='628' y1='60' x2='628' y2='380'/>
+<line x1='712' y1='60' x2='712' y2='380'/>
+<line x1='796' y1='60' x2='796' y2='380'/>
+<line x1='880' y1='60' x2='880' y2='380'/></g>
+<line x1="40" y1="380" x2="880" y2="380" stroke="#161a3a" stroke-width="1"/>
+<g font-size="12" fill="#5b6185" text-anchor="middle"><line x1='40' y1='380' x2='40' y2='388' stroke='#161a3a'/><text x='40' y='404'>0</text>
+<line x1='124' y1='380' x2='124' y2='388' stroke='#161a3a'/><text x='124' y='404'>10</text>
+<line x1='208' y1='380' x2='208' y2='388' stroke='#161a3a'/><text x='208' y='404'>20</text>
+<line x1='292' y1='380' x2='292' y2='388' stroke='#161a3a'/><text x='292' y='404'>30</text>
+<line x1='376' y1='380' x2='376' y2='388' stroke='#161a3a'/><text x='376' y='404'>40</text>
+<line x1='460' y1='380' x2='460' y2='388' stroke='#161a3a'/><text x='460' y='404'>50</text>
+<line x1='544' y1='380' x2='544' y2='388' stroke='#161a3a'/><text x='544' y='404'>60</text>
+<line x1='628' y1='380' x2='628' y2='388' stroke='#161a3a'/><text x='628' y='404'>70</text>
+<line x1='712' y1='380' x2='712' y2='388' stroke='#161a3a'/><text x='712' y='404'>80</text>
+<line x1='796' y1='380' x2='796' y2='388' stroke='#161a3a'/><text x='796' y='404'>90</text>
+<line x1='880' y1='380' x2='880' y2='388' stroke='#161a3a'/><text x='880' y='404'>100</text></g>
+<text x="40" y="426" font-size="13" fill="#5b6185">Uppför · lista ut</text><text x="880" y="426" font-size="13" fill="#5b6185" text-anchor="end">Nedför · genomföra</text>
+<line x1="460" y1="64" x2="460" y2="80" stroke="#161a3a"/><text x="460" y="56" font-size="12" fill="#5b6185" text-anchor="middle">Krönet</text>
+<path d="M40.0,380.0 L48.4,379.7 L56.8,378.8 L65.2,377.3 L73.6,375.3 L82.0,372.7 L90.4,369.5 L98.8,365.7 L107.2,361.4 L115.6,356.6 L124.0,351.4 L132.4,345.6 L140.8,339.3 L149.2,332.7 L157.6,325.6 L166.0,318.2 L174.4,310.4 L182.8,302.3 L191.2,293.9 L199.6,285.2 L208.0,276.4 L216.4,267.3 L224.8,258.1 L233.2,248.8 L241.6,239.4 L250.0,230.0 L258.4,220.6 L266.8,211.2 L275.2,201.9 L283.6,192.7 L292.0,183.6 L300.4,174.8 L308.8,166.1 L317.2,157.7 L325.6,149.6 L334.0,141.8 L342.4,134.4 L350.8,127.3 L359.2,120.7 L367.6,114.4 L376.0,108.6 L384.4,103.4 L392.8,98.6 L401.2,94.3 L409.6,90.5 L418.0,87.3 L426.4,84.7 L434.8,82.7 L443.2,81.2 L451.6,80.3 L460.0,80.0 L468.4,80.3 L476.8,81.2 L485.2,82.7 L493.6,84.7 L502.0,87.3 L510.4,90.5 L518.8,94.3 L527.2,98.6 L535.6,103.4 L544.0,108.6 L552.4,114.4 L560.8,120.7 L569.2,127.3 L577.6,134.4 L586.0,141.8 L594.4,149.6 L602.8,157.7 L611.2,166.1 L619.6,174.8 L628.0,183.6 L636.4,192.7 L644.8,201.9 L653.2,211.2 L661.6,220.6 L670.0,230.0 L678.4,239.4 L686.8,248.8 L695.2,258.1 L703.6,267.3 L712.0,276.4 L720.4,285.2 L728.8,293.9 L737.2,302.3 L745.6,310.4 L754.0,318.2 L762.4,325.6 L770.8,332.7 L779.2,339.3 L787.6,345.6 L796.0,351.4 L804.4,356.6 L812.8,361.4 L821.2,365.7 L829.6,369.5 L838.0,372.7 L846.4,375.3 L854.8,377.3 L863.2,378.8 L871.6,379.7 L880.0,380.0" fill="none" stroke="#161a3a" stroke-width="1.5"/>
+<g fill="#7d8cc0"><circle cx="670" cy="230" r="2"/><circle cx="695" cy="258" r="2"/><circle cx="712" cy="276" r="2"/><circle cx="502" cy="87" r="2"/><circle cx="527" cy="99" r="2"/><circle cx="267" cy="211" r="2"/><circle cx="292" cy="184" r="2"/></g>
+<g stroke="#fff" stroke-width="2.5">
+<circle cx="141" cy="339" r="10" fill="#685bd8"/><circle cx="267" cy="211" r="10" fill="#5269db"/><circle cx="326" cy="150" r="10" fill="#4770dd"/><circle cx="443" cy="81" r="10" fill="#327de0"/><circle cx="552" cy="114" r="10" fill="#2885c7"/><circle cx="729" cy="294" r="13" fill="#1b9097" stroke="#161a3a" stroke-width="2"/><circle cx="838" cy="373" r="10" fill="#129779"/></g>
+<g font-size="14" fill="#161a3a">
+<text x="141" y="318" text-anchor="middle">Avbokning</text><text x="141" y="302" text-anchor="middle" font-size="12" fill="#b04a3a">oförändrad 3 v</text>
+<text x="250" y="190" text-anchor="end">Mobilvy</text><text x="310" y="132" text-anchor="end">Kalender-API</text><text x="443" y="60" text-anchor="middle" dy="-0">Tillgänglighet</text><text x="570" y="108">Prislogik</text><text x="748" y="290" font-weight="700">Betalsteg 82</text><text x="838" y="350" text-anchor="middle">Bekräftelsemejl</text></g>
+</svg></div>
+<div class="list"><h3>Scopes efter Läge</h3>
+<div class="row"><i style="background:#129779"></i><div><b>Bekräftelsemejl</b><small>Jonas</small></div>95</div>
+<div class="row sel"><i style="background:#1b9097"></i><div><b>Betalsteg</b><small>Sara</small></div>82</div>
+<div class="row"><i style="background:#2885c7"></i><div><b>Prislogik</b><small>Ahmed</small></div>61</div>
+<div class="row"><i style="background:#327de0"></i><div><b>Tillgänglighet</b><small>Lina</small></div>48</div>
+<div class="row"><i style="background:#4770dd"></i><div><b>Kalender-API</b><small>Erik</small></div>34</div>
+<div class="row"><i style="background:#5269db"></i><div><b>Mobilvy</b><small>Lina</small></div>27</div>
+<div class="row"><i style="background:#685bd8"></i><div><b>Avbokning</b><small>Ahmed</small></div>12</div>
+</div></div>
+<div class="ramp">Läge 0<span class="bar"></span>100 · färgen följer Läge · prickar = senaste veckans spår</div>
+</main></body></html>

@@ -1,0 +1,45 @@
+{
+  "title": "Apogee: bolder, more space",
+  "question": "Bolder hand, steered toward space. The deal leads with Uppskjutningstavlan; Stjärnatlas beat it on both axes. Pick, steer, or re-roll.",
+  "options": [
+    {
+      "id": "assigned", "kind": "assigned", "label": "Uppskjutningstavlan", "kicker": "THE ROLL",
+      "lineage": "Split-flap departure boards, translated into a launch site's board",
+      "thesis": "Each Projekt's hill is a launch trajectory lit lamp by lamp up to the apogee, and the Scopes sit on a split-flap board below.",
+      "palette": ["#0a0b0d", "#26282c", "#f1efe8", "#f2a33a", "#fff6dc", "#5fe0b0"],
+      "materials": ["brushed-steel board frame", "dot-matrix lamps tracing the hill", "black flap faces, white condensed letters"],
+      "viewport": "Steel nav rail of Funktionsområden; a lamp-matrix trajectory board with Scopes as lit squares (amber uphill → white at the apogee → green done); under it a split-flap table: Scope, Ägare, Läge, status (UPPFÖR, NEDFÖR, STILLA 21D in amber).",
+      "risk": "The space is in the trajectory and name, not a sky; on a phone the flap cells must collapse to plain rows.",
+      "raised": [
+        {"from": "challenger-acetate", "raise": "Each Funktionsområde gets its own full-strength hue on its rail tab."},
+        {"from": "challenger-airport", "raise": "The selected Scope's Läge shows at monumental scale."},
+        {"from": "challenger-annual", "raise": "Every board panel is ruled in 1px hairlines with registration crosshairs at its corners."},
+        {"from": "challenger-mascots", "raise": "Each Scope keeps fixed personal furniture: name, Ägare, Läge, days at Läge, always in the same cells."}
+      ],
+      "html": ".impeccable/mocks/decision/r2/assigned.html",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-split-flap-concourse-hero.webp"
+    },
+    {
+      "id": "challenger-staratlas", "kind": "challenger", "catalogId": "notation-diagram-systems-star-atlas",
+      "label": "Stjärnatlas", "verdict": "wins",
+      "lineage": "Celestial star atlases read under a red flashlight",
+      "thesis": "Each Projekt is a chart of the night sky: Scopes are stars on a graduated coordinate grid, their colour the star's spectral colour, their brightness how recently they moved.",
+      "palette": ["#081026", "#0b1530", "#eef0f5", "#e0503a", "#ff7a4d", "#fff1c9", "#8fb8ff"],
+      "materials": ["deep navy chart with a faint star field", "graduated Läge border and graticule", "italic serif star names, red-flashlight rings and annotations"],
+      "viewport": "Top bar of Funktionsområden; left, the Funktionsområde's Projekt as mini sky charts; centre, the Projekt's hill as a dashed orbit through the stars (orange-red uphill → pale gold crest → blue-white done), the selected Scope under a red reticle, a stuck one ringed in red with 'Ingen rörelse på 21 dagar'; right, an object index of Scopes.",
+      "case": "Wins audience (it is the space you asked for, and keeps Solbana's arc and Pulsar's overview of every Projekt) and clarity (dots on a hill, read at a glance).",
+      "risk": "Dark ground: needs a careful light variant for Notion embeds and bright meeting rooms.",
+      "html": ".impeccable/mocks/decision/r2/challenger-staratlas.html",
+      "hero": "https://impeccable.style/worlds/cards/notation-diagram-systems-star-atlas-hero.webp"
+    },
+    {"id": "challenger-acetate", "kind": "challenger", "catalogId": "rw-manual-acetate-tab-board", "label": "Acetate manual", "verdict": "declined", "lineage": "boxed-software manuals", "thesis": "Hued tab boards under clear acetate leaves.", "palette": ["#e8742c", "#f2c230", "#2f6fd1", "#f4f2ec"], "materials": ["acetate", "tab rail"], "viewport": "A tabbed manual.", "risk": "No space, no hill.", "case": "Loses both axes.", "kept": "One full-strength hue per Funktionsområde."},
+    {"id": "challenger-mascots", "kind": "challenger", "catalogId": "pop-culture-shelf-character-goods-catalog", "label": "Character goods catalog", "verdict": "declined", "lineage": "mascot catalogs", "thesis": "Ranked mascots with name plates.", "palette": ["#fde2e4", "#cde7f0", "#ffffff"], "materials": ["pastel grid", "keylines"], "viewport": "A mascot roster.", "risk": "The cute look you ruled out.", "case": "Loses both axes.", "kept": "Fixed personal furniture per Scope."},
+    {"id": "challenger-annual", "kind": "challenger", "catalogId": "design-annual-s-plate-section", "label": "Design annual plates", "verdict": "declined", "lineage": "design annuals", "thesis": "Registration furniture on near-white stock.", "palette": ["#f5f4f6", "#16181a", "#dcddf3"], "materials": ["crosshairs", "hairlines"], "viewport": "A plate section.", "risk": "A book, not space.", "case": "Loses both axes.", "kept": "Hairline rules and corner crosshairs."},
+    {"id": "challenger-airport", "kind": "challenger", "catalogId": "wayfinding-cartography-signage-terminal-yellow-wayfinding", "label": "Terminal wayfinding", "verdict": "declined", "lineage": "airport signage", "thesis": "Yellow bands, monumental gate numbers.", "palette": ["#ffcc00", "#111111", "#ffffff"], "materials": ["sign bands", "pictograms"], "viewport": "Overhead sign bands.", "risk": "No space.", "case": "Loses both axes.", "kept": "Monumental numerals for the selected Läge."}
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code"},
+  "canon": true,
+  "canonCard": {"kind": "canon", "label": "The category standard", "thesis": "A clean SaaS project tool.", "palette": ["#ffffff", "#111827", "#2563eb"], "materials": ["clean grid", "soft cards"], "viewport": "Sidebar, hill in a card, table below.", "risk": "You already passed on it.", "html": ".impeccable/mocks/decision/canon.html"},
+  "steer": true
+}

@@ -1,0 +1,90 @@
+{
+  "title": "Apogee: new hand, astronomer's charts",
+  "question": "You liked the astronomer's chart, so the whole hand is astronomical artifacts. The roll dealt Glasplåt. Keep it, take an alternate, or re-roll again.",
+  "options": [
+    {
+      "id": "assigned", "kind": "assigned", "label": "Glasplåt", "kicker": "THE ROLL",
+      "lineage": "Astrograph glass plates with the réseau grid and the plate computers' ink annotations",
+      "thesis": "Each Projekt is an exposed plate: Scopes are stars on glass, ringed in ink, and earlier exposures show where they were.",
+      "palette": ["#2b2723", "#e4e7df", "#14110f", "#c2452d", "#7b3f8c", "#2348a8"],
+      "materials": ["pale glass ground with a fine réseau grid", "black emulsion dots", "inked rings: madder → violet → ultramarine with Läge"],
+      "viewport": "Dark plate-envelope rail with Funktionsområden; the plate fills the work area with a label strip (plate number, exposed at, by whom); a plate log on the right lists Scopes by Läge with Ägare and a bar for time at the current Läge.",
+      "risk": "The ink ring is small; on a projector the Läge colour reads from the ring and label, not a filled dot.",
+      "raised": [
+        {"from": "challenger-feed", "raise": "The plate owns the work area; chrome stays out of its way."},
+        {"from": "challenger-gateboard", "raise": "A Scope that moved since you last looked keeps its ring lit until you have seen it."},
+        {"from": "challenger-laban", "raise": "Time at the current Läge is drawn as an exact-length bar in the log, so a stuck Scope is visible as length."}
+      ],
+      "html": ".impeccable/mocks/decision/r1/assigned.html"
+    },
+    {
+      "id": "model-pick", "kind": "pick", "label": "Solbana", "kicker": "IMPECCABLE’S PICK",
+      "lineage": "Sun-path diagrams and the almanac's sunrise–sunset tables",
+      "thesis": "The hill is the sun's arc: uphill is morning, the crest is noon, done is sunset.",
+      "palette": ["#1d2430", "#f4f6f8", "#3d6fc0", "#f2c14e", "#c8502c"],
+      "materials": ["sky band whose colour is the Läge scale", "night-blue horizon carrying the ticks", "each Scope a sun with a drop line to the horizon"],
+      "viewport": "Night-blue top bar with Funktionsområden; a sky band behind the hill runs dawn blue → noon gold → evening red, which is the Läge scale itself; a row of Scope cards under the horizon.",
+      "risk": "The most familiar of the hand, and the one most runs would land on; the sky band edges toward decoration if overdone.",
+      "html": ".impeccable/mocks/decision/r1/model-pick.html"
+    },
+    {
+      "id": "challenger-spectrogram", "kind": "challenger", "catalogId": "operate-c-emission-line-rail",
+      "label": "Spektrogram", "verdict": "competitive",
+      "lineage": "Glass spectrogram plates on a viewing box",
+      "thesis": "Each Scope is an emission line standing on the hill; Läge is wavelength, from violet to H-alpha red.",
+      "palette": ["#1e1e20", "#e8e3d6", "#8b5cf6", "#22c3b5", "#facc15", "#ef4444"],
+      "materials": ["banded charcoal continuum", "hairline emission lines", "one grotesk at one size"],
+      "viewport": "Charcoal shell; Scopes rise as coloured lines from the baseline to the hill; state is line form: a stuck Scope is dashed at half height, the latest change doubled.",
+      "case": "Holds audience: it is literally an astronomer's chart and the colour scale is physical. Loses on clarity: lines read less directly than dots and a dark screen suffers on a meeting-room projector.",
+      "risk": "Dark ground in bright meeting rooms and Notion's white pages.",
+      "html": ".impeccable/mocks/decision/r1/challenger-spectrogram.html",
+      "hero": "https://impeccable.style/worlds/cards/operate-c-emission-line-rail-hero.webp"
+    },
+    {
+      "id": "challenger-pulsar", "kind": "challenger", "catalogId": "brand-identity-canon-saville-catalog-sleeve",
+      "label": "Pulsar", "verdict": "competitive",
+      "lineage": "The CP 1919 pulsar plot, stacked white lines on black",
+      "thesis": "A Funktionsområde is a stack of pulses: every Projekt's hill one white line, each Scope a peak on it.",
+      "palette": ["#0b0b0c", "#f2f0ea", "#e0573b", "#e9e36a", "#3fa7c9", "#4466d6"],
+      "materials": ["white hairlines on matte black", "colour only as code blocks for the open Projekt"],
+      "viewport": "Black overview where all Projekt stack as ridgelines; the open Projekt is drawn heavier with its Scopes decoded into colour blocks above the peaks.",
+      "case": "Holds clarity for leaders scanning: one glance shows where every Projekt's work bunches. Loses audience: an album-cover reference, and dark again.",
+      "risk": "Peaks replace dots, so dragging a single Scope needs its own Projekt view.",
+      "html": ".impeccable/mocks/decision/r1/challenger-pulsar.html",
+      "hero": "https://impeccable.style/worlds/cards/brand-identity-canon-saville-catalog-sleeve-hero.webp"
+    },
+    {
+      "id": "challenger-feed", "kind": "challenger", "catalogId": "pop-culture-shelf-vertical-video-feed-surface",
+      "label": "Vertical feed", "verdict": "declined", "lineage": "short-video feeds",
+      "thesis": "One item owns the whole screen.", "palette": ["#000000", "#ffffff"], "materials": ["full-bleed media", "glyph rail"],
+      "viewport": "One Projekt per screen, snap to the next.", "risk": "No astronomy, no tie to the audience.",
+      "case": "Loses both axes.", "kept": "The chart owns the work area."
+    },
+    {
+      "id": "challenger-gateboard", "kind": "challenger", "catalogId": "vernacular-ephemera-boarding-pass-and-gate-board",
+      "label": "Boarding pass and gate board", "verdict": "declined", "lineage": "airport gate boards",
+      "thesis": "A changed row stays lit until you notice it.", "palette": ["#111111", "#f5f5f0", "#ffb000"], "materials": ["fixed column grid", "alert colour"],
+      "viewport": "Projekt as ranked rows.", "risk": "A table, not a hill.",
+      "case": "Loses both axes.", "kept": "Moved Scopes stay marked until seen."
+    },
+    {
+      "id": "challenger-laban", "kind": "challenger", "catalogId": "notation-diagram-systems-labanotation",
+      "label": "Labanotation", "verdict": "declined", "lineage": "dance scores",
+      "thesis": "Length is exact duration.", "palette": ["#ffffff", "#111111", "#bbbbbb"], "materials": ["centre staff", "shaded blocks"],
+      "viewport": "A vertical score.", "risk": "Unknown to the audience.",
+      "case": "Loses both axes.", "kept": "Time at a Läge drawn as exact length."
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code"},
+  "canon": true,
+  "canonCard": {
+    "kind": "canon", "label": "The category standard",
+    "thesis": "A clean SaaS project tool with a grey hill and blue dots.",
+    "palette": ["#ffffff", "#111827", "#2563eb", "#e5e7eb"], "materials": ["clean grid", "soft cards"],
+    "viewport": "Sidebar, hill chart in a card, Scope table below.",
+    "risk": "You already passed on it; indistinguishable from every project tool.",
+    "html": ".impeccable/mocks/decision/canon.html"
+  },
+  "steer": true
+}

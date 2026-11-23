@@ -1,0 +1,254 @@
+<!doctype html>
+<!-- PROTOTYPE, throwaway. Answers "what should Apogee look like" for the wayfinder ticket
+     "Visual direction and Läge colour scale". Open the file in a browser; nothing is saved.
+     Variants: ?variant=natt (default) and ?variant=dag (light, for Notion and bright rooms). -->
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Apogee · prototyp</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --dfont:600 36px/1.1 Barlow;--dtrack:-.01em;--dcase:none;--mfont:700 22px Barlow;
+  --bg:#081026;--panel:#0a1430;--chart:#0b1530;--line:#1f3160;--grid:#18284f;
+  --tx:#eef0f5;--mid:#aab6d4;--dim:#8f9cbd;--orbit:#7f92c2;--red:#e0503a;--redtx:#ff7a66;
+  --sel:#13224a;--halo:#0d1836;--star:#dfe6f5;--btn:#3a4d80;
+}
+[data-variant=dag]{
+  --bg:#eef2f9;--panel:#f6f8fc;--chart:#ffffff;--line:#d3dbea;--grid:#e6ebf4;
+  --tx:#0f1a3a;--mid:#4a5878;--dim:#5d6a88;--orbit:#8a9ac0;--red:#c8402b;--redtx:#b8381f;
+  --sel:#e6ecf8;--halo:#ffffff;--star:#9aa8c7;--btn:#b9c4dc;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--tx);font:400 15px/1.4 Barlow,sans-serif;font-variant-numeric:tabular-nums}
+::selection{background:var(--red);color:#fff}
+a{color:inherit}
+button{font:500 14px Barlow;color:var(--tx);background:none;border:1px solid var(--btn);padding:8px 14px;border-radius:2px;cursor:pointer}
+button:hover{border-color:var(--mid)}
+button.pr{background:var(--red);border-color:var(--red);color:#fff}
+button:focus-visible,a:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+header{height:56px;display:flex;align-items:center;gap:32px;padding:0 28px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:2}
+.mk{display:flex;align-items:center;gap:10px;font:var(--mfont);text-decoration:none}
+header nav{display:flex;gap:28px;font-weight:500}
+header nav a{color:var(--dim);text-decoration:none;padding:17px 0}
+header nav a.on{color:var(--tx);box-shadow:inset 0 -2px 0 var(--red)}
+.act{margin-left:auto;display:flex;gap:10px}
+.cap{font-weight:600;font-size:13px;color:var(--dim);margin-bottom:12px}
+h1{font:var(--dfont);letter-spacing:var(--dtrack);text-transform:var(--dcase)}
+.meta{font-size:14px;color:var(--dim)}
+/* projekt page */
+.grid{display:grid;grid-template-columns:236px 1fr 340px;min-height:calc(100vh - 56px)}
+aside.l{border-right:1px solid var(--line);padding:22px 18px}
+.pj{display:block;padding:10px 10px 4px;margin:0 -10px 6px;color:var(--mid);text-decoration:none;border:1px solid transparent}
+.pj:hover{border-color:var(--line)}
+.pj.on{color:var(--tx);border-color:var(--line);background:var(--sel)}
+main.chartwrap{padding:18px 22px 10px;background:var(--chart)}
+[data-variant=natt] main.chartwrap{background:radial-gradient(ellipse at 50% 60%,#11204a 0%,var(--chart) 55%,var(--bg) 100%)}
+.title{display:flex;justify-content:space-between;align-items:baseline;gap:16px}
+svg.hill{display:block;width:100%;height:auto;touch-action:none;user-select:none}
+.gt{font:500 13px Barlow;fill:var(--dim)}
+.sn{font:600 15px Barlow;fill:var(--tx);paint-order:stroke;stroke:var(--halo);stroke-width:5px;stroke-linejoin:round;pointer-events:none}
+.sm{font-weight:500;fill:var(--mid)}
+.red{font:500 14px Barlow;fill:var(--redtx)}
+g.scope{cursor:grab}
+g.scope.drag{cursor:grabbing}
+aside.r{border-left:1px solid var(--line);padding:22px 20px;background:var(--panel)}
+table{width:100%;border-collapse:collapse}
+td{padding:11px 4px;border-bottom:1px solid var(--line)}
+td i{display:inline-block;border-radius:50%;vertical-align:middle}
+td.n{font-weight:500;width:100%}
+td.o{color:var(--dim);font-size:13px}
+td.r{text-align:right;white-space:nowrap}
+td.warn{color:var(--redtx)}
+tr{cursor:pointer}
+tr.sel td{background:var(--sel)}
+.leg{margin-top:24px;border-top:1px solid var(--line);padding-top:16px}
+.spec{height:8px;margin:8px 0 6px}
+.ticks{display:flex;justify-content:space-between;font-size:13px;color:var(--dim)}
+.mag{display:flex;align-items:center;gap:16px;font-size:13px;color:var(--dim);margin-top:12px}
+.mag i{display:inline-block;border-radius:50%;background:var(--tx);margin-right:6px;vertical-align:middle}
+.hint{margin-top:18px;font-size:13px;color:var(--dim)}
+/* overview pages */
+.page{max-width:1240px;margin:0 auto;padding:36px 28px 80px}
+.page h1{margin-bottom:6px}
+.fo{margin-top:40px}
+.fo h2{font:600 18px Barlow;display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:6px}
+.fo h2 a{text-decoration:none}
+.fo h2 span{font:400 14px Barlow;color:var(--dim)}
+.cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0;border-left:1px solid var(--line)}
+.cell{display:block;padding:14px 16px 10px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);text-decoration:none;color:var(--tx)}
+.cell:hover{background:var(--sel)}
+.cell b{font-weight:600}
+.cell small{display:block;color:var(--dim);font-size:13px;margin-top:2px}
+.cell small.warn{color:var(--redtx)}
+.crumbs{font-size:14px;color:var(--dim);margin-bottom:6px}
+.crumbs a{text-decoration:none}
+/* prototype switcher, not part of the design */
+#proto{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;background:#fff;color:#111;border-radius:999px;padding:6px;box-shadow:0 6px 24px rgba(0,0,0,.35);font:600 13px system-ui;z-index:9}
+#proto button{all:unset;cursor:pointer;padding:6px 12px;border-radius:999px}
+#proto button:hover{background:#eee}
+#proto span{padding:0 6px}
+@media (max-width:900px){
+  .grid{grid-template-columns:1fr}
+  aside.l{display:none}
+  aside.r{border-left:0;border-top:1px solid var(--line)}
+  header{gap:16px;padding:0 16px;overflow-x:auto}
+  .act button:not(.pr){display:none}
+  h1{font-size:28px}
+}
+</style>
+</head>
+<body>
+<header>
+  <a class="mk" href="#/"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M11 1 L12.6 9.4 L21 11 L12.6 12.6 L11 21 L9.4 12.6 L1 11 L9.4 9.4Z" fill="var(--red)"/></svg>Apogee</a>
+  <nav id="topnav"></nav>
+  <div class="act" id="actions"></div>
+</header>
+<div id="app"></div>
+<div id="proto"><button id="pv" aria-label="Föregående variant">←</button><span id="pl"></span><button id="pn" aria-label="Nästa variant">→</button></div>
+<script>
+// ---------- invented sample data (synthetic, not real Projekt) ----------
+const DATA = [
+ {id:"ku", namn:"Kundupplevelse", projekt:[
+  {id:"bok", namn:"Nytt bokningsflöde", uppd:"23 nov 14:02 av Sara", scopes:[
+   ["Avbokning","Ahmed",12,21],["Mobilvy","Lina",27,2],["Kalender-API","Erik",34,6],["Tillgänglighet","Lina",48,1],
+   ["Prislogik","Ahmed",61,2],["Betalsteg","Sara",82,0],["Bekräftelsemejl","Jonas",95,1]]},
+  {id:"loj", namn:"Lojalitetsprogram", uppd:"20 nov 09:40 av Erik", scopes:[["Poängregler","Erik",8,9],["Medlemssida","Maja",15,3],["Partnerdata","Jonas",22,16],["Utskick","Maja",30,4]]},
+  {id:"sup", namn:"Supportchatt", uppd:"22 nov 16:15 av Lina", scopes:[["Kö-logik","Lina",55,2],["Botsvar","Omar",70,1],["Överlämning","Lina",78,5],["Statistik","Omar",88,1],["Mallar","Sara",96,0]]},
+  {id:"sjv", namn:"Självservice", uppd:"21 nov 11:05 av Maja", scopes:[["Ändra bokning","Maja",40,3],["Kvitton","Ahmed",46,2],["Kontoinställningar","Maja",52,7]]}]},
+ {id:"pl", namn:"Plattform", projekt:[
+  {id:"inl", namn:"Inloggning 2.0", uppd:"23 nov 08:30 av Omar", scopes:[["BankID","Omar",64,1],["Sessioner","Erik",72,2],["Migrering","Omar",18,24]]},
+  {id:"bet", namn:"Betaltjänst", uppd:"19 nov 13:20 av Jonas", scopes:[["Swish","Jonas",85,4],["Kort","Jonas",90,4],["Återbetalning","Sara",36,6]]},
+  {id:"sok", namn:"Sökindex", uppd:"22 nov 10:00 av Erik", scopes:[["Indexering","Erik",44,2],["Synonymer","Lina",26,8]]}]},
+ {id:"ek", namn:"Ekonomi", projekt:[
+  {id:"fak", namn:"Fakturering", uppd:"18 nov 15:45 av Ahmed", scopes:[["E-faktura","Ahmed",58,5],["Påminnelser","Maja",33,11],["Export","Ahmed",77,5]]},
+  {id:"bud", namn:"Budgetverktyg", uppd:"23 nov 12:10 av Maja", scopes:[["Prognoser","Maja",20,1],["Rapporter","Omar",9,2]]}]},
+ {id:"hr", namn:"HR & Personal", projekt:[
+  {id:"rek", namn:"Rekrytering", uppd:"21 nov 09:00 av Sara", scopes:[["Annonsflöde","Sara",68,3],["Intervjubokning","Lina",50,2]]},
+  {id:"onb", namn:"Onboarding", uppd:"17 nov 14:30 av Jonas", scopes:[["Checklista","Jonas",92,6],["Utrustning","Erik",80,6],["Introdag","Sara",99,6],["Mentorer","Jonas",72,18]]}]}
+];
+DATA.forEach(f=>f.projekt.forEach(p=>p.scopes=p.scopes.map(([namn,agare,lage,dagar])=>({namn,agare,lage,dagar}))));
+
+// ---------- variant switcher ----------
+const VARIANTS=[["natt","Natt"],["dag","Dag (Notion)"]];
+const qs=new URLSearchParams(location.search);
+let vi=Math.max(0,VARIANTS.findIndex(v=>v[0]===qs.get("variant")));
+function setVariant(i){vi=(i+VARIANTS.length)%VARIANTS.length;document.documentElement.dataset.variant=VARIANTS[vi][0];
+  document.getElementById("pl").textContent="Variant: "+VARIANTS[vi][1];
+  const u=new URL(location);u.searchParams.set("variant",VARIANTS[vi][0]);history.replaceState(null,"",u);render();}
+document.getElementById("pv").onclick=()=>setVariant(vi-1);
+document.getElementById("pn").onclick=()=>setVariant(vi+1);
+addEventListener("keydown",e=>{if(e.target.closest("input,textarea,[contenteditable]"))return;
+  if(e.key==="ArrowLeft")setVariant(vi-1);if(e.key==="ArrowRight")setVariant(vi+1);});
+
+// ---------- Läge colour: spectral ramp ----------
+const RAMP={natt:[[0,"#ff7a4d"],[25,"#ffb36b"],[50,"#fff1c9"],[75,"#cfe0ff"],[100,"#8fb8ff"]],
+            dag:[[0,"#d9481f"],[25,"#e08a1e"],[50,"#c9a21a"],[75,"#5a86d6"],[100,"#2f5fc4"]]};
+const hx=s=>[1,3,5].map(i=>parseInt(s.slice(i,i+2),16));
+function lageColour(L){const st=RAMP[VARIANTS[vi][0]];
+  for(let i=0;i<st.length-1;i++){const[a,ca]=st[i],[b,cb]=st[i+1];if(L>=a&&L<=b){const t=(L-a)/(b-a),A=hx(ca),B=hx(cb);
+    return"#"+A.map((v,k)=>Math.round(v+(B[k]-v)*t).toString(16).padStart(2,"0")).join("");}}}
+const rampCss=()=>"linear-gradient(90deg,"+RAMP[VARIANTS[vi][0]].map(([p,c])=>c+" "+p+"%").join(",")+")";
+const H=L=>(1-Math.cos(2*Math.PI*L/100))/2;
+const radius=d=>d<=1?9:d<=6?7.5:5;
+const sizeDot=d=>d<=1?8:d<=6?6:4;
+
+// ---------- routing ----------
+const app=document.getElementById("app");
+addEventListener("hashchange",render);
+function route(){const p=location.hash.replace(/^#\/?/,"").split("/").filter(Boolean);
+  const fo=DATA.find(f=>f.id===p[0]);const pj=fo&&fo.projekt.find(x=>x.id===p[1]);return{fo,pj};}
+let selected=null;
+
+function render(){
+  const{fo,pj}=route();
+  document.getElementById("topnav").innerHTML=DATA.map(f=>`<a href="#/${f.id}" class="${fo&&fo.id===f.id?"on":""}">${f.namn}</a>`).join("");
+  document.getElementById("actions").innerHTML=pj?`<button>Historik</button><button>Bädda in</button><button class="pr">Ny Scope</button>`:fo?`<button class="pr">Nytt Projekt</button>`:`<button class="pr">Nytt Funktionsområde</button>`;
+  if(pj)renderProjekt(fo,pj);else if(fo)renderFo(fo);else renderStart();
+}
+
+function mini(p,w=180,h=50){
+  const path=Array.from({length:26},(_,j)=>{const L=j*4;return(j?"L":"M")+(6+(w-12)*L/100).toFixed(1)+","+(h-8-(h-18)*H(L)).toFixed(1)}).join(" ");
+  const dots=p.scopes.map(s=>`<circle cx="${(6+(w-12)*s.lage/100).toFixed(1)}" cy="${(h-8-(h-18)*H(s.lage)).toFixed(1)}" r="${s.dagar>14?1.8:2.6}" fill="${lageColour(s.lage)}"/>`).join("");
+  return`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><path d="${path}" fill="none" stroke="var(--orbit)" stroke-width=".8" opacity=".7"/>${dots}</svg>`;
+}
+const stuckCount=p=>p.scopes.filter(s=>s.dagar>14).length;
+function cell(fo,p){const st=stuckCount(p);
+  return`<a class="cell" href="#/${fo.id}/${p.id}">${mini(p)}<b>${p.namn}</b><small class="${st?"warn":""}">${p.scopes.length} Scopes${st?` · ${st} stilla`:""}</small></a>`;}
+
+function renderStart(){
+  app.innerHTML=`<div class="page"><h1>Alla Funktionsområden</h1><div class="meta">${DATA.reduce((n,f)=>n+f.projekt.length,0)} Projekt · prickarna är Scopes, färgen följer Läge</div>
+  ${DATA.map(f=>`<section class="fo"><h2><a href="#/${f.id}">${f.namn}</a><span>${f.projekt.length} Projekt</span></h2><div class="cells">${f.projekt.map(p=>cell(f,p)).join("")}</div></section>`).join("")}</div>`;
+}
+function renderFo(fo){
+  app.innerHTML=`<div class="page"><div class="crumbs"><a href="#/">Alla Funktionsområden</a></div><h1>${fo.namn}</h1><div class="meta">${fo.projekt.length} Projekt</div>
+  <section class="fo"><div class="cells">${fo.projekt.map(p=>cell(fo,p)).join("")}</div></section></div>`;
+}
+
+// ---------- Projekt page with draggable stars ----------
+const X0=70,W=760,BASE=560,HT=380;
+const P=L=>[X0+W*L/100,BASE-HT*H(L)];
+let field="";
+{let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+ for(let i=0;i<70;i++)field+=`<circle cx="${(20+rnd()*860).toFixed(0)}" cy="${(40+rnd()*560).toFixed(0)}" r="${[.6,.8,1,1.3][Math.floor(rnd()*4)]}" fill="var(--star)" opacity="${(.08+rnd()*.17).toFixed(2)}"/>`;}
+
+function renderProjekt(fo,pj){
+  if(!selected||!pj.scopes.includes(selected))selected=null;
+  app.innerHTML=`<div class="grid">
+   <aside class="l"><div class="cap"><a href="#/${fo.id}" style="text-decoration:none">${fo.namn}</a> · Projekt</div>
+     ${fo.projekt.map(p=>`<a class="pj ${p===pj?"on":""}" href="#/${fo.id}/${p.id}"><span>${p.namn}</span>${mini(p,160,46)}</a>`).join("")}</aside>
+   <main class="chartwrap"><div class="title"><h1>${pj.namn}</h1><span class="meta" id="upd">Uppdaterad ${pj.uppd}</span></div>
+     <svg class="hill" id="hill" viewBox="0 0 900 640" role="img" aria-label="Hill chart för ${pj.namn}"></svg></main>
+   <aside class="r"><div class="cap">Scopes</div><table id="idx"></table>
+     <div class="leg"><div class="cap">Färgen följer Läge</div><div class="spec" style="background:${rampCss()}"></div>
+     <div class="ticks"><span>0 uppför</span><span>50 krön</span><span>100 klar</span></div>
+     <div class="mag"><span><i style="width:8px;height:8px"></i>rörd i dag</span><span><i style="width:6px;height:6px"></i>i veckan</span><span><i style="width:4px;height:4px"></i>stilla</span></div></div>
+     <div class="hint">Dra en stjärna längs banan för att ändra dess Läge.</div></aside></div>`;
+  drawChart(pj);drawIndex(pj);
+}
+
+function drawChart(pj){
+  const svg=document.getElementById("hill");
+  let s=field;
+  for(let i=0;i<=10;i++){const x=X0+W*i/10;s+=`<line x1="${x}" y1="40" x2="${x}" y2="${BASE}" stroke="var(--grid)"/>`;}
+  s+=`<rect x="${X0}" y="40" width="${W}" height="${BASE-40}" fill="none" stroke="var(--line)"/>`;
+  for(let j=0;j<=100;j+=5){const x=X0+W*j/100,l=j%10?5:10;s+=`<line x1="${x}" y1="${BASE}" x2="${x}" y2="${BASE+l}" stroke="var(--dim)"/>`;
+    if(j%10===0)s+=`<text class="gt" x="${x}" y="${BASE+26}" text-anchor="middle">${j}</text>`;}
+  s+=`<path d="${Array.from({length:201},(_,j)=>(j?"L":"M")+P(j/2).map(v=>v.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="var(--orbit)" stroke-width="1.4"/>`;
+  s+=`<text class="gt" x="${X0}" y="${BASE+50}">← Uppför · lista ut</text><text class="gt" x="${X0+W}" y="${BASE+50}" text-anchor="end">Nedför · genomföra →</text>`;
+  s+=pj.scopes.map((sc,i)=>starSvg(sc,i)).join("");
+  svg.innerHTML=s;
+  svg.querySelectorAll("g.scope").forEach(g=>{
+    const sc=pj.scopes[+g.dataset.i];
+    g.addEventListener("pointerdown",e=>{e.preventDefault();g.setPointerCapture(e.pointerId);g.classList.add("drag");selected=sc;drawIndex(pj);
+      const move=ev=>{const pt=svg.createSVGPoint();pt.x=ev.clientX;pt.y=ev.clientY;const loc=pt.matrixTransform(svg.getScreenCTM().inverse());
+        const L=Math.round(Math.min(100,Math.max(0,(loc.x-X0)/W*100)));
+        if(L!==sc.lage){sc.lage=L;sc.dagar=0;g.innerHTML=starInner(sc);drawIndex(pj);
+          document.getElementById("upd").textContent="Uppdaterad nu";}};
+      const up=()=>{g.classList.remove("drag");g.removeEventListener("pointermove",move);g.removeEventListener("pointerup",up);drawChart(pj);};
+      g.addEventListener("pointermove",move);g.addEventListener("pointerup",up);});
+  });
+}
+function labelPos(L,x,y){if(L>=88)return[x-14,y-24,"end"];if(L<45)return[x-14,y-12,"end"];if(L<56)return[x,y-22,"middle"];return[x+14,y-12,"start"];}
+function starInner(sc){
+  const[x,y]=P(sc.lage),c=lageColour(sc.lage),r=radius(sc.dagar),[tx,ty,an]=labelPos(sc.lage,x,y);
+  let s=`<circle cx="${x}" cy="${y}" r="${r*2.6}" fill="${c}" opacity=".13"/><circle cx="${x}" cy="${y}" r="${Math.max(r,16)}" fill="transparent"/><circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>`;
+  if(sc===selected)s+=`<circle cx="${x}" cy="${y}" r="20" fill="none" stroke="var(--red)" stroke-width="1.2"/>`;
+  if(sc.dagar>14)s+=`<circle cx="${x}" cy="${y}" r="14" fill="none" stroke="var(--red)" stroke-width="1.1" stroke-dasharray="3 3"/>
+    <polyline points="${x+12},${y+10} ${x+60},${y+52} ${x+232},${y+52}" fill="none" stroke="var(--red)" stroke-width="1.1"/><text class="red" x="${x+64}" y="${y+46}">Ingen rörelse på ${sc.dagar} dagar</text>`;
+  s+=`<text class="sn" x="${tx}" y="${ty}" text-anchor="${an}">${sc.namn} <tspan class="sm">${sc.lage}</tspan></text>`;
+  return s;
+}
+const starSvg=(sc,i)=>`<g class="scope" data-i="${i}" tabindex="0" aria-label="${sc.namn}, Läge ${sc.lage}">${starInner(sc)}</g>`;
+function drawIndex(pj){
+  const t=document.getElementById("idx");
+  t.innerHTML=[...pj.scopes].sort((a,b)=>b.lage-a.lage).map(s=>`<tr class="${s===selected?"sel":""}" data-n="${s.namn}"><td><i style="background:${lageColour(s.lage)};width:${sizeDot(s.dagar)}px;height:${sizeDot(s.dagar)}px"></i></td><td class="n">${s.namn}</td><td class="o">${s.agare}</td><td class="r"><b>${s.lage}</b></td><td class="r o ${s.dagar>14?"warn":""}">${s.dagar} d</td></tr>`).join("");
+  t.querySelectorAll("tr").forEach(tr=>tr.onclick=()=>{selected=pj.scopes.find(s=>s.namn===tr.dataset.n);drawChart(pj);drawIndex(pj);});
+}
+setVariant(vi);
+if(!location.hash)location.hash="#/ku/bok";
+</script>
+</body>
+</html>

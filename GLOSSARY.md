@@ -21,3 +21,12 @@ _Avoid_: Position
 
 **Uppdatering**: One recorded edit to a Hill chart, such as a Scope changing Läge, or a Scope being added, renamed or removed. Records what changed, when, and optionally the name of whoever made it.
 _Avoid_: Move, Change
+
+**Historik**: All Uppdateringar of one Hill chart, oldest to newest. Never edited or shortened; the Hill chart is what you get by applying them in order.
+_Avoid_: Log, Versioner
+
+**Återställning**: An Uppdatering that puts the whole Hill chart back to how it looked right after an earlier Uppdatering. Everything since then is undone in one step, and still stays in the Historik.
+_Avoid_: Rollback, Revert
+
+**Ångra**: An Uppdatering that takes back one earlier Uppdatering and leaves later ones in place. Not possible if something it changed has been changed again since.
+_Avoid_: Undo (in the UI)

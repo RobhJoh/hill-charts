@@ -1,5 +1,5 @@
 // Plain-Swedish text for Historik rows (what happened), used by HistorikPanel.
-import type { HistorikRad, Milstolpe, PersonVy, Ändring } from "../../core/index.js";
+import { UPPDATERING_TYP, type HistorikRad, type Milstolpe, type PersonVy, type Ändring } from "../../core/index.js";
 import { visaDatum } from "./datum.js";
 
 /** Shown for legacy edits without a Signatur. */
@@ -62,14 +62,14 @@ export const beskrivAlla = (rad: HistorikRad<PersonVy>, namn: Namn): string[] =>
 
 /** The row's title after who did it, e.g. "flyttade Prislista 38 → 64". */
 export function beskrivRad(rad: HistorikRad<PersonVy>, namn: Namn): string {
-  if (rad.typ === "återställning") return "återställde diagrammet";
-  if (rad.typ === "ångra") return "ångrade en Uppdatering";
+  if (rad.typ === UPPDATERING_TYP.återställning) return "återställde diagrammet";
+  if (rad.typ === UPPDATERING_TYP.ångra) return "ångrade en Uppdatering";
   const p = rad.projekt;
   if (p?.efter.startdatum && p.efter.slutdatum && rad.ändringar.length === 0) {
     const verb = p.före.startdatum && p.före.slutdatum ? "flyttade" : "satte";
     return `${verb} datumen till ${visaDatum(p.efter.startdatum)} – ${visaDatum(p.efter.slutdatum)}`;
   }
-  if (rad.typ === "överlämning" && rad.ändringar[0]?.före && rad.ändringar[0].efter) {
+  if (rad.typ === UPPDATERING_TYP.överlämning && rad.ändringar[0]?.före && rad.ändringar[0].efter) {
     const { före, efter } = rad.ändringar[0];
     const n = rad.ändringar.length;
     return `lämnade över ${n === 1 ? före.namn : `${n} Scopes`} från ${namn(före.ägare)} till ${namn(efter.ägare)}`;

@@ -1,4 +1,4 @@
-import { HISTORIK_TYP, diagramEfter, lika, nuvarande, senastFlyttad, återställHit, ångraEn } from "./diagram.js";
+import { diagramEfter, lika, nuvarande, senastFlyttad, återställHit, ångraEn } from "./diagram.js";
 import { DomainError } from "./errors.js";
 import { historikRader, type HistorikRad } from "./historik.js";
 import { annonseraUppdateringar } from "./live.js";
@@ -19,6 +19,7 @@ import {
 } from "./datum.js";
 import { dagarSedan, fältLika, projektFält, ärAvslutat, ärPågående, ärStilla } from "./status.js";
 import type { Storage } from "./storage.js";
+import { PERSON_HÄNDELSE_TYP, UPPDATERING_TYP } from "./typer.js";
 import type {
   Borttagen,
   Datum,
@@ -272,26 +273,6 @@ function lägeFrån(input: number): number {
   }
   return Math.min(100, Math.max(0, Math.round(input)));
 }
-
-/** Uppdatering types written by the Scope commands. */
-export const SCOPE_TYP = {
-  ny: "ny",
-  flytt: "flytt",
-  bytNamn: "byt namn",
-  bytÄgare: "byt ägare",
-  taBort: "ta bort",
-} as const;
-
-/** Uppdatering type written when a removed Person's Scopes are handed over. */
-export const ÖVERLÄMNING_TYP = "överlämning";
-
-/** Uppdatering types written by the Projekt-level commands. */
-export const PROJEKT_TYP = {
-  avslutat: "avslutat",
-  öppnaIgen: "öppna igen",
-  datum: "datum",
-  milstolpe: "milstolpe",
-} as const;
 
 const svenskOrdning = new Intl.Collator("sv");
 const efterNamn = (a: { namn: string }, b: { namn: string }) => svenskOrdning.compare(a.namn, b.namn);
@@ -585,7 +566,7 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
       const signerad = all.length > 0 ? requireSignatur(all, vem).id : null;
       requireLedigtNamn(all, giltigt);
       const person: Person = { id: newId(), namn: giltigt, aktiv: true, skapad: now().toISOString() };
-      return sparaPerson(all, person, "ny", signerad);
+      return sparaPerson(all, person, PERSON_HÄNDELSE_TYP.ny, signerad);
     },
 
     /** Renames a Person everywhere (Historik refers to the id); writes no Uppdatering. */
@@ -595,7 +576,7 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
       const giltigt = namnFrån(namn);
       const person = requirePerson(all, id);
       requireLedigtNamn(all, giltigt, id);
-      return sparaPerson(all, { ...person, namn: giltigt }, "byt namn", signerad.id);
+      return sparaPerson(all, { ...person, namn: giltigt }, PERSON_HÄNDELSE_TYP.bytNamn, signerad.id);
     },
 
     /**
@@ -618,9 +599,9 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
         const ändringar = Object.entries(nuvarande(logg))
           .filter(([, s]) => s.ägare === id)
           .map(([scopeId, före]) => ({ scopeId, före, efter: { ...före, ägare: mottagare } }));
-        if (ändringar.length) uppdateringar.push(await skriv(p.id, ÖVERLÄMNING_TYP, ändringar, signerad.id));
+        if (ändringar.length) uppdateringar.push(await skriv(p.id, UPPDATERING_TYP.överlämning, ändringar, signerad.id));
       }
-      await sparaPerson(all, { ...person, aktiv: false }, "ta bort", signerad.id, { nyÄgare: mottagare });
+      await sparaPerson(all, { ...person, aktiv: false }, PERSON_HÄNDELSE_TYP.taBort, signerad.id, { nyÄgare: mottagare });
       return uppdateringar;
     },
 
@@ -630,7 +611,7 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
       const signerad = requireSignatur(all, vem);
       const person = requirePerson(all, id);
       if (person.aktiv) throw new DomainError("ogiltig", `${person.namn} är redan aktiv`);
-      return sparaPerson(all, { ...person, aktiv: true }, "återaktivera", signerad.id);
+      return sparaPerson(all, { ...person, aktiv: true }, PERSON_HÄNDELSE_TYP.återaktivera, signerad.id);
     },
 
     /** The Personer-historik, oldest first. There is no Ångra for these. */
@@ -888,24 +869,24 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
       const efter: ScopeValues = { namn: namnFrån(namn), läge: 0, ägare: requireÄgare(personer, ägare) };
       await requireProjekt(projektId);
       const id = newId();
-      const uppdatering = await skriv(projektId, SCOPE_TYP.ny, [{ scopeId: id, före: null, efter }], signerad.id);
+      const uppdatering = await skriv(projektId, UPPDATERING_TYP.ny, [{ scopeId: id, före: null, efter }], signerad.id);
       return { id, uppdatering };
     },
 
     /** Moves a Scope to a new Läge (clamped to 0–100). Null when it is already there. */
     async moveScope(projektId: ProjektId, scopeId: ScopeId, läge: number, vem: PersonId | null) {
       const nytt = lägeFrån(läge);
-      return ändraScope(projektId, scopeId, SCOPE_TYP.flytt, vem, (s) => ({ ...s, läge: nytt }));
+      return ändraScope(projektId, scopeId, UPPDATERING_TYP.flytt, vem, (s) => ({ ...s, läge: nytt }));
     },
 
     async renameScope(projektId: ProjektId, scopeId: ScopeId, namn: string, vem: PersonId | null) {
       const nytt = namnFrån(namn);
-      return ändraScope(projektId, scopeId, SCOPE_TYP.bytNamn, vem, (s) => ({ ...s, namn: nytt }));
+      return ändraScope(projektId, scopeId, UPPDATERING_TYP.bytNamn, vem, (s) => ({ ...s, namn: nytt }));
     },
 
     /** Hands a Scope to another active Person. The Ägare can never be cleared. */
     async changeScopeÄgare(projektId: ProjektId, scopeId: ScopeId, ägare: PersonId, vem: PersonId | null) {
-      return ändraScope(projektId, scopeId, SCOPE_TYP.bytÄgare, vem, (s, personer) => ({
+      return ändraScope(projektId, scopeId, UPPDATERING_TYP.bytÄgare, vem, (s, personer) => ({
         ...s,
         ägare: requireÄgare(personer, ägare),
       }));
@@ -913,7 +894,7 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
 
     /** Marks a Projekt Avslutat whatever its Scopes' Läge. Null when already marked. */
     async markAvslutat(projektId: ProjektId, vem: PersonId | null) {
-      return ändraProjekt(projektId, PROJEKT_TYP.avslutat, "avslutat", true, vem);
+      return ändraProjekt(projektId, UPPDATERING_TYP.avslutat, "avslutat", true, vem);
     },
 
     /**
@@ -921,7 +902,7 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
      * with every Scope at Läge 100 (or none) stays Avslutat.
      */
     async reopenProjekt(projektId: ProjektId, vem: PersonId | null) {
-      return ändraProjekt(projektId, PROJEKT_TYP.öppnaIgen, "avslutat", false, vem);
+      return ändraProjekt(projektId, UPPDATERING_TYP.öppnaIgen, "avslutat", false, vem);
     },
 
     /**
@@ -931,7 +912,7 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
      * Projekt: the Uppdatering, or null when nothing changed. Funktionsområde: null.
      */
     async setDatum(mål: Mål, input: DatumInput, vem: PersonId | null) {
-      return ändraTidsplan(mål, PROJEKT_TYP.datum, (t) => nyaDatum(t, input), vem);
+      return ändraTidsplan(mål, UPPDATERING_TYP.datum, (t) => nyaDatum(t, input), vem);
     },
 
     /** Adds a Milstolpe (name and date). */
@@ -946,7 +927,7 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
       const ny: Milstolpe = { id: newId(), ...giltig };
       const uppdatering = await ändraTidsplan(
         mål,
-        PROJEKT_TYP.milstolpe,
+        UPPDATERING_TYP.milstolpe,
         (t) => ({ milstolpar: iOrdning([...t.milstolpar, ny]) }),
         vem,
       );
@@ -964,7 +945,7 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
       const datum = ändring.datum === undefined ? undefined : datumFrån(ändring.datum);
       return ändraTidsplan(
         mål,
-        PROJEKT_TYP.milstolpe,
+        UPPDATERING_TYP.milstolpe,
         (t) => ({
           milstolpar: ändraMilstolpe(t.milstolpar, id, (m) => ({ ...m, namn: namn ?? m.namn, datum: datum ?? m.datum })),
         }),
@@ -975,7 +956,7 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
     async removeMilstolpe(mål: Mål, id: MilstolpeId, vem: PersonId | null) {
       return ändraTidsplan(
         mål,
-        PROJEKT_TYP.milstolpe,
+        UPPDATERING_TYP.milstolpe,
         (t) => ({ milstolpar: ändraMilstolpe(t.milstolpar, id, () => null) }),
         vem,
       );
@@ -983,7 +964,7 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
 
     /** Removes a Scope. Its id stays in the Historik, so Ångra can bring it back. */
     async removeScope(projektId: ProjektId, scopeId: ScopeId, vem: PersonId | null) {
-      return ändraScope(projektId, scopeId, SCOPE_TYP.taBort, vem, () => null);
+      return ändraScope(projektId, scopeId, UPPDATERING_TYP.taBort, vem, () => null);
     },
 
     // --- Historik: view, Visa, Återställning and Ångra (#35) ---
@@ -1032,7 +1013,7 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
       const { logg, index } = await historikMed(projektId, mål);
       const ä = återställHit(logg, index);
       if (!ä) return null;
-      return skriv(projektId, HISTORIK_TYP.återställning, ä.ändringar, signerad.id, ä.projekt, mål);
+      return skriv(projektId, UPPDATERING_TYP.återställning, ä.ändringar, signerad.id, ä.projekt, mål);
     },
 
     /**
@@ -1050,7 +1031,7 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
           `Går inte att ångra bara den här: ${skäl}. Använd Återställ hit på Uppdateringen före i stället, eller ändra för hand.`,
         );
       }
-      return skriv(projektId, HISTORIK_TYP.ångra, resultat.ändringar, signerad.id, resultat.projekt, mål);
+      return skriv(projektId, UPPDATERING_TYP.ångra, resultat.ändringar, signerad.id, resultat.projekt, mål);
     },
   };
 }

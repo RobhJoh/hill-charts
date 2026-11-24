@@ -1,6 +1,7 @@
 // The Historik panel's read model: rows grouped for the view, with the
 // "bortåterställd" and "ångrad" tags. Pure; the core resolves Personer.
-import { bortåterställda, gruppera, HISTORIK_TYP } from "./diagram.js";
+import { bortåterställda, gruppera } from "./diagram.js";
+import { UPPDATERING_TYP } from "./typer.js";
 import type { PersonId, Uppdatering, UppdateringId, Ändring } from "./types.js";
 
 /** One row in the Historik panel: one Uppdatering, or a merged run of moves ("N drag"). */
@@ -33,7 +34,7 @@ export type HistorikRad<V> = {
 /** The Historik rows, newest first. `vem` resolves a Signatur for display. */
 export function historikRader<V>(logg: readonly Uppdatering[], vem: (id: PersonId) => V): HistorikRad<V>[] {
   const skippade = bortåterställda(logg);
-  const ångrade = new Set(logg.filter((u) => u.typ === HISTORIK_TYP.ångra).map((u) => u.mål));
+  const ångrade = new Set(logg.filter((u) => u.typ === UPPDATERING_TYP.ångra).map((u) => u.mål));
   return gruppera(logg)
     .map(({ start, slut }): HistorikRad<V> => {
       const del = logg.slice(start, slut + 1);

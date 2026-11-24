@@ -2,6 +2,7 @@
 // prototype/historik branch). Pure functions over Uppdateringar; no storage.
 // Återställning, Ångra and the Historik view grouping build on these.
 import { fältLika, projektFält } from "./status.js";
+import { UPPDATERING_TYP } from "./typer.js";
 import type { ProjektFält, ScopeId, ScopeValues, Uppdatering, UppdateringId, Ändring } from "./types.js";
 
 /** What an Återställning or Ångra writes: Scope changes and, if any, Projekt-field changes. */
@@ -147,14 +148,6 @@ export function ångraEn(logg: readonly Uppdatering[], index: number): ÅngraRes
 /** A run of Uppdateringar shown as one Historik row: indexes `start`..`slut` (inclusive). */
 export type Grupp = { start: number; slut: number };
 
-/** Uppdatering types written by Återställning and Ångra. */
-export const HISTORIK_TYP = {
-  återställning: "återställning",
-  ångra: "ångra",
-} as const;
-
-/** The Uppdatering type of a move (SCOPE_TYP.flytt); only moves are merged in the Historik view. */
-const FLYTT = "flytt";
 /** How close in time consecutive moves must be to merge ("N drag"). */
 export const DRAG_FÖNSTER_MS = 10 * 60_000;
 
@@ -165,7 +158,7 @@ export const DRAG_FÖNSTER_MS = 10 * 60_000;
  */
 export function gruppera(logg: readonly Uppdatering[], fönsterMs = DRAG_FÖNSTER_MS): Grupp[] {
   const grupper: Grupp[] = [];
-  const ärFlytt = (u: Uppdatering) => u.typ === FLYTT && u.ändringar.length === 1;
+  const ärFlytt = (u: Uppdatering) => u.typ === UPPDATERING_TYP.flytt && u.ändringar.length === 1;
   logg.forEach((u, i) => {
     const g = grupper.at(-1);
     const förra = g && logg[g.slut]!;
@@ -187,7 +180,7 @@ export function gruppera(logg: readonly Uppdatering[], fönsterMs = DRAG_FÖNSTE
 export function bortåterställda(logg: readonly Uppdatering[]): Set<UppdateringId> {
   const ids = new Set<UppdateringId>();
   logg.forEach((u, i) => {
-    if (u.typ !== HISTORIK_TYP.återställning) return;
+    if (u.typ !== UPPDATERING_TYP.återställning) return;
     const m = logg.findIndex((x) => x.id === u.mål);
     for (let k = m + 1; k < i; k++) ids.add(logg[k]!.id);
   });

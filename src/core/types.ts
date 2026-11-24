@@ -57,7 +57,8 @@ export type Person = {
 };
 
 /** What happened to a Person, as recorded in the Personer-historik. */
-export type PersonHändelseTyp = "ny" | "byt namn" | "ta bort" | "återaktivera";
+export type { PersonHändelseTyp } from "./typer.js";
+import type { PersonHändelseTyp } from "./typer.js";
 
 /**
  * One change to Personer: who (Signatur), what, when, and the name before and

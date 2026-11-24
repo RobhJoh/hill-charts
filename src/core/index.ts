@@ -1,6 +1,8 @@
-export { createApogee, PROJEKT_TYP, SCOPE_TYP, ÖVERLÄMNING_TYP } from "./apogee.js";
+export { createApogee } from "./apogee.js";
+export { PERSON_HÄNDELSE_TYP, UPPDATERING_TYP } from "./typer.js";
+export type { UppdateringTyp } from "./typer.js";
 export { diagramEfter, lika, nuvarande, senastFlyttad, tillämpa, SCOPE_FÄLT } from "./diagram.js";
-export { återställHit, ångraEn, gruppera, bortåterställda, HISTORIK_TYP, DRAG_FÖNSTER_MS } from "./diagram.js";
+export { återställHit, ångraEn, gruppera, bortåterställda, DRAG_FÖNSTER_MS } from "./diagram.js";
 export type { Diagram, Grupp, Krock, ÅngraResultat } from "./diagram.js";
 export { historikRader } from "./historik.js";
 export type { HistorikRad } from "./historik.js";

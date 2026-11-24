@@ -3,7 +3,7 @@
   // Add, rename, remove (handover of their Scopes in Pågående Projekt),
   // Återaktivera, and the Personer-historik. Nothing here has an Ångra.
   // Each Person shows their load (story 78) and links to their Stjärnkarta.
-  import type { PersonHändelse, PersonRad, PersonVy } from "../../core/index.js";
+  import { PERSON_HÄNDELSE_TYP, type PersonHändelse, type PersonRad, type PersonVy } from "../../core/index.js";
   import { api, ApiError } from "../lib/api.js";
   import { lägeFärg } from "../lib/hill.js";
   import { personHref } from "../lib/links.js";
@@ -136,10 +136,10 @@
   }
 
   const VAD: Record<PersonHändelse["typ"], string> = {
-    ny: "lade till",
-    "byt namn": "bytte namn på",
-    "ta bort": "tog bort",
-    återaktivera: "återaktiverade",
+    [PERSON_HÄNDELSE_TYP.ny]: "lade till",
+    [PERSON_HÄNDELSE_TYP.bytNamn]: "bytte namn på",
+    [PERSON_HÄNDELSE_TYP.taBort]: "tog bort",
+    [PERSON_HÄNDELSE_TYP.återaktivera]: "återaktiverade",
   };
   const tidFormat = new Intl.DateTimeFormat("sv-SE", { dateStyle: "medium", timeStyle: "short" });
 </script>
@@ -258,7 +258,7 @@
             <span>
               <strong>{namnPå(h.vem)}</strong>
               {VAD[h.typ]}
-              {#if h.typ === "byt namn"}
+              {#if h.typ === PERSON_HÄNDELSE_TYP.bytNamn}
                 <strong>{h.förraNamn}</strong> → <strong>{h.nyttNamn}</strong>
               {:else}
                 <strong>{h.nyttNamn}</strong>

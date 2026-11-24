@@ -33,6 +33,11 @@ export const tema = {
       // Storage unavailable: the choice lasts for this page load only.
     }
   },
+  /** Shows `t` without remembering it (the Notion embed is always `dag`). */
+  visa(t: Tema) {
+    nu = t;
+    tillämpa(t);
+  },
   växla() {
     this.sätt(nu === "natt" ? "dag" : "natt");
   },

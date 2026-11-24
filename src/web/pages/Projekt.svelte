@@ -12,6 +12,7 @@
   import TaBort from "../components/TaBort.svelte";
   import Borttaget from "../components/Borttaget.svelte";
   import KopieraLank from "../components/KopieraLank.svelte";
+  import BaddaIn from "../components/BaddaIn.svelte";
   import { api, ApiError } from "../lib/api.js";
   import { följProjekt, liveUrl } from "../lib/live.js";
   import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
@@ -240,6 +241,7 @@
           <button class="quiet" onclick={() => (läge = "byt namn")}>Byt namn</button>
           <button class="quiet" onclick={öppnaFlytta}>Flytta</button>
           <KopieraLank href={projektHref(projekt)} />
+          <BaddaIn namn={projekt.namn} href={projektHref(projekt)} />
           <TaBort
             fråga="Ta bort {projekt.namn} med {projekt.scopes.length} {projekt.scopes.length === 1 ? 'Scope' : 'Scopes'}?"
             ontabort={taBortProjekt}

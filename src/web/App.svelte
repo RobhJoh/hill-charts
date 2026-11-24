@@ -5,6 +5,7 @@
   import Projekt from "./pages/Projekt.svelte";
   import Personer from "./pages/Personer.svelte";
   import Saknas from "./pages/Saknas.svelte";
+  import Embed from "./pages/Embed.svelte";
   import VemStrip from "./components/VemStrip.svelte";
   import { laddaPersoner, signatur } from "./lib/signatur.svelte.js";
   import { tema } from "./lib/tema.svelte.js";
@@ -21,6 +22,10 @@
   });
 </script>
 
+{#if route.sida === "embed"}
+  <!-- The Notion embed is its own small page: no site header, its own Signatur strip. -->
+  {#key route.id}<Embed id={route.id} />{/key}
+{:else}
 <header>
   <a class="mk" href="/">
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
@@ -80,6 +85,7 @@
 </main>
 
 <VemStrip />
+{/if}
 
 <style>
   header {

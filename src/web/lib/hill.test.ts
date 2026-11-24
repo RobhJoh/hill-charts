@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lägeFärg, placeraEtiketter, punkt, lägeFrånX, type Etikett } from "./hill.js";
+import { kompaktRuta, lägeFärg, placeraEtiketter, punkt, lägeFrånX, type Etikett } from "./hill.js";
 
 describe("colour from Läge", () => {
   it("follows the Stjärnatlas ramp for each theme", () => {
@@ -25,6 +25,18 @@ describe("chart geometry", () => {
     expect(lägeFrånX(77.6)).toBe(1);
     expect(lägeFrånX(0)).toBe(0);
     expect(lägeFrånX(900)).toBe(100);
+  });
+
+  it("fits the embed's compact hill to whatever box it gets, in pixels", () => {
+    const ruta = kompaktRuta(600, 270);
+    expect(punkt(0, ruta)).toEqual([18, 248]);
+    expect(punkt(50, ruta)).toEqual([300, 24]);
+    expect(punkt(100, ruta)).toEqual([582, 248]);
+    expect(lägeFrånX(18 + 564 / 4, ruta)).toBe(25);
+    expect(lägeFrånX(599, ruta)).toBe(100);
+    // A very low box still has a hill.
+    const låg = kompaktRuta(300, 40);
+    expect(låg.bas - punkt(50, låg)[1]).toBe(20);
   });
 });
 
@@ -52,5 +64,22 @@ describe("label placement", () => {
         if (a !== b) expect(överlappar(a, b), `${a.id} / ${b.id}`).toBe(false);
       }
     }
+  });
+
+  it("keeps labels inside a compact box, sized for its smaller type", () => {
+    const ruta = kompaktRuta(400, 260);
+    const etiketter = placeraEtiketter(
+      [2, 30, 50, 70, 98].map((läge, i) => ({ id: `s${i}`, läge, text: `Scope ${i} ${läge}` })),
+      ruta,
+    );
+    for (const e of etiketter) {
+      expect(e.ruta.x, e.id).toBeGreaterThanOrEqual(0);
+      expect(e.ruta.x + e.ruta.b, e.id).toBeLessThanOrEqual(400);
+      expect(e.ruta.y, e.id).toBeGreaterThanOrEqual(0);
+    }
+    // 13px labels are narrower than the big chart's 15px ones.
+    const [stor] = placeraEtiketter([{ id: "a", läge: 70, text: "Prislista 70" }]);
+    const [liten] = placeraEtiketter([{ id: "a", läge: 70, text: "Prislista 70" }], ruta);
+    expect(liten!.ruta.b).toBeLessThan(stor!.ruta.b);
   });
 });

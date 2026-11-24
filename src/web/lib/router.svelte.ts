@@ -6,6 +6,7 @@ export type Route =
   | { sida: "start" }
   | { sida: "funktionsområde"; id: string }
   | { sida: "projekt"; id: string }
+  | { sida: "embed"; id: string }
   | { sida: "personer" }
   | { sida: "saknas" };
 
@@ -14,6 +15,7 @@ export function parse(pathname: string): Route {
   if (parts.length === 0) return { sida: "start" };
   if (parts.length === 2 && parts[0] === "f") return { sida: "funktionsområde", id: idFrånSegment(parts[1]!) };
   if (parts.length === 2 && parts[0] === "p") return { sida: "projekt", id: idFrånSegment(parts[1]!) };
+  if (parts.length === 3 && parts[0] === "p" && parts[2] === "embed") return { sida: "embed", id: idFrånSegment(parts[1]!) };
   // Inställningar holds only Personer in v1.
   if (parts[0] === "installningar" && (parts.length === 1 || (parts.length === 2 && parts[1] === "personer"))) {
     return { sida: "personer" };

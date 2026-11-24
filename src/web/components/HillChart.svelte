@@ -7,15 +7,20 @@
   // Drag by mouse or touch; with the keyboard, focus a star and use the arrow
   // keys (Shift = 10 steps, Home/End = 0/100), Enter or leaving commits,
   // Escape cancels. Each commit is one call to `onflytta`.
+  //
+  // `kompakt` is the Notion embed's hill (#43): it fills its box in real
+  // pixels (13px type at any size), with no starfield, grid or axis.
   import type { ScopeVy } from "../../core/index.js";
   import {
     RUTA,
     dagarSedan,
+    kompaktRuta,
     lägeFrånX,
     lägeFärg,
     placeraEtiketter,
     punkt,
     radie,
+    type Ruta,
     type Tema,
   } from "../lib/hill.js";
 
@@ -27,6 +32,7 @@
     markerade = [],
     nu = new Date(),
     etiketter = true,
+    kompakt = false,
     onvälj,
     onflytta,
   }: {
@@ -40,8 +46,10 @@
     markerade?: string[];
     /** "Now", for star size by days since moved. */
     nu?: Date;
-    /** Draw star labels (the embed's narrow layout may turn them off). */
-    etiketter?: boolean;
+    /** Draw star labels: all, none, or only the selected star's ("valt", the embed beside its list). */
+    etiketter?: boolean | "valt";
+    /** The embed's compact hill, filling its box. */
+    kompakt?: boolean;
     onvälj?: (id: string | null) => void;
     /** Commit a new Läge. Leave out for a read-only chart. Rejecting snaps the star back. */
     onflytta?: (id: string, läge: number) => Promise<unknown> | void;
@@ -49,10 +57,17 @@
 
   const { x0: X0, w: W, bas: BASE, topp: TOPP } = RUTA;
 
-  const orbit = Array.from({ length: 201 }, (_, j) => {
-    const [x, y] = punkt(j / 2);
-    return `${j ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(" ");
+  /** The compact hill's box, measured. */
+  let boxBredd = $state(0);
+  let boxHöjd = $state(0);
+  const ruta: Ruta = $derived(kompakt ? kompaktRuta(Math.max(boxBredd, 120), Math.max(boxHöjd, 80)) : RUTA);
+
+  const orbit = $derived(
+    Array.from({ length: 201 }, (_, j) => {
+      const [x, y] = punkt(j / 2, ruta);
+      return `${j ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(" "),
+  );
   const ticks = Array.from({ length: 21 }, (_, i) => i * 5);
 
   // A deterministic starfield, so it never jumps on re-render.
@@ -77,16 +92,22 @@
   const stjärnor = $derived(
     scopes.map((s) => {
       const läge = visatLäge(s);
-      const [x, y] = punkt(läge);
-      return { s, läge, x, y, r: radie(dagarSedan(s.flyttad, nu)), färg: lägeFärg(läge, tema) };
+      const [x, y] = punkt(läge, ruta);
+      const r = radie(dagarSedan(s.flyttad, nu)) * (kompakt ? 0.78 : 1);
+      return { s, läge, x, y, r, färg: lägeFärg(läge, tema) };
     }),
   );
 
   const placerade = $derived.by(() => {
     if (!etiketter) return new Map();
     // The selected star's label gets first pick, then left to right.
-    const ordning = [...stjärnor].sort((a, b) => Number(b.s.id === valt) - Number(a.s.id === valt) || a.läge - b.läge);
-    const lista = placeraEtiketter(ordning.map((t) => ({ id: t.s.id, läge: t.läge, text: `${t.s.namn} ${t.läge}` })));
+    const ordning = [...stjärnor]
+      .filter((t) => etiketter !== "valt" || t.s.id === valt)
+      .sort((a, b) => Number(b.s.id === valt) - Number(a.s.id === valt) || a.läge - b.läge);
+    const lista = placeraEtiketter(
+      ordning.map((t) => ({ id: t.s.id, läge: t.läge, text: `${t.s.namn} ${t.läge}` })),
+      ruta,
+    );
     return new Map(lista.map((e) => [e.id, e]));
   });
 
@@ -94,21 +115,27 @@
     const ctm = svg!.getScreenCTM();
     if (!ctm) return 0;
     const p = new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse());
-    return lägeFrånX(p.x);
+    return lägeFrånX(p.x, ruta);
   }
+
+  /** Stars whose drop is being written (or held for a Signatur). */
+  const skickas = new Set<string>();
 
   async function släpp(s: ScopeVy) {
     const läge = pågående[s.id];
-    if (läge === undefined) return;
+    // Already committing: e.g. the star lost focus to the Signatur strip.
+    if (läge === undefined || skickas.has(s.id)) return;
     if (läge === s.läge || !onflytta) {
       delete pågående[s.id];
       return;
     }
+    skickas.add(s.id);
     try {
       await onflytta(s.id, läge);
     } catch {
       // Not saved (e.g. the Signatur was abandoned): snap back.
     } finally {
+      skickas.delete(s.id);
       delete pågående[s.id];
     }
   }
@@ -179,30 +206,39 @@
   }
 </script>
 
+<div class="box" class:kompakt bind:clientWidth={boxBredd} bind:clientHeight={boxHöjd}>
 <svg
   bind:this={svg}
-  viewBox="0 0 {RUTA.bredd} {RUTA.höjd}"
+  viewBox="0 0 {ruta.bredd} {ruta.höjd}"
   role="group"
   aria-label="Hill chart för {namn}"
   class:redigerbar={!!onflytta}
 >
-  {#each himmel as h, i (i)}
-    <circle cx={h.cx} cy={h.cy} r={h.r} opacity={h.o} fill="var(--star)" />
-  {/each}
-  {#each Array.from({ length: 11 }, (_, i) => X0 + (W * i) / 10) as x (x)}
-    <line x1={x} y1={TOPP} x2={x} y2={BASE} stroke="var(--grid)" />
-  {/each}
-  <rect x={X0} y={TOPP} width={W} height={BASE - TOPP} fill="none" stroke="var(--line)" />
-  {#each ticks as läge (läge)}
-    {@const x = X0 + (W * läge) / 100}
-    <line x1={x} y1={BASE} x2={x} y2={BASE + (läge % 10 ? 5 : 10)} stroke="var(--dim)" />
-    {#if läge % 10 === 0}
-      <text class="gt" {x} y={BASE + 26} text-anchor="middle">{läge}</text>
-    {/if}
-  {/each}
-  <path d={orbit} fill="none" stroke="var(--orbit)" stroke-width="1.4" />
-  <text class="gt" x={X0} y={BASE + 50}>← Uppför · lista ut</text>
-  <text class="gt" x={X0 + W} y={BASE + 50} text-anchor="end">Nedför · genomföra →</text>
+  {#if kompakt}
+    {@const [kx] = punkt(50, ruta)}
+    <line x1={ruta.x0} y1={ruta.bas} x2={ruta.x0 + ruta.w} y2={ruta.bas} stroke="var(--line)" />
+    <line x1={kx} y1={ruta.topp} x2={kx} y2={ruta.bas} stroke="var(--grid)" stroke-dasharray="2 3" />
+  {:else}
+    {#each himmel as h, i (i)}
+      <circle cx={h.cx} cy={h.cy} r={h.r} opacity={h.o} fill="var(--star)" />
+    {/each}
+    {#each Array.from({ length: 11 }, (_, i) => X0 + (W * i) / 10) as x (x)}
+      <line x1={x} y1={TOPP} x2={x} y2={BASE} stroke="var(--grid)" />
+    {/each}
+    <rect x={X0} y={TOPP} width={W} height={BASE - TOPP} fill="none" stroke="var(--line)" />
+    {#each ticks as läge (läge)}
+      {@const x = X0 + (W * läge) / 100}
+      <line x1={x} y1={BASE} x2={x} y2={BASE + (läge % 10 ? 5 : 10)} stroke="var(--dim)" />
+      {#if läge % 10 === 0}
+        <text class="gt" {x} y={BASE + 26} text-anchor="middle">{läge}</text>
+      {/if}
+    {/each}
+  {/if}
+  <path d={orbit} fill="none" stroke="var(--orbit)" stroke-width={kompakt ? 1.3 : 1.4} />
+  {#if !kompakt}
+    <text class="gt" x={X0} y={BASE + 50}>← Uppför · lista ut</text>
+    <text class="gt" x={X0 + W} y={BASE + 50} text-anchor="end">Nedför · genomföra →</text>
+  {/if}
 
   {#each stjärnor as { s, läge, x, y, r, färg } (s.id)}
     {@const e = placerade.get(s.id)}
@@ -224,16 +260,21 @@
       onfocus={() => onvälj?.(s.id)}
       onblur={() => blur(s)}
     >
-      <circle cx={x} cy={y} r={r * 2.6} fill={färg} opacity=".13" />
+      {#if kompakt}
+        <title>{s.namn} · {s.ägare.namn} · Läge {läge}{s.stilla ? ` · stilla i ${s.stillaDagar} dagar` : ""}</title>
+      {/if}
+      <circle cx={x} cy={y} r={r * (kompakt ? 2.4 : 2.6)} fill={färg} opacity=".13" />
       <circle cx={x} cy={y} r={Math.max(r, 16)} fill="transparent" />
       <circle cx={x} cy={y} {r} fill={färg} />
       {#if s.id === valt}
-        <circle class="ring" cx={x} cy={y} r="20" />
+        <circle class="ring" cx={x} cy={y} r={kompakt ? 13 : 20} />
       {/if}
       {#if markerade.includes(s.id)}
         <circle class="markerad" cx={x} cy={y} r="25" />
       {/if}
-      {#if s.stilla && pågående[s.id] === undefined}
+      {#if kompakt && s.stilla && pågående[s.id] === undefined}
+        <circle class="stilla" cx={x} cy={y} r="10" />
+      {:else if s.stilla && pågående[s.id] === undefined}
         <!-- Stuck: dashed red ring and a leader to the note, turned away from the frame's edges. -->
         {@const dx = x > 600 ? -1 : 1}
         {@const dy = y > 470 ? -1 : 1}
@@ -255,6 +296,7 @@
     </g>
   {/each}
 </svg>
+</div>
 
 <style>
   svg {
@@ -263,6 +305,21 @@
     height: auto;
     user-select: none;
     -webkit-user-select: none;
+  }
+  .kompakt {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 80px;
+  }
+  .kompakt svg {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+  }
+  .kompakt .sn {
+    font-size: 13px;
+    stroke-width: 4px;
   }
   svg.redigerbar {
     touch-action: none;

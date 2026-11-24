@@ -17,4 +17,5 @@ export { randomId } from "./ids.js";
 export type { UppdateringLyssnare } from "./live.js";
 export { slug, funktionsområdeHref, projektHref, personHref, idFrånSegment } from "./links.js";
 export { dagarMellan, idagFrån, plusDagar } from "./datum.js";
+export { dagarSedan } from "./status.js";
 export type { DatumInput, Nedräkning, NästaMilstolpe } from "./datum.js";

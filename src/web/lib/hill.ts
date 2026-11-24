@@ -96,8 +96,8 @@ export function radie(dagar: number): number {
   return 5;
 }
 
-export const dagarSedan = (iso: string, nu: Date) =>
-  Math.max(0, Math.floor((nu.getTime() - Date.parse(iso)) / 86_400_000));
+/** Whole days since a time: the core's rule, so star size and "stuck" agree. */
+export { dagarSedan } from "../../core/index.js";
 
 // ---------- labels ----------
 

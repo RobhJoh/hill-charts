@@ -92,9 +92,8 @@ export function createApogee({ storage, now, newId }: ApogeeDeps) {
       const all = await storage.listPersoner();
       if (all.length > 0) requireSignatur(all, vem);
       const nyckel = giltigt.toLocaleLowerCase("sv");
-      if (all.some((p) => p.namn.toLocaleLowerCase("sv") === nyckel)) {
-        throw new DomainError("finns-redan", `Det finns redan en Person som heter ${giltigt}`);
-      }
+      const finns = all.find((p) => p.namn.toLocaleLowerCase("sv") === nyckel);
+      if (finns) throw new DomainError("finns-redan", `Det finns redan en Person som heter ${finns.namn}`);
       const person: Person = { id: newId(), namn: giltigt, aktiv: true, skapad: now().toISOString() };
       await storage.savePersoner([...all, person]);
       return personVy(person);

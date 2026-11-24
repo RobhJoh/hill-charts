@@ -1,5 +1,14 @@
-// Thin client for the JSON API in src/server/http.ts.
-import type { Funktionsområde, FunktionsområdeVy, Projekt, ProjektVy, Översikt } from "../../core/index.js";
+// Thin client for the JSON API in src/server/http.ts. Writes take the
+// Signatur (`vem`, a Person id) and send it in the Apogee-Signatur header;
+// pages get it from `signatur.signera` in signatur.svelte.ts.
+import type {
+  Funktionsområde,
+  FunktionsområdeVy,
+  PersonVy,
+  Projekt,
+  ProjektVy,
+  Översikt,
+} from "../../core/index.js";
 
 export class ApiError extends Error {
   constructor(
@@ -11,10 +20,13 @@ export class ApiError extends Error {
   }
 }
 
-async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function call<T>(method: string, path: string, body?: unknown, vem?: string | null): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers["content-type"] = "application/json";
+  if (vem) headers["apogee-signatur"] = vem;
   const res = await fetch(`/api${path}`, {
     method,
-    headers: body === undefined ? {} : { "content-type": "application/json" },
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const text = await res.text();
@@ -23,19 +35,24 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   return data as T;
 }
 
+const enc = encodeURIComponent;
+
 export const api = {
   overview: () => call<Översikt>("GET", "/oversikt"),
-  getFunktionsområde: (id: string) =>
-    call<FunktionsområdeVy>("GET", `/funktionsomraden/${encodeURIComponent(id)}`),
-  getProjekt: (id: string) => call<ProjektVy>("GET", `/projekt/${encodeURIComponent(id)}`),
+  getFunktionsområde: (id: string) => call<FunktionsområdeVy>("GET", `/funktionsomraden/${enc(id)}`),
+  getProjekt: (id: string) => call<ProjektVy>("GET", `/projekt/${enc(id)}`),
+  listPersoner: () => call<PersonVy[]>("GET", "/personer"),
 
-  createFunktionsområde: (namn: string) => call<Funktionsområde>("POST", "/funktionsomraden", { namn }),
-  renameFunktionsområde: (id: string, namn: string) =>
-    call<void>("PATCH", `/funktionsomraden/${encodeURIComponent(id)}`, { namn }),
-  createProjekt: (funktionsområdeId: string, namn: string) =>
-    call<Projekt>("POST", "/projekt", { funktionsområdeId, namn }),
-  renameProjekt: (id: string, namn: string) =>
-    call<void>("PATCH", `/projekt/${encodeURIComponent(id)}`, { namn }),
-  moveProjekt: (id: string, funktionsområdeId: string) =>
-    call<void>("PATCH", `/projekt/${encodeURIComponent(id)}`, { funktionsområdeId }),
+  /** `vem` is null only when adding the first Person to an empty list. */
+  createPerson: (namn: string, vem: string | null) => call<PersonVy>("POST", "/personer", { namn }, vem),
+  createFunktionsområde: (namn: string, vem: string) =>
+    call<Funktionsområde>("POST", "/funktionsomraden", { namn }, vem),
+  renameFunktionsområde: (id: string, namn: string, vem: string) =>
+    call<void>("PATCH", `/funktionsomraden/${enc(id)}`, { namn }, vem),
+  createProjekt: (funktionsområdeId: string, namn: string, vem: string) =>
+    call<Projekt>("POST", "/projekt", { funktionsområdeId, namn }, vem),
+  renameProjekt: (id: string, namn: string, vem: string) =>
+    call<void>("PATCH", `/projekt/${enc(id)}`, { namn }, vem),
+  moveProjekt: (id: string, funktionsområdeId: string, vem: string) =>
+    call<void>("PATCH", `/projekt/${enc(id)}`, { funktionsområdeId }, vem),
 };

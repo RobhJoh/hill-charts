@@ -3,6 +3,7 @@
   import NamnForm from "../components/NamnForm.svelte";
   import ProjektCells from "../components/ProjektCells.svelte";
   import { api } from "../lib/api.js";
+  import { signatur } from "../lib/signatur.svelte.js";
   import { funktionsområdeHref } from "../lib/links.js";
 
   let översikt = $state<Översikt | undefined>();
@@ -21,7 +22,7 @@
   const antalProjekt = $derived(översikt?.reduce((n, fo) => n + fo.projekt.length, 0) ?? 0);
 
   async function skapa(namn: string) {
-    await api.createFunktionsområde(namn);
+    await signatur.signera((vem) => api.createFunktionsområde(namn, vem));
     skapar = false;
     await load();
   }

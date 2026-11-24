@@ -3,9 +3,21 @@
   import Start from "./pages/Start.svelte";
   import Funktionsomrade from "./pages/Funktionsomrade.svelte";
   import Projekt from "./pages/Projekt.svelte";
+  import Personer from "./pages/Personer.svelte";
   import Saknas from "./pages/Saknas.svelte";
+  import VemStrip from "./components/VemStrip.svelte";
+  import { laddaPersoner, signatur } from "./lib/signatur.svelte.js";
 
   const route = $derived(router.route);
+
+  // Load Personer so the header can show the remembered Signatur.
+  laddaPersoner().catch(() => {});
+
+  // An edit held for a Signatur is thrown away when its page is left.
+  $effect(() => {
+    void router.route;
+    return () => signatur.avbryt();
+  });
 </script>
 
 <header>
@@ -15,6 +27,33 @@
     </svg>
     Apogee
   </a>
+  <div class="right">
+    {#if signatur.person}
+      <label class="sig">
+        <span class="cap">Signatur</span>
+        <select
+          value={signatur.person.id}
+          onchange={(e) => signatur.välj(e.currentTarget.value)}
+          aria-label="Byt signatur"
+        >
+          {#each signatur.aktiva as p (p.id)}<option value={p.id}>{p.namn}</option>{/each}
+        </select>
+      </label>
+    {/if}
+    <a
+      class="gear"
+      href="/installningar/personer"
+      title="Inställningar"
+      aria-label="Inställningar"
+      aria-current={route.sida === "personer" ? "page" : undefined}
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6">
+        <circle cx="12" cy="12" r="3.2" />
+        <circle cx="12" cy="12" r="6.6" />
+        <path d="M12 2.4v3M12 18.6v3M2.4 12h3M18.6 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M5.2 18.8l2.1-2.1M16.7 7.3l2.1-2.1" />
+      </svg>
+    </a>
+  </div>
 </header>
 
 <main>
@@ -24,10 +63,14 @@
     {#key route.id}<Funktionsomrade id={route.id} />{/key}
   {:else if route.sida === "projekt"}
     {#key route.id}<Projekt id={route.id} />{/key}
+  {:else if route.sida === "personer"}
+    <Personer />
   {:else}
     <Saknas />
   {/if}
 </main>
+
+<VemStrip />
 
 <style>
   header {
@@ -49,9 +92,36 @@
     font: 700 22px Barlow, system-ui, sans-serif;
     text-decoration: none;
   }
+  .right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+  .sig {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sig select {
+    padding: 4px 8px;
+    max-width: 180px;
+  }
+  .gear {
+    display: flex;
+    color: var(--dim);
+    padding: 6px;
+  }
+  .gear:hover,
+  .gear[aria-current="page"] {
+    color: var(--tx);
+  }
   @media (max-width: 900px) {
     header {
       padding: 0 16px;
+    }
+    .sig .cap {
+      display: none;
     }
   }
 </style>

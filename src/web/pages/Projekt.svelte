@@ -3,6 +3,7 @@
   import EmptyHill from "../components/EmptyHill.svelte";
   import NamnForm from "../components/NamnForm.svelte";
   import { api, ApiError } from "../lib/api.js";
+  import { signatur } from "../lib/signatur.svelte.js";
   import { funktionsområdeHref, projektHref } from "../lib/links.js";
   import { router } from "../lib/router.svelte.js";
   import Saknas from "./Saknas.svelte";
@@ -28,7 +29,7 @@
   load();
 
   async function bytNamn(namn: string) {
-    await api.renameProjekt(id, namn);
+    await signatur.signera((vem) => api.renameProjekt(id, namn, vem));
     await load();
     läge = "visa";
     if (projekt) router.navigate(projektHref(projekt), { replace: true });
@@ -45,7 +46,7 @@
     event.preventDefault();
     if (!flyttaTill) return;
     try {
-      await api.moveProjekt(id, flyttaTill);
+      await signatur.signera((vem) => api.moveProjekt(id, flyttaTill, vem));
       await load();
       läge = "visa";
     } catch (e) {

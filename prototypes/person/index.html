@@ -1,0 +1,423 @@
+<!doctype html>
+<!-- PROTOTYP, throwaway, never merge. Answers the wayfinder ticket "Per-person view: everything one Ägare owns".
+     Open the file in a browser; nothing is saved. Built inside the Stjärnatlas shell (prototype/stjarnatlas).
+     Three variants of the per-person page, switchable via ?variant=A|B|C (bottom bar, or ← →).
+     ?tema=dag for the light theme. Sample data is invented. -->
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Apogee · Per person · prototyp</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#081026;--panel:#0a1430;--chart:#0b1530;--line:#1f3160;--grid:#18284f;
+  --tx:#eef0f5;--mid:#aab6d4;--dim:#8f9cbd;--orbit:#7f92c2;--red:#e0503a;--redtx:#ff7a66;
+  --sel:#13224a;--halo:#0d1836;--star:#dfe6f5;--btn:#3a4d80;--ghost:#33467a;
+}
+[data-tema=dag]{
+  --bg:#eef2f9;--panel:#f6f8fc;--chart:#ffffff;--line:#d3dbea;--grid:#e6ebf4;
+  --tx:#0f1a3a;--mid:#4a5878;--dim:#5d6a88;--orbit:#8a9ac0;--red:#c8402b;--redtx:#b8381f;
+  --sel:#e6ecf8;--halo:#ffffff;--star:#9aa8c7;--btn:#b9c4dc;--ghost:#c3cde2;
+}
+*{box-sizing:border-box;margin:0}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--tx);font:400 15px/1.4 Barlow,sans-serif;font-variant-numeric:tabular-nums;padding-bottom:80px}
+::selection{background:var(--red);color:#fff}
+a{color:inherit;text-underline-offset:3px}
+button{font:500 14px Barlow;color:var(--tx);background:none;border:1px solid var(--btn);padding:8px 14px;border-radius:2px;cursor:pointer}
+button:hover{border-color:var(--mid)}
+button.pr{background:var(--red);border-color:var(--red);color:#fff}
+button.q{border-color:transparent;color:var(--mid);padding:6px 8px}
+button.q:hover{color:var(--tx);border-color:var(--line)}
+button.q.on{color:var(--tx);border-color:var(--btn);background:var(--sel)}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+input{font:500 16px Barlow;color:var(--tx);background:var(--bg);border:1px solid var(--btn);padding:8px 10px;border-radius:2px;caret-color:var(--red)}
+header{height:56px;display:flex;align-items:center;gap:32px;padding:0 28px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:3}
+.mk{display:flex;align-items:center;gap:10px;font:700 22px Barlow;text-decoration:none}
+header nav{display:flex;gap:28px;font-weight:500;white-space:nowrap}
+header nav a{color:var(--dim);text-decoration:none;padding:17px 0}
+header nav a.on{color:var(--tx);box-shadow:inset 0 -2px 0 var(--red)}
+.act{margin-left:auto;display:flex;gap:18px;align-items:center;white-space:nowrap}
+.act a{text-decoration:none;color:var(--dim);font-weight:500;padding:17px 0}
+.act a.on{color:var(--tx);box-shadow:inset 0 -2px 0 var(--red)}
+.cap{font-weight:600;font-size:13px;color:var(--dim);margin-bottom:12px}
+h1{font:600 36px/1.1 Barlow;letter-spacing:-.01em}
+h2{font:600 18px Barlow}
+.meta{font-size:14px;color:var(--dim)}
+.warn{color:var(--redtx)}
+.crumbs{font-size:14px;color:var(--dim);margin-bottom:6px}
+.crumbs a{text-decoration:none}
+.page{max-width:1240px;margin:0 auto;padding:36px 28px 40px}
+i.dot{display:inline-block;border-radius:50%;vertical-align:middle;flex:none}
+a.who{text-decoration:none;border-bottom:1px dotted var(--dim)}
+a.who:hover{color:var(--tx);border-bottom-color:var(--tx)}
+
+/* ---------- person header (shared by all variants) ---------- */
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.ph .sum{display:flex;gap:28px;margin-top:10px;font-size:14px;color:var(--dim)}
+.ph .sum b{display:block;font:600 22px Barlow;color:var(--tx)}
+.ph .sum .warn b{color:var(--redtx)}
+.ph .tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rename{margin-top:16px;padding:16px 18px;border:1px solid var(--line);background:var(--panel);display:grid;gap:12px;max-width:720px}
+.rename .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.rename input{min-width:240px}
+.rename ul{margin:0;padding-left:18px;color:var(--mid);font-size:14px}
+.rename .note{font-size:14px;color:var(--mid)}
+.rename .merge{color:var(--redtx)}
+.spell{font-size:13px;color:var(--dim);margin-top:4px}
+.filt{display:flex;gap:4px;align-items:center;margin:18px 0 6px;flex-wrap:wrap}
+.filt .lbl{font-size:13px;color:var(--dim);margin-right:6px}
+
+/* ---------- Variant A: Katalog (table) ---------- */
+table{width:100%;border-collapse:collapse}
+th{font:600 13px Barlow;color:var(--dim);text-align:left;padding:10px 8px;border-bottom:1px solid var(--line)}
+td{padding:11px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.r,th.r{text-align:right;white-space:nowrap}
+td.o{color:var(--dim);font-size:14px}
+tr.grp td{padding:22px 8px 8px;border-bottom:1px solid var(--line)}
+tr.grp a{text-decoration:none;font-weight:600}
+tr.grp span{color:var(--dim);font-size:14px;margin-left:10px}
+tr.fin td{opacity:.6}
+.lg{display:inline-flex;align-items:center;gap:8px;font-weight:600}
+.fold{margin-top:28px;border-top:1px solid var(--line);padding-top:14px}
+.fold summary{cursor:pointer;color:var(--mid);font-weight:500;list-style:none}
+.fold summary::-webkit-details-marker{display:none}
+.fold summary:hover{color:var(--tx)}
+
+/* ---------- Variant B: Stjärnkarta (one sky) ---------- */
+.skywrap{display:grid;grid-template-columns:1fr 330px;gap:0;margin-top:20px;border:1px solid var(--line)}
+.sky{background:var(--chart);padding:10px 12px}
+[data-tema=natt] .sky{background:radial-gradient(ellipse at 50% 60%,#11204a 0%,var(--chart) 55%,var(--bg) 100%)}
+svg.hill{display:block;width:100%;height:auto;touch-action:none;user-select:none}
+.gt{font:500 13px Barlow;fill:var(--dim)}
+.sn{font:600 14px Barlow;fill:var(--tx);paint-order:stroke;stroke:var(--halo);stroke-width:5px;stroke-linejoin:round;pointer-events:none}
+.sm{font-weight:500;fill:var(--dim)}
+.red{font:500 13px Barlow;fill:var(--redtx)}
+g.scope{cursor:grab}
+g.scope.drag{cursor:grabbing}
+.key{border-left:1px solid var(--line);background:var(--panel);padding:16px 16px}
+.key .pk{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:12px 0 6px;border-bottom:1px solid var(--line)}
+.key .pk a{text-decoration:none;font-weight:600}
+.key .pk small{color:var(--dim);font-size:13px;white-space:nowrap}
+.key .sc{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:14px;cursor:pointer}
+.key .sc span{flex:1}
+.key .sc.sel{color:var(--tx);background:var(--sel);margin:0 -16px;padding:7px 16px}
+.key .glyph{font:700 11px Barlow;color:var(--dim);width:16px;text-align:center}
+
+/* ---------- Variant C: Banor (strip per Projekt) ---------- */
+.strip{display:grid;grid-template-columns:240px 1fr 280px;gap:24px;align-items:center;padding:18px 0;border-bottom:1px solid var(--line)}
+.strip .who2 a{text-decoration:none;font:600 17px Barlow}
+.strip .who2 div{font-size:13px;color:var(--dim);margin-top:2px}
+.strip ol{list-style:none;padding:0;display:grid;gap:4px;font-size:14px}
+.strip li{display:flex;gap:8px;align-items:center}
+.strip li span{flex:1}
+.strip.fin{opacity:.55}
+.legend{display:flex;gap:18px;align-items:center;font-size:13px;color:var(--dim);margin-top:14px}
+
+/* ---------- people index, Projekt page ---------- */
+.people{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));border-left:1px solid var(--line);border-top:1px solid var(--line);margin-top:24px}
+.people a{display:block;padding:14px 16px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);text-decoration:none}
+.people a:hover{background:var(--sel)}
+.people b{font-weight:600;font-size:17px}
+.people small{display:block;color:var(--dim);font-size:13px;margin-top:2px}
+.people .bar{position:relative;height:14px;margin-top:8px;border-bottom:1px solid var(--grid)}
+.people .bar i{position:absolute;top:3px;margin-left:-4px}
+.pgrid{display:grid;grid-template-columns:1fr 360px;min-height:calc(100vh - 56px)}
+.pgrid main{padding:18px 22px;background:var(--chart)}
+.pgrid aside{border-left:1px solid var(--line);padding:22px 20px;background:var(--panel)}
+.pgrid table td{padding:10px 4px}
+
+/* ---------- toast ---------- */
+#toast{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 12px 10px 16px;border-radius:2px;display:none;align-items:center;gap:14px;font-weight:500;box-shadow:0 8px 28px rgba(0,0,0,.35);z-index:8;max-width:calc(100vw - 32px)}
+#toast.on{display:flex}
+#toast button{color:var(--bg);border-color:var(--bg);padding:5px 10px}
+
+/* ---------- prototype switcher, not part of the design ---------- */
+#proto{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:4px;background:#fff;color:#111;border-radius:999px;padding:6px;box-shadow:0 6px 24px rgba(0,0,0,.35);font:600 13px system-ui;z-index:9;white-space:nowrap}
+#proto button{all:unset;cursor:pointer;padding:6px 12px;border-radius:999px}
+#proto button:hover{background:#eee}
+#proto span{padding:0 6px}
+#proto .sep{width:1px;height:18px;background:#ddd;margin:0 4px;padding:0}
+
+@media (max-width:900px){
+  header{gap:16px;padding:0 16px;overflow-x:auto}
+  .page{padding:22px 16px 40px}
+  h1{font-size:28px}
+  .skywrap{grid-template-columns:1fr}
+  .key{border-left:0;border-top:1px solid var(--line)}
+  .strip{grid-template-columns:1fr;gap:8px}
+  .pgrid{grid-template-columns:1fr}
+  .pgrid aside{border-left:0;border-top:1px solid var(--line)}
+  .hide-s{display:none}
+}
+</style>
+</head>
+<body>
+<header>
+  <a class="mk" href="#/"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M11 1 L12.6 9.4 L21 11 L12.6 12.6 L11 21 L9.4 12.6 L1 11 L9.4 9.4Z" fill="var(--red)"/></svg>Apogee</a>
+  <nav id="topnav"></nav>
+  <div class="act" id="actions"></div>
+</header>
+<div id="app"></div>
+<div id="toast" role="status"><span id="tmsg"></span><button id="tundo">Ångra</button></div>
+<div id="proto"><button id="pv" aria-label="Föregående variant">←</button><span id="pl"></span><button id="pn" aria-label="Nästa variant">→</button><i class="sep"></i><button id="pt"></button></div>
+<script>
+// ---------- invented sample data (synthetic, not real Projekt) ----------
+// scope: [namn, ägare, läge, dagar sedan rörd]. slut: Slutdatum (ISO) or null. avslutat: marked. borttagen: hidden everywhere.
+const TODAY=new Date("2026-11-24");
+const DATA=[
+ {id:"ku",namn:"Kundupplevelse",projekt:[
+  {id:"bok",namn:"Nytt bokningsflöde",slut:"2026-12-18",scopes:[["Avbokning","Ahmed",12,21],["Mobilvy","Lina",27,2],["Kalender-API","Erik",34,6],["Tillgänglighet","Lina",48,1],["Prislogik","Ahmed",61,2],["Betalsteg","Sara",82,0],["Bekräftelsemejl","Jonas",95,1]]},
+  {id:"loj",namn:"Lojalitetsprogram",slut:"2027-02-01",scopes:[["Poängregler","Erik",8,9],["Medlemssida","Maja",15,3],["Partnerdata","Jonas",22,16],["Utskick","Maja",30,4]]},
+  {id:"sup",namn:"Supportchatt",slut:"2026-11-20",scopes:[["Kö-logik","Lina",55,2],["Botsvar","Omar",70,1],["Överlämning","Lina",78,19],["Statistik","Omar",88,1],["Mallar","Sara",96,0]]},
+  {id:"sjv",namn:"Självservice",slut:null,scopes:[["Ändra bokning","Maja",40,3],["Kvitton","Ahmed",46,2],["Kontoinställningar","Maja",52,7]]}]},
+ {id:"pl",namn:"Plattform",projekt:[
+  {id:"inl",namn:"Inloggning 2.0",slut:"2026-12-05",scopes:[["BankID","Omar",64,1],["Sessioner","Erik",72,2],["Migrering","Omar",18,24]]},
+  {id:"sok",namn:"Sökindex",slut:"2027-01-15",scopes:[["Indexering","Erik",44,2],["Synonymer","lina",26,8],["Rankning","LINA ",31,4]]},
+  {id:"crm",namn:"Gamla CRM",borttagen:true,scopes:[["Export","Lina",40,60]]}]},
+ {id:"ek",namn:"Ekonomi",projekt:[
+  {id:"fak",namn:"Fakturering",slut:"2026-12-31",scopes:[["E-faktura","Ahmed",58,5],["Påminnelser","Maja",33,11],["Export","Ahmed",77,5]]},
+  {id:"bud",namn:"Budgetverktyg",slut:null,scopes:[["Prognoser","Maja",20,1],["Rapporter","Omar",9,2]]}]},
+ {id:"hr",namn:"HR & Personal",projekt:[
+  {id:"rek",namn:"Rekrytering",slut:"2027-01-10",scopes:[["Annonsflöde","Sara",68,3],["Intervjubokning","Lina",50,2]]},
+  {id:"int",namn:"Intranät",slut:"2026-10-30",avslutat:true,scopes:[["Startsida","Lina",100,31],["Nyheter","Jonas",100,31],["Sök","Lina",100,40]]},
+  {id:"onb",namn:"Onboarding",slut:"2026-11-28",scopes:[["Checklista","Jonas",92,6],["Utrustning","Erik",80,6],["Introdag","Sara",100,6],["Mentorer","Jonas",72,18]]}]}
+];
+DATA.forEach(f=>f.projekt.forEach(p=>{p.fo=f;p.scopes=p.scopes.map(([namn,agare,lage,dagar])=>({namn,agare,lage,dagar,pj:p}));}));
+const REMEMBERED="Lina"; // the optional remembered name of whoever is editing
+
+// ---------- domain helpers ----------
+const key=n=>n.trim().toLowerCase();
+const live=()=>DATA.flatMap(f=>f.projekt.filter(p=>!p.borttagen));
+const avslutat=p=>p.avslutat||p.scopes.every(s=>s.lage===100);
+const allScopes=()=>live().flatMap(p=>p.scopes);
+function people(){const m=new Map();
+  allScopes().forEach(s=>{const k=key(s.agare);if(!m.has(k))m.set(k,{k,spell:new Map(),scopes:[]});const e=m.get(k);e.scopes.push(s);const t=s.agare.trim();e.spell.set(t,(e.spell.get(t)||0)+1);});
+  m.forEach(e=>e.namn=[...e.spell].sort((a,b)=>b[1]-a[1])[0][0]);
+  return[...m.values()].sort((a,b)=>a.namn.localeCompare(b.namn,"sv"));}
+const person=k=>people().find(p=>p.k===k);
+const days=iso=>Math.round((new Date(iso)-TODAY)/864e5);
+function countdown(p){if(avslutat(p))return{t:"Avslutat",c:""};if(!p.slut)return{t:"Inget slutdatum",c:""};
+  const d=days(p.slut);return d<0?{t:`Över tid ${-d} d`,c:"warn"}:{t:`${d} dagar kvar`,c:""};}
+const stuck=s=>s.dagar>14&&s.lage<100;
+const enc=encodeURIComponent;
+const who=n=>`<a class="who" href="#/person/${enc(key(n))}">${n.trim()}</a>`;
+
+// ---------- theme + variant switcher ----------
+const VARIANTS=[["A","Katalog"],["B","Stjärnkarta"],["C","Banor"]];
+const qs=new URLSearchParams(location.search);
+let vi=Math.max(0,VARIANTS.findIndex(v=>v[0]===qs.get("variant")));
+let tema=qs.get("tema")==="dag"?"dag":"natt";
+function syncUrl(){const u=new URL(location);u.searchParams.set("variant",VARIANTS[vi][0]);u.searchParams.set("tema",tema);history.replaceState(null,"",u);}
+function setVariant(i){vi=(i+VARIANTS.length)%VARIANTS.length;document.getElementById("pl").textContent=`${VARIANTS[vi][0]} (${VARIANTS[vi][1]})`;syncUrl();render();}
+function setTema(t){tema=t;document.documentElement.dataset.tema=t;document.getElementById("pt").textContent=t==="natt"?"Tema: natt":"Tema: dag";syncUrl();render();}
+document.getElementById("pv").onclick=()=>setVariant(vi-1);
+document.getElementById("pn").onclick=()=>setVariant(vi+1);
+document.getElementById("pt").onclick=()=>setTema(tema==="natt"?"dag":"natt");
+addEventListener("keydown",e=>{if(e.target.closest("input,textarea,[contenteditable]"))return;
+  if(e.key==="ArrowLeft")setVariant(vi-1);if(e.key==="ArrowRight")setVariant(vi+1);});
+
+// ---------- Läge colour: spectral ramp (from Stjärnatlas) ----------
+const RAMP={natt:[[0,"#ff7a4d"],[25,"#ffb36b"],[50,"#fff1c9"],[75,"#cfe0ff"],[100,"#8fb8ff"]],
+            dag:[[0,"#d9481f"],[25,"#e08a1e"],[50,"#c9a21a"],[75,"#5a86d6"],[100,"#2f5fc4"]]};
+const hx=s=>[1,3,5].map(i=>parseInt(s.slice(i,i+2),16));
+function col(L){const st=RAMP[tema];for(let i=0;i<st.length-1;i++){const[a,ca]=st[i],[b,cb]=st[i+1];if(L>=a&&L<=b){const t=(L-a)/(b-a),A=hx(ca),B=hx(cb);
+  return"#"+A.map((v,k)=>Math.round(v+(B[k]-v)*t).toString(16).padStart(2,"0")).join("");}}}
+const H=L=>(1-Math.cos(2*Math.PI*L/100))/2;
+const dotPx=d=>d<=1?9:d<=6?7:5;
+const dot=s=>`<i class="dot" style="background:${col(s.lage)};width:${dotPx(s.dagar)}px;height:${dotPx(s.dagar)}px"></i>`;
+
+// ---------- toast with Ångra ----------
+let undoFn=null,tt;
+function toast(msg,undo){document.getElementById("tmsg").textContent=msg;undoFn=undo;const t=document.getElementById("toast");t.classList.add("on");
+  document.getElementById("tundo").style.display=undo?"":"none";clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("on"),7000);}
+document.getElementById("tundo").onclick=()=>{undoFn&&undoFn();document.getElementById("toast").classList.remove("on");render();};
+
+// ---------- routing ----------
+const app=document.getElementById("app");
+addEventListener("hashchange",()=>{selected=null;renaming=false;render();scrollTo(0,0);});
+function route(){const p=location.hash.replace(/^#\/?/,"").split("/").filter(Boolean).map(decodeURIComponent);
+  if(p[0]==="personer")return{view:"people"};
+  if(p[0]==="person")return{view:"person",k:p[1]};
+  const fo=DATA.find(f=>f.id===p[0]);const pj=fo&&fo.projekt.find(x=>x.id===p[1]);return{view:pj?"projekt":fo?"fo":"start",fo,pj};}
+let selected=null,renaming=false,showFin=false,sort="projekt";
+
+function render(){
+  const r=route();
+  document.getElementById("topnav").innerHTML=DATA.map(f=>`<a href="#/${f.id}" class="${r.fo&&r.fo.id===f.id?"on":""}">${f.namn}</a>`).join("");
+  const mine=r.view==="person"&&r.k===key(REMEMBERED);
+  document.getElementById("actions").innerHTML=`<a href="#/personer" class="${r.view==="people"||(r.view==="person"&&!mine)?"on":""}">Personer</a><a href="#/person/${enc(key(REMEMBERED))}" class="${mine?"on":""}">Mina Scopes</a>`;
+  if(r.view==="person")renderPerson(r.k);else if(r.view==="people")renderPeople();else if(r.view==="projekt")renderProjekt(r.fo,r.pj);
+  else renderStart(r.fo);
+}
+
+// ---------- shared person header ----------
+function personHeader(pe){
+  const act=pe.scopes.filter(s=>!avslutat(s.pj)),pjs=new Set(act.map(s=>s.pj)),st=act.filter(stuck).length;
+  const fin=new Set(pe.scopes.filter(s=>avslutat(s.pj)).map(s=>s.pj)).size;
+  const spellings=[...pe.spell.keys()];
+  return`<div class="crumbs"><a href="#/personer">Personer</a></div>
+  <div class="ph"><div><h1>${pe.namn}</h1>
+    ${spellings.length>1?`<div class="spell">Skrivs också ${spellings.filter(s=>s!==pe.namn).map(s=>`”${s}”`).join(", ")}, räknas som samma person</div>`:""}
+    <div class="sum"><span><b>${act.length}</b>Scopes</span><span><b>${pjs.size}</b>Projekt</span><span class="${st?"warn":""}"><b>${st}</b>stilla &gt; 14 d</span>${fin?`<span><b>${fin}</b>avslutade</span>`:""}</div></div>
+    <div class="tools"><button id="rn">Byt namn</button></div></div>
+  ${renaming?renamePanel(pe):""}`;
+}
+function renamePanel(pe){
+  const byPj=groupBy(pe.scopes,s=>s.pj);
+  return`<form class="rename" id="rnf"><label class="cap" for="rni" style="margin:0">Byt namn på ${pe.namn} i alla Scopes</label>
+   <div class="row"><input id="rni" value="${pe.namn}" autocomplete="off"><button class="pr" id="rnok" type="submit">Byt namn</button><button type="button" id="rnx" class="q">Avbryt</button></div>
+   <div class="note" id="rnprev"></div>
+   <ul>${[...byPj].map(([p,ss])=>`<li>${p.namn}: ${ss.length} Scope${ss.length>1?"s":""}${avslutat(p)?" (avslutat)":""}</li>`).join("")}</ul></form>`;
+}
+function wireHeader(pe){
+  document.getElementById("rn").onclick=()=>{renaming=!renaming;render();if(renaming){const i=document.getElementById("rni");i.focus();i.select();}};
+  if(!renaming)return;
+  const i=document.getElementById("rni"),prev=document.getElementById("rnprev"),ok=document.getElementById("rnok");
+  const nPj=new Set(pe.scopes.map(s=>s.pj)).size;
+  const upd=()=>{const v=i.value.trim(),k=key(v),other=v&&k!==pe.k&&person(k);
+    ok.disabled=!v||v===pe.namn&&pe.spell.size===1;
+    prev.innerHTML=!v?"Ägare kan inte vara tomt.":other?`<span class="merge">${other.namn} finns redan med ${other.scopes.length} Scopes. Namnbytet slår ihop dem till en person.</span> Blir en Uppdatering i varje berört Projekts Historik (${nPj} st).`
+      :`Ändrar Ägare på ${pe.scopes.length} Scopes. Blir en Uppdatering i varje berört Projekts Historik (${nPj} st), som kan ångras där en i taget.`;
+    ok.textContent=other?`Slå ihop med ${other.namn}`:`Byt namn i ${nPj} Projekt`;};
+  i.oninput=upd;upd();
+  document.getElementById("rnx").onclick=()=>{renaming=false;render();};
+  document.getElementById("rnf").onsubmit=e=>{e.preventDefault();const v=i.value.trim();if(!v)return;
+    const before=pe.scopes.map(s=>[s,s.agare]);pe.scopes.forEach(s=>s.agare=v);renaming=false;
+    location.hash="#/person/"+enc(key(v));
+    toast(`${pe.namn} heter nu ${v} i ${before.length} Scopes · ${nPj} Uppdateringar`,()=>{before.forEach(([s,a])=>s.agare=a);location.hash="#/person/"+enc(pe.k);});};
+}
+const groupBy=(xs,f)=>xs.reduce((m,x)=>{const k=f(x);m.has(k)||m.set(k,[]);m.get(k).push(x);return m;},new Map());
+
+function renderPerson(k){
+  const pe=person(k);
+  if(!pe){app.innerHTML=`<div class="page"><div class="crumbs"><a href="#/personer">Personer</a></div><h1>Ingen äger något här</h1><p class="meta" style="margin-top:8px">Inget Scope har Ägare ”${k}”. Namnet kan ha bytts; Historiken visar var det fanns.</p></div>`;return;}
+  app.innerHTML=`<div class="page">${personHeader(pe)}<div id="body"></div></div>`;
+  wireHeader(pe);
+  ({A:variantA,B:variantB,C:variantC})[VARIANTS[vi][0]](pe,document.getElementById("body"));
+}
+
+// ===== Variant A: Katalog. Dense table grouped by Projekt; Avslutade folded away at the bottom. =====
+function variantA(pe,el){
+  const act=pe.scopes.filter(s=>!avslutat(s.pj)),fin=pe.scopes.filter(s=>avslutat(s.pj));
+  const rows=ss=>{
+    if(sort==="stilla")return[...ss].sort((a,b)=>b.dagar-a.dagar).map(s=>row(s,true)).join("");
+    return[...groupBy(ss,s=>s.pj)].map(([p,xs])=>{const c=countdown(p);
+      return`<tr class="grp"><td colspan="4"><a href="#/${p.fo.id}/${p.id}">${p.namn}</a><span>${p.fo.namn}</span><span class="${c.c}">${c.t}</span></td></tr>`+xs.sort((a,b)=>b.lage-a.lage).map(s=>row(s,false)).join("");}).join("");};
+  const row=(s,showPj)=>`<tr class="${avslutat(s.pj)?"fin":""}"><td>${s.namn}${showPj?`<div class="meta">${s.pj.namn}</div>`:""}</td><td class="o hide-s">${showPj?s.pj.fo.namn:""}</td>
+    <td class="r"><span class="lg">${dot(s)}${s.lage}</span></td><td class="r ${stuck(s)?"warn":"o"}">${s.dagar===0?"i dag":s.dagar+" d"}</td></tr>`;
+  el.innerHTML=`<div class="filt"><span class="lbl">Ordna</span><button class="q ${sort==="projekt"?"on":""}" data-s="projekt">Efter Projekt</button><button class="q ${sort==="stilla"?"on":""}" data-s="stilla">Längst stilla först</button></div>
+   <table><thead><tr><th>Scope</th><th class="hide-s">${sort==="stilla"?"Funktionsområde":""}</th><th class="r">Läge</th><th class="r">Rörd</th></tr></thead><tbody>${rows(act)}</tbody></table>
+   ${fin.length?`<details class="fold" ${showFin?"open":""}><summary>Avslutade Projekt (${new Set(fin.map(s=>s.pj)).size}) · ${fin.length} Scopes</summary><table style="margin-top:8px"><tbody>${rows(fin)}</tbody></table></details>`:""}`;
+  el.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{sort=b.dataset.s;render();});
+  const d=el.querySelector("details");if(d)d.ontoggle=()=>showFin=d.open;
+}
+
+// ===== Variant B: Stjärnkarta. All their Scopes as stars on one sky, draggable; key on the right. =====
+const X0=60,W=780,BASE=470,HT=330;
+const P=L=>[X0+W*L/100,BASE-HT*H(L)];
+let field="";{let seed=11;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+ for(let i=0;i<60;i++)field+=`<circle cx="${(20+rnd()*860).toFixed(0)}" cy="${(30+rnd()*480).toFixed(0)}" r="${[.6,.8,1,1.3][Math.floor(rnd()*4)]}" fill="var(--star)" opacity="${(.08+rnd()*.17).toFixed(2)}"/>`;}
+function variantB(pe,el){
+  const ss=pe.scopes.filter(s=>showFin||!avslutat(s.pj));
+  const pjs=[...new Set(ss.map(s=>s.pj))];
+  const glyph=p=>String.fromCharCode(65+pjs.indexOf(p)); // A, B, C… ties a star to its Projekt in the key
+  const finN=new Set(pe.scopes.filter(s=>avslutat(s.pj)).map(s=>s.pj)).size;
+  el.innerHTML=`<div class="filt"><span class="lbl">Visar</span><button class="q ${!showFin?"on":""}" data-f="0">Pågående Projekt</button><button class="q ${showFin?"on":""}" data-f="1">Med avslutade (${finN})</button></div>
+  <div class="skywrap"><div class="sky"><svg class="hill" id="hill" viewBox="0 0 900 540" role="img" aria-label="Alla Scopes som ${pe.namn} äger"></svg>
+    <div class="meta" style="padding:0 8px 6px">Dra en stjärna för att ändra Läge. Ändringen hamnar i det Projektets Historik.</div></div>
+   <div class="key">${pjs.map(p=>{const c=countdown(p);return`<div class="pk"><a href="#/${p.fo.id}/${p.id}"><span class="glyph">${glyph(p)}</span> ${p.namn}</a><small class="${c.c}">${c.t}</small></div>`+
+     ss.filter(s=>s.pj===p).sort((a,b)=>b.lage-a.lage).map(s=>`<div class="sc ${s===selected?"sel":""}" data-i="${pe.scopes.indexOf(s)}">${dot(s)}<span>${s.namn}</span><b>${s.lage}</b><small class="${stuck(s)?"warn":"meta"}">&nbsp;${s.dagar} d</small></div>`).join("");}).join("")}</div></div>`;
+  el.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{showFin=b.dataset.f==="1";render();});
+  el.querySelectorAll(".sc").forEach(d=>d.onclick=()=>{selected=pe.scopes[+d.dataset.i];render();});
+  drawSky(pe,ss,glyph);
+}
+function drawSky(pe,ss,glyph){
+  const svg=document.getElementById("hill");let s=field;
+  for(let i=0;i<=10;i++){const x=X0+W*i/10;s+=`<line x1="${x}" y1="30" x2="${x}" y2="${BASE}" stroke="var(--grid)"/>`;}
+  s+=`<rect x="${X0}" y="30" width="${W}" height="${BASE-30}" fill="none" stroke="var(--line)"/>`;
+  for(let j=0;j<=100;j+=10)s+=`<text class="gt" x="${X0+W*j/100}" y="${BASE+24}" text-anchor="middle">${j}</text>`;
+  s+=`<path d="${Array.from({length:201},(_,j)=>(j?"L":"M")+P(j/2).map(v=>v.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="var(--orbit)" stroke-width="1.4"/>`;
+  s+=`<text class="gt" x="${X0}" y="${BASE+50}">← Uppför · lista ut</text><text class="gt" x="${X0+W}" y="${BASE+50}" text-anchor="end">Nedför · genomföra →</text>`;
+  // stars that crowd each other get their labels stacked, one line each
+  const sorted=[...ss].sort((a,b)=>a.lage-b.lage);const stack=new Map();let run=[];
+  const flush=()=>{run.forEach((x,i)=>stack.set(x,{i,n:run.length,lead:run[0]}));run=[];};
+  sorted.forEach(x=>{if(run.length&&x.lage-run[run.length-1].lage>=8)flush();run.push(x);});flush();
+  s+=sorted.map(x=>`<g class="scope" data-i="${pe.scopes.indexOf(x)}" tabindex="0" aria-label="${x.namn}, ${x.pj.namn}, Läge ${x.lage}">${star(x,glyph,stack.get(x))}</g>`).join("");
+  svg.innerHTML=s;
+  svg.querySelectorAll("g.scope").forEach(g=>{const sc=pe.scopes[+g.dataset.i];
+    g.addEventListener("pointerdown",e=>{e.preventDefault();g.setPointerCapture(e.pointerId);g.classList.add("drag");const from=sc.lage,fromD=sc.dagar;selected=sc;
+      const move=ev=>{const pt=svg.createSVGPoint();pt.x=ev.clientX;pt.y=ev.clientY;const loc=pt.matrixTransform(svg.getScreenCTM().inverse());
+        const L=Math.round(Math.min(100,Math.max(0,(loc.x-X0)/W*100)));if(L!==sc.lage){sc.lage=L;sc.dagar=0;g.innerHTML=star(sc,glyph,false);}};
+      const up=()=>{g.classList.remove("drag");g.removeEventListener("pointermove",move);g.removeEventListener("pointerup",up);
+        if(sc.lage!==from)toast(`${sc.namn} flyttad ${from} → ${sc.lage} · Uppdatering i ${sc.pj.namn}`,()=>{sc.lage=from;sc.dagar=fromD;});render();};
+      g.addEventListener("pointermove",move);g.addEventListener("pointerup",up);});});
+}
+function star(x,glyph,st){
+  st=st||{i:0,n:1,lead:x};
+  const[cx,cy]=P(x.lage),c=col(x.lage),r=x.dagar<=1?8:x.dagar<=6?6.5:4.5;
+  const[lx,ly]=P(st.lead.lage),right=st.lead.lage<50,below=false;
+  // single star: label beside it; a crowd: labels stacked outward from the hill, uphill side to the left
+  const an=st.n>1?(right?"end":"start"):right?"start":"end";
+  const tx=st.n>1?(right?lx-18:lx+18):(right?cx+14:cx-14);
+  const ty=st.n>1?ly-14-(st.n-1-st.i)*19-(st.lead.lage>=40&&st.lead.lage<=60?18:0):cy-12;
+  const s0=st.n>1?`<line x1="${cx}" y1="${cy}" x2="${tx+(right?6:-6)}" y2="${ty-5}" stroke="var(--orbit)" stroke-width=".6" opacity=".6"/>`:"";
+  let s=s0+`<circle cx="${cx}" cy="${cy}" r="${r*2.6}" fill="${c}" opacity=".13"/><circle cx="${cx}" cy="${cy}" r="16" fill="transparent"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="${c}"/>`;
+  if(x===selected)s+=`<circle cx="${cx}" cy="${cy}" r="19" fill="none" stroke="var(--red)" stroke-width="1.2"/>`;
+  if(stuck(x))s+=`<circle cx="${cx}" cy="${cy}" r="13" fill="none" stroke="var(--red)" stroke-width="1.1" stroke-dasharray="3 3"/>`;
+  s+=`<text class="sn" x="${tx}" y="${ty}" text-anchor="${an}"><tspan class="sm">${glyph(x.pj)}</tspan> ${x.namn} <tspan class="sm">${x.lage}</tspan>${stuck(x)?` <tspan class="red">stilla ${x.dagar} d</tspan>`:""}</text>`;
+  return s;
+}
+
+// ===== Variant C: Banor. One strip per Projekt: their stars lit among teammates' dimmed ones. =====
+function mini(p,lit,w=520,h=70){
+  const path=Array.from({length:51},(_,j)=>{const L=j*2;return(j?"L":"M")+(8+(w-16)*L/100).toFixed(1)+","+(h-8-(h-20)*H(L)).toFixed(1)}).join(" ");
+  const pos=s=>[(8+(w-16)*s.lage/100).toFixed(1),(h-8-(h-20)*H(s.lage)).toFixed(1)];
+  const others=p.scopes.filter(s=>!lit.includes(s)).map(s=>{const[x,y]=pos(s);return`<circle cx="${x}" cy="${y}" r="3" fill="var(--ghost)"/>`;}).join("");
+  const mine=lit.map(s=>{const[x,y]=pos(s);return`<circle cx="${x}" cy="${y}" r="${s.dagar<=1?5.5:s.dagar<=6?4.5:3.5}" fill="${col(s.lage)}"/>${stuck(s)?`<circle cx="${x}" cy="${y}" r="9" fill="none" stroke="var(--red)" stroke-dasharray="2 2"/>`:""}`;}).join("");
+  return`<svg viewBox="0 0 ${w} ${h}" width="100%" preserveAspectRatio="none" style="max-height:${h}px;display:block" aria-hidden="true"><line x1="${8+(w-16)/2}" y1="6" x2="${8+(w-16)/2}" y2="${h-4}" stroke="var(--grid)"/><path d="${path}" fill="none" stroke="var(--orbit)" stroke-width="1" opacity=".7"/>${others}${mine}</svg>`;
+}
+function variantC(pe,el){
+  const byPj=[...groupBy(pe.scopes,s=>s.pj)].sort(([a],[b])=>avslutat(a)-avslutat(b)||(a.slut||"9").localeCompare(b.slut||"9"));
+  const finN=byPj.filter(([p])=>avslutat(p)).length;
+  el.innerHTML=`<div class="legend"><span>${dot({lage:50,dagar:0})} ${pe.namn}s Scopes</span><span><i class="dot" style="width:6px;height:6px;background:var(--ghost)"></i> övriga i Projektet</span><span>Ordnat efter Slutdatum</span></div>
+   ${byPj.filter(([p])=>showFin||!avslutat(p)).map(([p,ss])=>{const c=countdown(p);return`<div class="strip ${avslutat(p)?"fin":""}">
+    <div class="who2"><a href="#/${p.fo.id}/${p.id}">${p.namn}</a><div>${p.fo.namn} · <span class="${c.c}">${c.t}</span></div><div>${ss.length} av ${p.scopes.length} Scopes</div></div>
+    ${mini(p,ss)}
+    <ol>${ss.sort((a,b)=>b.lage-a.lage).map(s=>`<li>${dot(s)}<span>${s.namn}</span><b>${s.lage}</b><small class="${stuck(s)?"warn":"meta"}">&nbsp;${s.dagar} d</small></li>`).join("")}</ol></div>`;}).join("")}
+   ${finN?`<div style="margin-top:16px"><button class="q" id="tf">${showFin?"Dölj":"Visa"} avslutade Projekt (${finN})</button></div>`:""}`;
+  const tf=document.getElementById("tf");if(tf)tf.onclick=()=>{showFin=!showFin;render();};
+}
+
+// ---------- Personer index ----------
+function renderPeople(){
+  const ps=people();
+  app.innerHTML=`<div class="page"><h1>Personer</h1><div class="meta">${ps.length} Ägare i pågående och avslutade Projekt · prickarna är deras Scopes, efter Läge</div>
+  <div class="people">${ps.map(p=>{const act=p.scopes.filter(s=>!avslutat(s.pj)),st=act.filter(stuck).length;
+    return`<a href="#/person/${enc(p.k)}"><b>${p.namn}</b><small class="${st?"warn":""}">${act.length} Scopes i ${new Set(act.map(s=>s.pj)).size} Projekt${st?` · ${st} stilla`:""}</small>
+    <div class="bar">${act.map(s=>`<i class="dot" style="left:${s.lage}%;width:8px;height:8px;background:${col(s.lage)}"></i>`).join("")}</div></a>`;}).join("")}</div></div>`;
+}
+
+// ---------- context pages (from Stjärnatlas, trimmed): where Ägare names link from ----------
+function renderStart(fo){
+  const fos=fo?[fo]:DATA;
+  app.innerHTML=`<div class="page">${fo?`<div class="crumbs"><a href="#/">Alla Funktionsområden</a></div>`:""}<h1>${fo?fo.namn:"Alla Funktionsområden"}</h1>
+  ${fos.map(f=>`<section style="margin-top:32px"><h2 style="border-bottom:1px solid var(--line);padding-bottom:10px">${f.namn}</h2>
+   ${f.projekt.filter(p=>!p.borttagen).map(p=>{const c=countdown(p);return`<div class="strip" style="grid-template-columns:240px 1fr"><div class="who2"><a href="#/${f.id}/${p.id}">${p.namn}</a><div class="${c.c}">${c.t}</div></div>${mini(p,p.scopes,520,56)}</div>`;}).join("")}</section>`).join("")}</div>`;
+}
+function renderProjekt(fo,pj){
+  app.innerHTML=`<div class="pgrid"><main><div class="crumbs"><a href="#/${fo.id}">${fo.namn}</a></div><h1>${pj.namn}</h1>
+   <div class="meta">Projektsidan finns i Stjärnatlas-prototypen. Här visas bara Scope-listan, där Ägare-namnen leder till personvyn.</div>
+   <div style="margin-top:24px">${mini(pj,pj.scopes,800,200)}</div></main>
+   <aside><div class="cap">Scopes</div><table>${[...pj.scopes].sort((a,b)=>b.lage-a.lage).map(s=>`<tr><td>${dot(s)}</td><td style="width:100%;font-weight:500">${s.namn}</td><td class="o">${who(s.agare)}</td><td class="r"><b>${s.lage}</b></td><td class="r o ${stuck(s)?"warn":""}">${s.dagar} d</td></tr>`).join("")}</table>
+   <p class="meta" style="margin-top:14px">Klicka på en Ägare för att se allt den personen äger.</p></aside></div>`;
+}
+
+document.documentElement.dataset.tema=tema;
+document.getElementById("pt").textContent=tema==="natt"?"Tema: natt":"Tema: dag";
+if(!location.hash)location.hash="#/person/lina";
+setVariant(vi);
+</script>
+</body>
+</html>

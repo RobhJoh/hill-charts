@@ -25,6 +25,12 @@ _Avoid_: Position
 **Uppdatering**: One recorded edit to a Projekt's Hill chart or its dates, such as a Scope changing Läge, a Scope being added, renamed or removed, or the Slutdatum or a Milstolpe changing. Records what changed, when, and optionally the name of whoever made it.
 _Avoid_: Move, Change
 
+**Person**: Someone on the organization's managed list of people (Personer). Every Ägare and every Signatur is a Person.
+_Avoid_: Användare, Medlem, Konto
+
+**Signatur**: The Person who says they are making an edit, so each Uppdatering shows who made it. Required for every Uppdatering, chosen from Personer, and remembered per device and browser. Separate from Ägare: the Signatur says who made an edit, the Ägare who is responsible for a Scope.
+_Avoid_: Användare, Konto, Inloggning
+
 **Historik**: All Uppdateringar of one Hill chart, oldest to newest. Never edited or shortened; the Hill chart is what you get by applying them in order.
 _Avoid_: Log, Versioner
 

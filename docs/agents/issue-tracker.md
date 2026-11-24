@@ -14,6 +14,13 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
+## Status while implementing a spec
+
+When implementing a spec's tickets on an integration branch:
+
+- **Work starts**: `gh issue edit <n> --add-assignee @me`.
+- **Merged into the integration branch**: `gh issue comment <n> --body "Merged into \`<integration-branch>\` at <commit>."`, then `gh issue close <n>`. Don't wait for the integration branch to reach `main`; closing unblocks dependent tickets.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_

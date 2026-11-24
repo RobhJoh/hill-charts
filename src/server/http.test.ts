@@ -186,6 +186,91 @@ describe("JSON API", () => {
   });
 });
 
+describe("Scopes", () => {
+  async function medProjekt() {
+    const s = await start();
+    const fo = await s.api("POST", "/api/funktionsomraden", { namn: "Ekonomi" });
+    const p = await s.api("POST", "/api/projekt", { funktionsområdeId: fo.body.id, namn: "Kassan" });
+    return { ...s, projekt: p.body.id as string };
+  }
+
+  it("adds, moves, renames, hands over and removes a Scope, each one Uppdatering", async () => {
+    const { api, apiAs, vem, projekt } = await medProjekt();
+    const erik = (await api("POST", "/api/personer", { namn: "Erik" })).body.id;
+    const scopes = `/api/projekt/${projekt}/scopes`;
+
+    const ny = await api("POST", scopes, { namn: "Prislista", ägare: erik });
+    expect(ny.status).toBe(201);
+    expect(ny.body).toEqual({ id: expect.any(String), uppdatering: expect.objectContaining({ typ: "ny", vem }) });
+    const scope = `${scopes}/${ny.body.id}`;
+
+    const flytt = await apiAs(erik, "PATCH", scope, { läge: 140 });
+    expect(flytt.status).toBe(200);
+    expect(flytt.body.uppdatering).toMatchObject({ typ: "flytt", vem: erik });
+    expect((await api("PATCH", scope, { läge: 100 })).body).toEqual({ uppdatering: null });
+    expect((await api("PATCH", scope, { namn: "Priser" })).status).toBe(200);
+    expect((await api("PATCH", scope, { ägare: vem })).status).toBe(200);
+
+    expect((await api("GET", `/api/projekt/${projekt}`)).body.scopes).toEqual([
+      {
+        id: ny.body.id,
+        namn: "Priser",
+        läge: 100,
+        ägare: { id: vem, namn: "Testare", aktiv: true },
+        flyttad: "2026-11-24T10:00:00.000Z",
+      },
+    ]);
+
+    const bort = await api("DELETE", scope);
+    expect(bort.status).toBe(200);
+    expect(bort.body.uppdatering).toMatchObject({ typ: "ta bort", ändringar: [{ scopeId: ny.body.id, efter: null }] });
+    expect((await api("GET", `/api/projekt/${projekt}`)).body.scopes).toEqual([]);
+
+    const historik = await api("GET", `/api/projekt/${projekt}/historik`);
+    expect(historik.body.map((u: { typ: string }) => u.typ)).toEqual(["ny", "flytt", "byt namn", "byt ägare", "ta bort"]);
+  });
+
+  it("rejects bad input, missing Ägare, unknown Scopes and unsigned writes", async () => {
+    const { api, apiAs, vem, projekt } = await medProjekt();
+    const scopes = `/api/projekt/${projekt}/scopes`;
+    const id = (await api("POST", scopes, { namn: "Prislista", ägare: vem })).body.id;
+    const scope = `${scopes}/${id}`;
+
+    expect((await api("POST", scopes, { namn: "X" })).status).toBe(400);
+    expect((await api("POST", scopes, { namn: "X", ägare: "okänd" })).status).toBe(400);
+    expect((await api("PATCH", scope, { ägare: "" })).status).toBe(400);
+    expect((await api("PATCH", scope, { läge: "högt" })).status).toBe(400);
+    expect((await api("PATCH", scope, {})).status).toBe(400);
+    expect((await api("PATCH", scope, { namn: "X", läge: 3 })).status).toBe(400);
+    expect((await api("PATCH", `${scopes}/saknas`, { läge: 3 })).status).toBe(404);
+    expect((await api("POST", "/api/projekt/saknas/scopes", { namn: "X", ägare: vem })).status).toBe(404);
+    expect((await api("GET", "/api/projekt/saknas/historik")).status).toBe(404);
+    for (const write of [
+      apiAs(null, "POST", scopes, { namn: "X", ägare: vem }),
+      apiAs(null, "PATCH", scope, { läge: 50 }),
+      apiAs("okänd", "DELETE", scope),
+    ]) {
+      expect((await write).status).toBe(403);
+    }
+    expect((await api("GET", `/api/projekt/${projekt}/historik`)).body).toHaveLength(1);
+  });
+
+  it("serializes concurrent drops so every one is in the Historik", async () => {
+    const s = await start(createMemoryStorage({ latencyMs: 2 }));
+    const fo = await s.api("POST", "/api/funktionsomraden", { namn: "Ekonomi" });
+    const projekt = (await s.api("POST", "/api/projekt", { funktionsområdeId: fo.body.id, namn: "K" })).body.id;
+    const scopes = `/api/projekt/${projekt}/scopes`;
+    const id = (await s.api("POST", scopes, { namn: "Prislista", ägare: s.vem })).body.id;
+    const lägen = Array.from({ length: 10 }, (_, i) => (i + 1) * 10);
+    await Promise.all(lägen.map((läge) => s.api("PATCH", `${scopes}/${id}`, { läge })));
+    const historik = (await s.api("GET", `/api/projekt/${projekt}/historik`)).body;
+    expect(historik.map((u: { ändringar: { efter: { läge: number } }[] }) => u.ändringar[0]!.efter.läge)).toEqual([
+      0,
+      ...lägen,
+    ]);
+  });
+});
+
 describe("the SPA", () => {
   it("serves index.html at the bare root and for every client route", async () => {
     const { base } = await start();

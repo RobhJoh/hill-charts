@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { FunktionsområdeVy } from "../../core/index.js";
   import NamnForm from "../components/NamnForm.svelte";
+  import Nedrakning from "../components/Nedrakning.svelte";
+  import Tidsplan from "../components/Tidsplan.svelte";
   import ProjektCells from "../components/ProjektCells.svelte";
   import { api, ApiError } from "../lib/api.js";
   import { signatur } from "../lib/signatur.svelte.js";
@@ -24,6 +26,16 @@
     }
   }
   load();
+
+  /** Dates and Milstolpar of a Funktionsområde: saved without Historik. */
+  const mål = $derived({ funktionsområde: id });
+  async function ändraTid(edit: (vem: string) => Promise<unknown>) {
+    try {
+      await signatur.signera(edit);
+    } finally {
+      await load();
+    }
+  }
 
   async function bytNamn(namn: string) {
     await signatur.signera((vem) => api.renameFunktionsområde(id, namn, vem));
@@ -66,6 +78,16 @@
             <div class="meta">
               {fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<span class="stilla">{fo.stilla} stilla</span>{/if}
             </div>
+            <div class="tid">
+              <Nedrakning nedräkning={fo.nedräkning} nästaMilstolpe={fo.nästaMilstolpe} />
+              <Tidsplan
+                tidsplan={fo.tidsplan}
+                onsätt={(input) => ändraTid((vem) => api.setDatum(mål, input, vem))}
+                onlägg={(m) => ändraTid((vem) => api.addMilstolpe(mål, m, vem))}
+                onändra={(mid, ä) => ändraTid((vem) => api.changeMilstolpe(mål, mid, ä, vem))}
+                ontabort={(mid) => ändraTid((vem) => api.removeMilstolpe(mål, mid, vem))}
+              />
+            </div>
           </div>
           {#if läge === "visa"}
             <button class="pr" onclick={() => (läge = "nytt projekt")}>Nytt Projekt</button>
@@ -92,6 +114,9 @@
 <style>
   section {
     margin-top: 32px;
+  }
+  .tid {
+    margin-top: 14px;
   }
   .stilla {
     color: var(--redtx);

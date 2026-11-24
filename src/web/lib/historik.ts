@@ -1,5 +1,6 @@
 // Plain-Swedish text for Historik rows (what happened), used by HistorikPanel.
-import type { HistorikRad, PersonVy, Ändring } from "../../core/index.js";
+import type { HistorikRad, Milstolpe, PersonVy, Ändring } from "../../core/index.js";
+import { visaDatum } from "./datum.js";
 
 /** Shown for legacy edits without a Signatur. */
 export const UTAN_NAMN = "Någon utan namn";
@@ -24,6 +25,32 @@ export function beskrivProjekt(projekt: HistorikRad<PersonVy>["projekt"]): strin
   const delar: string[] = [];
   if (projekt.efter.avslutat === true) delar.push("markerade Projektet Avslutat");
   if (projekt.efter.avslutat === false) delar.push("öppnade Projektet igen");
+  for (const fält of ["startdatum", "slutdatum"] as const) {
+    if (!(fält in projekt.efter)) continue;
+    const före = projekt.före[fält] ?? null;
+    const efter = projekt.efter[fält] ?? null;
+    const namn = fält === "startdatum" ? "Startdatum" : "Slutdatum";
+    if (efter === null) delar.push(`tog bort ${namn}`);
+    else if (före === null) delar.push(`satte ${namn} ${visaDatum(efter)}`);
+    else delar.push(`flyttade ${namn} ${visaDatum(före)} → ${visaDatum(efter)}`);
+  }
+  if (projekt.efter.milstolpar) delar.push(...beskrivMilstolpar(projekt.före.milstolpar ?? [], projekt.efter.milstolpar));
+  return delar;
+}
+
+function beskrivMilstolpar(före: Milstolpe[], efter: Milstolpe[]): string[] {
+  const delar: string[] = [];
+  for (const m of efter) {
+    const förr = före.find((x) => x.id === m.id);
+    if (!förr) delar.push(`lade till Milstolpen ${m.namn} ${visaDatum(m.datum)}`);
+    else {
+      if (förr.namn !== m.namn) delar.push(`döpte om Milstolpen ${förr.namn} till ${m.namn}`);
+      if (förr.datum !== m.datum) {
+        delar.push(`flyttade Milstolpen ${m.namn} ${visaDatum(förr.datum)} → ${visaDatum(m.datum)}`);
+      }
+    }
+  }
+  for (const m of före) if (!efter.some((x) => x.id === m.id)) delar.push(`tog bort Milstolpen ${m.namn}`);
   return delar;
 }
 

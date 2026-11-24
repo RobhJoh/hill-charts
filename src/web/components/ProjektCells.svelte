@@ -5,6 +5,7 @@
   import { tema } from "../lib/tema.svelte.js";
   import { projektHref } from "../lib/links.js";
   import MiniHill from "./MiniHill.svelte";
+  import Nedrakning from "./Nedrakning.svelte";
 
   let {
     projekt,
@@ -26,6 +27,7 @@
           {#if p.avslutat}Avslutat ·{/if}
           {p.scopes.length} Scopes{#if p.stilla > 0}{" · "}<span class="stilla">{p.stilla} stilla</span>{/if}
         </span>
+        {#if !p.avslutat}<Nedrakning nedräkning={p.nedräkning} nästaMilstolpe={p.nästaMilstolpe} liten />{/if}
       </a>
     {/each}
   </div>

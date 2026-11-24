@@ -3,6 +3,8 @@
   import HillChart from "../components/HillChart.svelte";
   import HistorikPanel from "../components/HistorikPanel.svelte";
   import MiniHill from "../components/MiniHill.svelte";
+  import Nedrakning from "../components/Nedrakning.svelte";
+  import Tidsplan from "../components/Tidsplan.svelte";
   import Toast from "../components/Toast.svelte";
   import { beskrivRad, UTAN_NAMN, visaTid } from "../lib/historik.js";
   import NamnForm from "../components/NamnForm.svelte";
@@ -134,6 +136,9 @@
     }
   }
 
+  // --- Dates and Milstolpar (#38): Uppdateringar in the Historik ---
+  const mål = $derived({ projekt: id });
+
   async function bytNamn(namn: string) {
     await signatur.signera((vem) => api.renameProjekt(id, namn, vem));
     await load();
@@ -215,6 +220,17 @@
             {#if projekt.avslutat}<span>Avslutat · alla Scopes på Läge 100</span>{:else}<span>Pågående</span>{/if}
             <button class="quiet" onclick={() => växlaAvslutat(true)}>Markera Avslutat</button>
           {/if}
+        </div>
+        <div class="tid">
+          <Nedrakning nedräkning={projekt.nedräkning} nästaMilstolpe={projekt.nästaMilstolpe} />
+          <Tidsplan
+            tidsplan={projekt.tidsplan}
+            varningar={projekt.datumVarningar}
+            onsätt={(input) => redigera((vem) => api.setDatum(mål, input, vem))}
+            onlägg={(m) => redigera((vem) => api.addMilstolpe(mål, m, vem))}
+            onändra={(mid, ä) => redigera((vem) => api.changeMilstolpe(mål, mid, ä, vem))}
+            ontabort={(mid) => redigera((vem) => api.removeMilstolpe(mål, mid, vem))}
+          />
         </div>
       {/if}
 
@@ -374,6 +390,9 @@
     margin-top: 6px;
     color: var(--dim);
     font-size: 14px;
+  }
+  .tid {
+    margin-top: 16px;
   }
   .huvud {
     padding: 28px 28px 48px;

@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from "node:net";
 import { extname, join, normalize, sep } from "node:path";
 import { DomainError, type Apogee } from "../core/index.js";
+import { attachLive } from "./live.js";
 
 /**
  * Every response carries these (ADR 0002): stay out of search engines, leak no
@@ -45,6 +46,7 @@ export type RunningServer = {
 /** Starts the one Apogee process: JSON API plus the SPA. */
 export async function startServer(options: ServerOptions): Promise<RunningServer> {
   const server = createServer(createHandler(options));
+  const live = attachLive(server, options.apogee, SECURITY_HEADERS);
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(options.port, options.host ?? "127.0.0.1", resolve);
@@ -52,7 +54,10 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   let closing: Promise<void> | undefined;
   return {
     address: server.address() as AddressInfo,
-    close: () => (closing ??= closeServer(server)),
+    close: () => {
+      live.close();
+      return (closing ??= closeServer(server));
+    },
   };
 }
 

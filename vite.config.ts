@@ -14,7 +14,8 @@ export default defineConfig({
   server: {
     port: Number(process.env.VITE_PORT ?? 5173),
     proxy: {
-      "/api": `http://127.0.0.1:${process.env.API_PORT ?? 3001}`,
+      // ws: the live sync WebSocket (/api/projekt/:id/live) is proxied too.
+      "/api": { target: `http://127.0.0.1:${process.env.API_PORT ?? 3001}`, ws: true },
     },
   },
 });

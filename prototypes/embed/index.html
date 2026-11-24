@@ -1,0 +1,233 @@
+<!doctype html>
+<!-- PROTOTYPE, throwaway. Answers the wayfinder ticket "Embed mode: what the Hill chart shows and allows
+     inside Notion" (#20). Open the file in a browser; nothing is saved.
+     Three variants of the embed, switchable with ?variant=A|B|C, shown inside a fake Notion page.
+     The grey control strip above the page lets you change the column width, the Projekt's countdown
+     state, and pretend to be the iOS Notion app (where the embed never renders). Drag the embed's
+     bottom edge to change its height, as a Notion user would (~320 px is the default). -->
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Apogee · inbäddning · prototyp</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+body{background:#fff;color:#37352f;font:16px/1.5 ui-sans-serif,-apple-system,"Segoe UI",Helvetica,sans-serif}
+/* ---------- prototype controls (not part of the design) ---------- */
+#ctl{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:18px;align-items:center;padding:8px 16px;background:#2b2b2b;color:#ddd;font:500 12px system-ui}
+#ctl label{display:flex;gap:6px;align-items:center}
+#ctl select{font:inherit}
+#proto{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;background:#111;color:#fff;border-radius:999px;padding:6px;box-shadow:0 6px 24px rgba(0,0,0,.35);font:600 13px system-ui;z-index:9}
+#proto button{all:unset;cursor:pointer;padding:6px 12px;border-radius:999px}
+#proto button:hover{background:#333}
+#proto span{padding:0 6px}
+/* ---------- fake Notion page ---------- */
+.np{margin:0 auto;padding:56px 24px 140px}
+.np.std{max-width:756px}.np.full{max-width:1180px}
+.np h1{font-size:40px;font-weight:700;line-height:1.2;margin-bottom:18px}
+.np p{margin:4px 0 14px}
+.np .muted{color:#9b9a97;font-size:14px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:46px}
+.mention{color:#37352f;text-decoration:none;border-bottom:1px solid #d3d1cb;font-weight:500}
+.mention::before{content:"✦ ";color:#c8402b}
+.embedblock{position:relative;margin:10px 0 22px}
+.embedframe{height:320px;min-height:120px;resize:vertical;overflow:hidden;border-radius:4px;border:1px solid #e9e9e7;background:#fff}
+.ios-gap{height:0;margin:0}
+.caption{color:#9b9a97;font-size:14px;margin-top:6px}
+/* ---------- the embed itself: Stjärnatlas dag ---------- */
+.ap{--bg:#ffffff;--panel:#f6f8fc;--line:#d3dbea;--grid:#e6ebf4;--tx:#0f1a3a;--mid:#4a5878;--dim:#5d6a88;--orbit:#8a9ac0;--red:#c8402b;--redtx:#b8381f;--sel:#e6ecf8;--halo:#fff;--star:#9aa8c7;
+  height:100%;display:flex;flex-direction:column;background:var(--bg);color:var(--tx);font:400 14px/1.35 Barlow,sans-serif;font-variant-numeric:tabular-nums;position:relative}
+.ap a{color:inherit}
+.ap .grow{flex:1;min-height:0;position:relative}
+.ap svg{display:block;width:100%;height:100%;touch-action:none;user-select:none}
+.ap .gt{font:500 11px Barlow;fill:var(--dim)}
+.ap .sn{font:600 13px Barlow;fill:var(--tx);paint-order:stroke;stroke:var(--halo);stroke-width:4px;stroke-linejoin:round;pointer-events:none}
+.ap .sm{font-weight:500;fill:var(--mid)}
+.ap g.scope{cursor:grab}
+.ap .open{font:600 13px Barlow;color:var(--mid);text-decoration:none;white-space:nowrap}
+.ap .open:hover{color:var(--tx);text-decoration:underline}
+.ap .t{font:600 16px Barlow}
+.ap .meta{font-size:13px;color:var(--dim)}
+.ap .warn{color:var(--redtx)}
+.ap .bar{height:4px;background:var(--grid);border-radius:2px;overflow:hidden}
+.ap .bar i{display:block;height:100%;background:var(--mid)}
+.ap .bar.over i{background:var(--red)}
+.ap svg.mark{display:inline-block;width:13px;height:13px;vertical-align:-2px}
+/* A */
+.a-top{position:absolute;inset:0 0 auto 0;padding:10px 14px 0;display:flex;justify-content:space-between;gap:12px;pointer-events:none}
+.a-top>*{pointer-events:auto}
+.a-hair{height:3px;background:var(--grid)}.a-hair i{display:block;height:100%;background:var(--mid)}.a-hair.over i{background:var(--red)}
+/* B */
+.b-head{display:flex;align-items:center;gap:14px;padding:9px 14px;border-bottom:1px solid var(--line)}
+.b-head .cd{display:flex;flex-direction:column;gap:3px;min-width:150px}
+.b-body{flex:1;min-height:0;display:flex}
+.b-list{width:230px;border-left:1px solid var(--line);background:var(--panel);overflow:auto;font-size:13px}
+.b-list table{width:100%;border-collapse:collapse}
+.b-list td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.b-list td.n{width:100%;max-width:110px;overflow:hidden;text-overflow:ellipsis}
+.b-list td.o{color:var(--dim)}
+.b-list tr{cursor:pointer}.b-list tr.sel td{background:var(--sel)}
+.b-list i{display:inline-block;width:7px;height:7px;border-radius:50%}
+/* C */
+.c-tabs{display:flex;align-items:stretch;border-bottom:1px solid var(--line);padding:0 10px;gap:2px}
+.c-tabs button{all:unset;cursor:pointer;padding:9px 10px;font:600 13px Barlow;color:var(--dim)}
+.c-tabs button.on{color:var(--tx);box-shadow:inset 0 -2px 0 var(--red)}
+.c-tabs .sp{flex:1}
+.c-tabs .st{align-self:center;font-size:12px;color:var(--dim);margin-right:12px;white-space:nowrap}
+.c-pane{flex:1;min-height:0;overflow:auto}
+.c-pane table{width:100%;border-collapse:collapse;font-size:13px}
+.c-pane td{padding:6px 12px;border-bottom:1px solid var(--line)}
+.c-pane td.r{text-align:right}
+.c-pane td.o{color:var(--dim)}
+.c-pane input[type=range]{width:120px;accent-color:#5a86d6}
+.c-foot{display:flex;justify-content:space-between;padding:6px 12px;border-top:1px solid var(--line);font-size:12px;color:var(--dim)}
+@media (max-width:700px){.cols{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="ctl">
+  <b>PROTOTYP · Notion-attrapp</b>
+  <label>Kolumn <select id="w"><option value="std">Standardbredd (~708 px)</option><option value="full">Full bredd</option><option value="col">Halv kolumn (~330 px)</option></select></label>
+  <label>Projektläge <select id="st"><option value="kvar">Pågår (22 dagar kvar)</option><option value="start">Startar om 5 dagar</option><option value="over">Över tid</option><option value="klart">Avslutat</option><option value="inga">Inga datum</option></select></label>
+  <label><input type="checkbox" id="ios"> iOS Notion-appen (inbäddningen syns inte)</label>
+  <span id="log" style="margin-left:auto;color:#9c9"></span>
+</div>
+
+<div class="np std" id="np"></div>
+<div id="proto"><button id="pv" aria-label="Föregående variant">←</button><span id="pl"></span><button id="pn" aria-label="Nästa variant">→</button></div>
+
+<script>
+// ---------- synthetic sample data ----------
+const PJ={namn:"Nytt bokningsflöde",fo:"Kundupplevelse",url:"https://apogeechart.com/kundupplevelse/nytt-bokningsflode",
+  scopes:[["Avbokning","Ahmed",12,21],["Mobilvy","Lina",27,2],["Kalender-API","Erik",34,6],["Tillgänglighet","Lina",48,1],
+          ["Prislogik","Ahmed",61,2],["Betalsteg","Sara",82,0],["Bekräftelsemejl","Jonas",95,1]].map(([namn,agare,lage,dagar])=>({namn,agare,lage,dagar}))};
+const HIST=[["nu","Sara","Betalsteg 78 → 82"],["i går 16:40","Lina","Mobilvy 22 → 27"],["i går 11:02","Erik","Kalender-API 30 → 34"],["21 nov","Ahmed","Ny Scope: Prislogik"],["20 nov","Sara","Slutdatum 9 dec → 16 dec"]];
+const STATUS={
+  kvar:{txt:"22 dagar kvar av 6 veckor",used:.48,ms:"Betaversion om 8 dagar"},
+  start:{txt:"Startar om 5 dagar",used:0,ms:"Kickoff om 5 dagar"},
+  over:{txt:"Över tid · 4 dagar",used:1,over:true,ms:"Lansering för 4 dagar sedan"},
+  klart:{txt:"Avslutat",ms:null},
+  inga:{txt:null,ms:null}};
+let sel=null;
+
+// ---------- shared: Läge colour (dag ramp) and hill geometry ----------
+const RAMP=[[0,"#d9481f"],[25,"#e08a1e"],[50,"#c9a21a"],[75,"#5a86d6"],[100,"#2f5fc4"]];
+const hx=s=>[1,3,5].map(i=>parseInt(s.slice(i,i+2),16));
+function col(L){for(let i=0;i<4;i++){const[a,ca]=RAMP[i],[b,cb]=RAMP[i+1];if(L>=a&&L<=b){const t=(L-a)/(b-a),A=hx(ca),B=hx(cb);
+  return"#"+A.map((v,k)=>Math.round(v+(B[k]-v)*t).toString(16).padStart(2,"0")).join("");}}}
+const H=L=>(1-Math.cos(2*Math.PI*L/100))/2;
+const rad=d=>d<=1?7:d<=6?5.5:4;
+const MARK=`<svg class="mark" width="13" height="13" viewBox="0 0 22 22" aria-hidden="true"><path d="M11 1 L12.6 9.4 L21 11 L12.6 12.6 L11 21 L9.4 12.6 L1 11 L9.4 9.4Z" fill="#c8402b"/></svg>`;
+const openLink=(txt="Öppna i Apogee")=>`<a class="open" href="${PJ.url}" target="_blank" rel="noopener">${MARK} ${txt} ↗</a>`;
+function log(m){const el=document.getElementById("log");el.textContent=m;clearTimeout(log.t);log.t=setTimeout(()=>el.textContent="",2500);}
+
+// Draws the hill into an <svg> sized to its box. opts: top/bottom/left/right padding, labels ("all"|"sel"|"none"), axis
+function hill(svg,opts){
+  const w=svg.clientWidth,h=svg.clientHeight;if(!w||!h)return;
+  const o=Object.assign({top:34,bottom:22,left:18,right:18,labels:"all",axis:true},opts);
+  const X0=o.left,W=w-o.left-o.right,BASE=h-o.bottom,HT=Math.max(20,BASE-o.top);
+  const P=L=>[X0+W*L/100,BASE-HT*H(L)];
+  let s=`<line x1="${X0}" y1="${BASE}" x2="${X0+W}" y2="${BASE}" stroke="var(--line)"/>`;
+  s+=`<line x1="${X0+W/2}" y1="${o.top-6}" x2="${X0+W/2}" y2="${BASE}" stroke="var(--grid)" stroke-dasharray="2 3"/>`;
+  s+=`<path d="${Array.from({length:101},(_,j)=>(j?"L":"M")+P(j).map(v=>v.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="var(--orbit)" stroke-width="1.3"/>`;
+  if(o.axis&&h>150)s+=`<text class="gt" x="${X0}" y="${BASE+15}">Uppför · lista ut</text><text class="gt" x="${X0+W}" y="${BASE+15}" text-anchor="end">Nedför · genomföra</text>`;
+  // greedy label placement: try above, then below, else hide (shown on selection)
+  const boxes=(o.reserve||[]).map(b=>({...b}));const fits=b=>b.x>=2&&b.x+b.w<=w-2&&b.y>=2&&b.y+b.h<=h-2&&!boxes.some(c=>b.x<c.x+c.w&&c.x<b.x+b.w&&b.y<c.y+c.h&&c.y<b.y+b.h);
+  const order=[...PJ.scopes].sort((a,b)=>(b===sel)-(a===sel)||a.dagar-b.dagar);
+  const lab=new Map();
+  for(const sc of order){
+    if(o.labels==="none"||(o.labels==="sel"&&sc!==sel))continue;
+    const[x,y]=P(sc.lage),txt=sc.namn+" "+sc.lage,tw=txt.length*6.6,th=15;
+    const tries=[[x-tw/2,y-th-10],[x+10,y-th-4],[x-tw-10,y-th-4],[x-tw/2,y+10],[x+10,y+2],[x-tw-10,y+2],[x-tw/2,y-th-26]];
+    for(const[bx,by]of tries){const b={x:bx,y:by,w:tw,h:th};if(fits(b)){boxes.push(b);lab.set(sc,b);break;}}
+  }
+  PJ.scopes.forEach((sc,i)=>{
+    const[x,y]=P(sc.lage),c=col(sc.lage),r=rad(sc.dagar);
+    let g=`<circle cx="${x}" cy="${y}" r="${r*2.4}" fill="${c}" opacity=".14"/><circle cx="${x}" cy="${y}" r="16" fill="transparent"/><circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>`;
+    if(sc===sel)g+=`<circle cx="${x}" cy="${y}" r="13" fill="none" stroke="var(--red)" stroke-width="1.2"/>`;
+    if(sc.dagar>14)g+=`<circle cx="${x}" cy="${y}" r="10" fill="none" stroke="var(--red)" stroke-width="1" stroke-dasharray="3 3"/>`;
+    const b=lab.get(sc);if(b)g+=`<text class="sn" x="${b.x}" y="${b.y+12}">${sc.namn} <tspan class="sm">${sc.lage}</tspan></text>`;
+    s+=`<g class="scope" data-i="${i}"><title>${sc.namn} · ${sc.agare} · Läge ${sc.lage}${sc.dagar>14?` · stilla i ${sc.dagar} dagar`:""}</title>${g}</g>`;
+  });
+  svg.innerHTML=s;
+  svg.querySelectorAll("g.scope").forEach(g=>g.addEventListener("pointerdown",e=>{
+    e.preventDefault();const sc=PJ.scopes[+g.dataset.i];sel=sc;svg.setPointerCapture(e.pointerId);
+    const move=ev=>{const r=svg.getBoundingClientRect();const L=Math.round(Math.min(100,Math.max(0,(ev.clientX-r.left-X0)/W*100)));
+      if(L!==sc.lage){sc.lage=L;sc.dagar=0;rerender();}};
+    const up=()=>{svg.removeEventListener("pointermove",move);svg.removeEventListener("pointerup",up);log(`Uppdatering sparad: ${sc.namn} → ${sc.lage}`);rerender();};
+    svg.addEventListener("pointermove",move);svg.addEventListener("pointerup",up);rerender();}));
+}
+const status=()=>STATUS[document.getElementById("st").value];
+function bar(cls){const s=status();if(s.used===undefined)return"";return`<div class="${cls} ${s.over?"over":""}"><i style="width:${Math.round(s.used*100)}%"></i></div>`;}
+function cdText(){const s=status();if(!s.txt)return"";return`<span class="${s.over?"warn":""}">${s.txt}</span>`;}
+function msText(){const s=status();return s.ms?`◆ ${s.ms}`:"";}
+
+// ---------- Variant A: Bara himlen. Chart fills the box; one overlaid line; Scopes/Historik/Ägare live behind the link ----------
+function VariantA(root){
+  const s=status();
+  root.innerHTML=`<div class="ap">${bar("a-hair")}
+    <div class="grow"><svg id="sv"></svg>
+      <div class="a-top"><div><div class="t">${PJ.namn}</div><div class="meta">${[cdText(),msText()].filter(Boolean).join(" · ")}</div></div>${openLink()}</div></div></div>`;
+  const sv=root.querySelector("svg:not(.mark)"),R=sv.getBoundingClientRect();
+  const reserve=[...root.querySelectorAll(".a-top>*")].map(e=>{const r=e.getBoundingClientRect();return{x:r.left-R.left-4,y:r.top-R.top-4,w:r.width+8,h:r.height+8};});
+  hill(sv,{top:62,reserve});
+}
+// ---------- Variant B: Himmel + lista. Header row with countdown bar, chart left, compact Scope list right ----------
+function VariantB(root){
+  const narrow=root.clientWidth<520;
+  const rows=[...PJ.scopes].sort((a,b)=>b.lage-a.lage).map((s,i)=>`<tr class="${s===sel?"sel":""}" data-n="${s.namn}"><td><i style="background:${col(s.lage)}"></i></td><td class="n">${s.namn}</td><td class="o">${s.agare}</td><td><b>${s.lage}</b></td></tr>`).join("");
+  root.innerHTML=`<div class="ap">
+    <div class="b-head"><div style="flex:1;min-width:0"><div class="t" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PJ.namn}</div>${narrow?`<div class="meta">${cdText()}</div>`:`<div class="meta">${msText()}</div>`}</div>
+      ${!narrow&&status().txt?`<div class="cd"><span class="meta">${cdText()}</span>${bar("bar")}</div>`:""}${openLink(narrow?"Öppna":"Öppna i Apogee")}</div>
+    <div class="b-body"><div class="grow"><svg></svg></div>${narrow?"":`<div class="b-list"><table>${rows}</table></div>`}</div></div>`;
+  root.querySelectorAll(".b-list tr").forEach(tr=>tr.onclick=()=>{sel=PJ.scopes.find(s=>s.namn===tr.dataset.n);rerender();});
+  hill(root.querySelector("svg:not(.mark)"),{labels:narrow?"all":"sel",top:24});
+}
+// ---------- Variant C: Flikar. Everything the Projekt page has, squeezed into tabs ----------
+let tab="himmel";
+function VariantC(root){
+  const sorted=[...PJ.scopes].sort((a,b)=>b.lage-a.lage);
+  const pane=tab==="himmel"?`<svg></svg>`
+    :tab==="scopes"?`<table>${sorted.map(s=>`<tr><td><span style="color:${col(s.lage)}">●</span> ${s.namn}</td><td class="o">${s.agare}</td><td class="r"><input type="range" min="0" max="100" value="${s.lage}" data-n="${s.namn}"></td><td class="r"><b>${s.lage}</b></td></tr>`).join("")}</table>`
+    :`<table>${HIST.map(([t,v,w])=>`<tr><td class="o">${t}</td><td>${v}</td><td>${w}</td><td class="r"><a href="#" onclick="log('Ångra (attrapp)');return false">Ångra</a></td></tr>`).join("")}</table>`;
+  root.innerHTML=`<div class="ap">
+    <div class="c-tabs">${[["himmel","Himmel"],["scopes",`Scopes ${PJ.scopes.length}`],["historik","Historik"]].map(([k,l])=>`<button class="${tab===k?"on":""}" data-t="${k}">${l}</button>`).join("")}
+      <span class="sp"></span>${status().txt?`<span class="st">${cdText()}</span>`:""}</div>
+    <div class="c-pane" style="display:flex;flex-direction:column"><div class="grow" style="${tab==="himmel"?"":"overflow:auto"}">${pane}</div></div>
+    <div class="c-foot"><span><b style="color:var(--tx)">${PJ.namn}</b>${msText()?" · "+msText():""}</span>${openLink()}</div></div>`;
+  root.querySelectorAll(".c-tabs button[data-t]").forEach(b=>b.onclick=()=>{tab=b.dataset.t;rerender();});
+  root.querySelectorAll("input[type=range]").forEach(r=>r.onchange=()=>{const sc=PJ.scopes.find(s=>s.namn===r.dataset.n);sc.lage=+r.value;sc.dagar=0;log(`Uppdatering sparad: ${sc.namn} → ${sc.lage}`);rerender();});
+  const svg=root.querySelector("svg:not(.mark)");if(svg)hill(svg,{top:26});
+}
+
+// ---------- the Notion page around it ----------
+const VARIANTS=[["A","Bara himlen",VariantA],["B","Himmel + lista",VariantB],["C","Flikar",VariantC]];
+const qs=new URLSearchParams(location.search);
+let vi=Math.max(0,VARIANTS.findIndex(v=>v[0]===qs.get("variant")));
+function page(){
+  const wv=document.getElementById("w").value,ios=document.getElementById("ios").checked;
+  const np=document.getElementById("np");np.className="np "+(wv==="full"?"full":"std");
+  const block=`<div class="embedblock">${ios?`<div class="ios-gap"></div>`:`<div class="embedframe" id="ef"></div>`}
+     <p class="caption">${ios?"":"Dra i nederkanten för att ändra höjd, som i Notion."}</p></div>
+     <p><a class="mention" href="${PJ.url}" target="_blank" rel="noopener">${PJ.namn} · Apogee</a></p>`;
+  const intro=`<p class="muted">Delad sida · senast redigerad i går</p><h1>Kundupplevelse — veckoavstämning</h1>
+     <p>Varje måndag går vi igenom läget i bokningsflödet. Dra Scopes på kullen när något har flyttat sig.</p>`;
+  np.innerHTML=wv==="col"
+    ?intro+`<div class="cols"><div><p><b>Anteckningar 24 nov</b></p><p>Betalsteget är nästan klart. Avbokning har stått still i tre veckor, Ahmed tittar på det.</p><p>Nästa vecka: demo för kundtjänst.</p></div><div>${block}</div></div>`
+    :intro+block+`<p><b>Anteckningar 24 nov</b></p><p>Betalsteget är nästan klart. Avbokning har stått still i tre veckor, Ahmed tittar på det.</p>`;
+  const ef=document.getElementById("ef");
+  if(ef){new ResizeObserver(()=>VARIANTS[vi][2](ef)).observe(ef);}
+}
+function rerender(){const ef=document.getElementById("ef");if(ef)VARIANTS[vi][2](ef);}
+function setVariant(i){vi=(i+VARIANTS.length)%VARIANTS.length;document.getElementById("pl").textContent=`${VARIANTS[vi][0]} (${VARIANTS[vi][1]})`;
+  const u=new URL(location);u.searchParams.set("variant",VARIANTS[vi][0]);history.replaceState(null,"",u);page();}
+document.getElementById("pv").onclick=()=>setVariant(vi-1);
+document.getElementById("pn").onclick=()=>setVariant(vi+1);
+addEventListener("keydown",e=>{if(e.target.closest("input,textarea,select,[contenteditable]"))return;
+  if(e.key==="ArrowLeft")setVariant(vi-1);if(e.key==="ArrowRight")setVariant(vi+1);});
+["w","st","ios"].forEach(id=>document.getElementById(id).onchange=page);
+setVariant(vi);
+</script>
+</body>
+</html>

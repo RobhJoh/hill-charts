@@ -1,5 +1,6 @@
 import { lika, nuvarande, senastFlyttad } from "./diagram.js";
 import { DomainError } from "./errors.js";
+import { annonseraUppdateringar } from "./live.js";
 import { dagarSedan, projektFält, ärAvslutat, ärPågående, ärStilla } from "./status.js";
 import type { Storage } from "./storage.js";
 import type {
@@ -142,7 +143,10 @@ const efterNamn = (a: { namn: string }, b: { namn: string }) => svenskOrdning.co
 /**
  * The Apogee core: every domain rule lives behind these commands and queries.
  */
-export function createApogee({ storage, now, newId }: ApogeeDeps) {
+export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
+  // Every Uppdatering written to a Historik is announced via `påUppdatering`.
+  const { storage, påUppdatering } = annonseraUppdateringar(lagring);
+
   async function requireFunktionsområde(id: FunktionsområdeId): Promise<Funktionsområde> {
     const fo = (await storage.listFunktionsområden()).find((f) => f.id === id);
     if (!fo) throw new DomainError("finns-inte", `Funktionsområdet ${id} finns inte`);
@@ -261,6 +265,9 @@ export function createApogee({ storage, now, newId }: ApogeeDeps) {
   }
 
   return {
+    /** Listens for every Uppdatering written, by any command (live sync, #36). */
+    påUppdatering,
+
     async createPerson(namn: string, vem: PersonId | null): Promise<PersonVy> {
       const giltigt = namnFrån(namn);
       const all = await storage.listPersoner();

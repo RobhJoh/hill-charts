@@ -84,10 +84,10 @@ export const signatur = {
     for (const h of släpp) h.reject(new Avbruten());
   },
 
-  /** The remembered, active Signatur's id, asking "Vem?" first when there is none (`/mina`). */
-  async begär(): Promise<string> {
+  /** The remembered, active Signatur's Person, or undefined; never asks (`/mina`). */
+  async ihågkommen(): Promise<PersonVy | undefined> {
     await laddaPersoner();
-    return giltig(vem) ? vem! : fråga();
+    return aktiva().find((p) => p.id === vem);
   },
 
   /**

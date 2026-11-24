@@ -7,6 +7,9 @@ Terms are the Swedish words used in the app.
 **Projekt**: A piece of work the organization tracks. Belongs to exactly one Funktionsområde (and can be moved to another). Has exactly one Hill chart.
 _Avoid_: Project
 
+**Avslutat Projekt**: A Projekt that is done: every one of its Scopes is at Läge 100 (or it has none), or someone has marked it Avslutat. A marked Projekt stays Avslutat until someone reopens it; one that is Avslutat only through Läge is ongoing again as soon as a Scope moves back.
+_Avoid_: Klart, Stängt
+
 **Hill chart**: The visual of one Projekt: a hill on which each of its Scopes is placed. Uphill (left) is figuring it out; downhill (right) is making it happen.
 _Avoid_: Backdiagram, Kullediagram
 
@@ -30,3 +33,9 @@ _Avoid_: Rollback, Revert
 
 **Ångra**: An Uppdatering that takes back one earlier Uppdatering and leaves later ones in place. Not possible if something it changed has been changed again since.
 _Avoid_: Undo (in the UI)
+
+**Borttagen**: A Projekt or Funktionsområde that someone has taken away (Ta bort). Hidden, but kept whole and can be restored. A Funktionsområde can only be taken away when all its Projekt are Avslutade, and they go and come back together with it.
+_Avoid_: Raderad, Arkiverad
+
+**Radera**: Erasing a Borttagen Projekt or Funktionsområde for good. Cannot be undone. Erasing a Funktionsområde erases every Projekt in it.
+_Avoid_: Ta bort (which can be restored)

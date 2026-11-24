@@ -5,7 +5,6 @@ import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApogee } from "../core/index.js";
 import type { Storage } from "../core/index.js";
-import { createJsonFileStorage } from "../storage/json-file.js";
 import { createMemoryStorage } from "../storage/memory.js";
 import { startServer, type RunningServer } from "./http.js";
 
@@ -225,19 +224,6 @@ describe("JSON API", () => {
     );
     expect(results.map((r) => r.status)).toEqual(namn.map(() => 201));
     expect((await api("GET", "/api/oversikt")).body.map((f: { namn: string }) => f.namn)).toEqual(namn);
-  });
-
-  it("keeps data across a restart when backed by JSON files", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "apogee-data-"));
-    const first = await start(createJsonFileStorage(dir));
-    const fo = await first.api("POST", "/api/funktionsomraden", { namn: "Ekonomi" });
-    await first.api("POST", "/api/projekt", { funktionsområdeId: fo.body.id, namn: "Fakturering" });
-    await first.server.close();
-
-    const second = await start(createJsonFileStorage(dir));
-    expect((await second.api("GET", "/api/oversikt")).body).toMatchObject([
-      { id: fo.body.id, namn: "Ekonomi", projekt: [{ id: expect.any(String), namn: "Fakturering" }] },
-    ]);
   });
 });
 

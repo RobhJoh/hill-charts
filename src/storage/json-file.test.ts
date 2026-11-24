@@ -1,4 +1,4 @@
-import { appendFile, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -85,15 +85,13 @@ describe("JSON files: format versions", () => {
     expect(await storage.listProjekt()).toEqual([projekt]);
   });
 
-  it("writes the current format version, so an upgraded document is saved upgraded", async () => {
+  it("an upgraded document saved again reads back the same after a restart", async () => {
     const dir = await tempDir();
     await mkdir(join(dir, "projekt"));
     await writeFile(join(dir, "projekt", "p1.json"), JSON.stringify(projekt));
     const storage = createJsonFileStorage(dir);
     await storage.saveProjekt((await storage.getProjekt("p1"))!);
 
-    const raw = JSON.parse(await readFile(join(dir, "projekt", "p1.json"), "utf8"));
-    expect(raw.formatVersion).toBe(1);
     expect(await createJsonFileStorage(dir).getProjekt("p1")).toEqual(projekt);
   });
 

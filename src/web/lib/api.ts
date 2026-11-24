@@ -75,6 +75,22 @@ export const api = {
   reopenProjekt: (projektId: string, vem: string) =>
     call<{ uppdatering: Uppdatering | null }>("DELETE", `/projekt/${enc(projektId)}/avslutat`, undefined, vem),
 
+  /** Ta bort: always allowed for a Projekt; a Funktionsområde only when all its Projekt are Avslutade. */
+  taBortProjekt: (id: string, vem: string) => call<void>("POST", `/projekt/${enc(id)}/borttagen`, undefined, vem),
+  återställProjekt: (id: string, vem: string) =>
+    call<void>("DELETE", `/projekt/${enc(id)}/borttagen`, undefined, vem),
+  /** Radera a Borttagen Projekt for good; `namn` is the typed confirmation. */
+  raderaProjekt: (id: string, namn: string, vem: string) => call<void>("DELETE", `/projekt/${enc(id)}`, { namn }, vem),
+  taBortFunktionsområde: (id: string, vem: string) =>
+    call<void>("POST", `/funktionsomraden/${enc(id)}/borttagen`, undefined, vem),
+  återställFunktionsområde: (id: string, vem: string) =>
+    call<void>("DELETE", `/funktionsomraden/${enc(id)}/borttagen`, undefined, vem),
+  /** Radera a Borttaget Funktionsområde and every Projekt in it, for good. */
+  raderaFunktionsområde: (id: string, namn: string, vem: string) =>
+    call<void>("DELETE", `/funktionsomraden/${enc(id)}`, { namn }, vem),
+  /** "Borttagna Funktionsområden", newest first. */
+  borttagnaFunktionsområden: () => call<FunktionsområdeVy[]>("GET", "/borttagna"),
+
   historik: (projektId: string) => call<Uppdatering[]>("GET", `/projekt/${enc(projektId)}/historik`),
   addScope: (projektId: string, namn: string, ägare: string, vem: string) =>
     call<{ id: string; uppdatering: Uppdatering }>("POST", `/projekt/${enc(projektId)}/scopes`, { namn, ägare }, vem),

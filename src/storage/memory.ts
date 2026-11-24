@@ -58,6 +58,11 @@ export function createMemoryStorage(options: MemoryStorageOptions = {}): Storage
       await tick();
       projekt.set(p.id, copy(p));
     },
+    async eraseProjekt(id) {
+      await tick();
+      projekt.delete(id);
+      historik.delete(id);
+    },
     async appendUppdatering(projektId, uppdatering) {
       await tick();
       historik.set(projektId, [...(historik.get(projektId) ?? []), copy(uppdatering)]);

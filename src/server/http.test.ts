@@ -364,6 +364,58 @@ describe("Avslutat", () => {
   });
 });
 
+describe("Ta bort and Radera", () => {
+  it("takes a Projekt away, restores it, and erases it when its name is typed; signed", async () => {
+    const { api, apiAs } = await start();
+    const fo = (await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" })).body.id;
+    const projekt = (await api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Kassan" })).body.id;
+    const borttagen = `/api/projekt/${projekt}/borttagen`;
+
+    expect((await apiAs(null, "POST", borttagen)).status).toBe(403);
+    expect((await api("POST", borttagen)).status).toBe(204);
+    expect((await api("POST", borttagen)).status).toBe(400);
+    expect((await api("GET", `/api/funktionsomraden/${fo}`)).body).toMatchObject({
+      projekt: [],
+      borttagnaProjekt: [{ id: projekt, namn: "Kassan", borttagen: { vem: { namn: "Testare" } } }],
+    });
+    expect((await api("DELETE", borttagen)).status).toBe(204);
+    expect((await api("GET", `/api/projekt/${projekt}`)).body).toMatchObject({ borttagen: null });
+
+    expect((await api("DELETE", `/api/projekt/${projekt}`, { namn: "Kassan" })).status).toBe(400);
+    await api("POST", borttagen);
+    expect((await api("DELETE", `/api/projekt/${projekt}`, { namn: "kassan" })).status).toBe(400);
+    expect((await apiAs(null, "DELETE", `/api/projekt/${projekt}`, { namn: "Kassan" })).status).toBe(403);
+    expect((await api("DELETE", `/api/projekt/${projekt}`, { namn: "Kassan" })).status).toBe(204);
+    expect((await api("GET", `/api/projekt/${projekt}`)).status).toBe(404);
+  });
+
+  it("takes a Funktionsområde away only when its Projekt are Avslutade, lists, restores and erases it", async () => {
+    const { api, vem } = await start();
+    const fo = (await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" })).body.id;
+    const projekt = (await api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Kassan" })).body.id;
+    await api("POST", `/api/projekt/${projekt}/scopes`, { namn: "Prislista", ägare: vem });
+    const borttaget = `/api/funktionsomraden/${fo}/borttagen`;
+
+    const blockerad = await api("POST", borttaget);
+    expect(blockerad.status).toBe(400);
+    expect(blockerad.body.meddelande).toContain("Kassan");
+    await api("POST", `/api/projekt/${projekt}/avslutat`);
+    expect((await api("POST", borttaget)).status).toBe(204);
+    expect((await api("GET", "/api/oversikt")).body).toEqual([]);
+    expect((await api("GET", "/api/borttagna")).body).toMatchObject([
+      { id: fo, namn: "Ekonomi", projekt: [{ id: projekt }], borttagen: { vem: { namn: "Testare" } } },
+    ]);
+
+    expect((await api("DELETE", borttaget)).status).toBe(204);
+    expect((await api("GET", "/api/borttagna")).body).toEqual([]);
+    await api("POST", borttaget);
+    expect((await api("DELETE", `/api/funktionsomraden/${fo}`, { namn: "Ekonomi" })).status).toBe(204);
+    expect((await api("GET", "/api/borttagna")).body).toEqual([]);
+    expect((await api("GET", `/api/funktionsomraden/${fo}`)).status).toBe(404);
+    expect((await api("GET", `/api/projekt/${projekt}`)).status).toBe(404);
+  });
+});
+
 describe("the SPA", () => {
   it("serves index.html at the bare root and for every client route", async () => {
     const { base } = await start();

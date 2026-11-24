@@ -90,11 +90,42 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
 
     const vem = signaturFrån(req);
 
+    // Ta bort (POST) and Återställ (DELETE) a Projekt or Funktionsområde.
+    if (
+      (resource === "projekt" || resource === "funktionsomraden") &&
+      id !== undefined &&
+      sub === "borttagen" &&
+      subId === undefined &&
+      (method === "POST" || method === "DELETE")
+    ) {
+      await serialize(() =>
+        resource === "projekt"
+          ? method === "POST"
+            ? apogee.taBortProjekt(id, vem)
+            : apogee.återställProjekt(id, vem)
+          : method === "POST"
+            ? apogee.taBortFunktionsområde(id, vem)
+            : apogee.återställFunktionsområde(id, vem),
+      );
+      return { status: 204 };
+    }
     if (resource === "projekt" && id !== undefined && sub !== undefined) {
       return projektDel(method, id, sub, subId, req, vem);
     }
     if (resource === "personer" && id !== undefined) return personDel(method, id, sub, subId, req, vem);
     if (sub !== undefined) throw notFound();
+
+    // Radera a Borttagen Projekt or Funktionsområde: { namn } typed to confirm.
+    if ((resource === "projekt" || resource === "funktionsomraden") && id !== undefined && method === "DELETE") {
+      const namn = text((await readJson(req)).namn);
+      await serialize(() =>
+        resource === "projekt" ? apogee.raderaProjekt(id, namn, vem) : apogee.raderaFunktionsområde(id, namn, vem),
+      );
+      return { status: 204 };
+    }
+    if (method === "GET" && resource === "borttagna" && id === undefined) {
+      return { status: 200, body: await apogee.borttagnaFunktionsområden() };
+    }
 
     if (resource === "personer" && id === undefined) {
       if (method === "GET") return { status: 200, body: await apogee.listPersoner() };
@@ -182,7 +213,7 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
   }
 
   /**
-   * A Projekt's Hill chart:
+   * A Projekt's Hill chart (Ta bort/Återställ at /api/projekt/:id/borttagen is handled in `api`):
    *   GET    /api/projekt/:id/historik            its Uppdateringar, oldest first
    *   POST   /api/projekt/:id/avslutat            mark Avslutat → 200 { uppdatering } (null if already)
    *   DELETE /api/projekt/:id/avslutat            "Öppna igen" → 200 { uppdatering } (null if not marked)

@@ -26,6 +26,9 @@ export interface Storage {
   /** Creates or replaces one Projekt. */
   saveProjekt(projekt: Projekt): Promise<void>;
 
+  /** Radera: erases a Projekt and its Historik for good. Nothing happens if it does not exist. */
+  eraseProjekt(id: ProjektId): Promise<void>;
+
   /** Appends one Uppdatering to a Projekt's Historik. */
   appendUppdatering(projektId: ProjektId, uppdatering: Uppdatering): Promise<void>;
   /** A Projekt's Historik, oldest first; empty if it has none. */

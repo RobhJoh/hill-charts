@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { Översikt } from "../../core/index.js";
+  import type { FunktionsområdeVy, Översikt } from "../../core/index.js";
+  import Borttagna from "../components/Borttagna.svelte";
   import NamnForm from "../components/NamnForm.svelte";
   import ProjektCells from "../components/ProjektCells.svelte";
   import { api } from "../lib/api.js";
@@ -7,12 +8,13 @@
   import { funktionsområdeHref } from "../lib/links.js";
 
   let översikt = $state<Översikt | undefined>();
+  let borttagna = $state<FunktionsområdeVy[]>([]);
   let loadError = $state("");
   let skapar = $state(false);
 
   async function load() {
     try {
-      översikt = await api.overview();
+      [översikt, borttagna] = await Promise.all([api.overview(), api.borttagnaFunktionsområden()]);
     } catch (e) {
       loadError = e instanceof Error ? e.message : "Kunde inte läsa in";
     }
@@ -20,6 +22,25 @@
   load();
 
   const antalProjekt = $derived(översikt?.reduce((n, fo) => n + fo.projekt.length, 0) ?? 0);
+
+  /** Each Borttaget Funktionsområde with every Projekt Radera would erase with it. */
+  const borttagnaRader = $derived(
+    borttagna.map((fo) => ({
+      ...fo,
+      borttagen: fo.borttagen!,
+      följer: [...fo.projekt, ...fo.borttagnaProjekt].map((p) => p.namn),
+    })),
+  );
+
+  async function återställ(id: string) {
+    await signatur.signera((vem) => api.återställFunktionsområde(id, vem));
+    await load();
+  }
+
+  async function radera(id: string, namn: string) {
+    await signatur.signera((vem) => api.raderaFunktionsområde(id, namn, vem));
+    await load();
+  }
 
   async function skapa(namn: string) {
     await signatur.signera((vem) => api.createFunktionsområde(namn, vem));
@@ -67,6 +88,8 @@
       </section>
     {/each}
   {/if}
+
+  <Borttagna rubrik="Borttagna Funktionsområden" rader={borttagnaRader} onåterställ={återställ} onradera={radera} />
 </div>
 
 <style>

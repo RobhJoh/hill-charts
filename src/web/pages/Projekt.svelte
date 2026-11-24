@@ -240,18 +240,22 @@
       {:else}
         <div class="titlerow">
           <h1>{projekt.namn}</h1>
-          <button class="quiet" onclick={() => (läge = "byt namn")}>Byt namn</button>
-          <button class="quiet" onclick={öppnaFlytta}>Flytta</button>
-          <KopieraLank href={projektHref(projekt)} />
-          <BaddaIn namn={projekt.namn} href={projektHref(projekt)} />
-          <TaBort
-            fråga="Ta bort {projekt.namn} med {projekt.scopes.length} {projekt.scopes.length === 1 ? 'Scope' : 'Scopes'}?"
-            ontabort={taBortProjekt}
-          />
-          <button class="ny" aria-pressed={historikÖppen} onclick={() => (historikÖppen ? stängHistorik() : (historikÖppen = true))}>
-            Historik
-          </button>
-          <button class="pr" onclick={() => (nyScope = true)}>Ny Scope</button>
+          <div class="verktyg">
+            <button class="quiet" onclick={() => (läge = "byt namn")}>Byt namn</button>
+            <button class="quiet" onclick={öppnaFlytta}>Flytta</button>
+            <KopieraLank href={projektHref(projekt)} />
+            <BaddaIn namn={projekt.namn} href={projektHref(projekt)} />
+            <TaBort
+              fråga="Ta bort {projekt.namn} med {projekt.scopes.length} {projekt.scopes.length === 1 ? 'Scope' : 'Scopes'}?"
+              ontabort={taBortProjekt}
+            />
+          </div>
+          <div class="primära">
+            <button aria-pressed={historikÖppen} onclick={() => (historikÖppen ? stängHistorik() : (historikÖppen = true))}>
+              Historik
+            </button>
+            <button class="pr" onclick={() => (nyScope = true)}>Ny Scope</button>
+          </div>
         </div>
         <div class="status">
           {#if projekt.markeradAvslutat}
@@ -464,8 +468,29 @@
     border-left: 1px solid var(--line);
     padding: 28px 22px;
   }
-  .titlerow .ny {
+  /* The title on its own line; the quiet tools wrap as a group; Historik and
+     Ny Scope always stay together, at the right. */
+  .titlerow h1 {
+    flex: 1 1 100%;
+    overflow-wrap: anywhere;
+  }
+  .verktyg {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 2px;
+    /* Quiet buttons carry their own padding: line their text up with the title. */
+    margin-left: -5px;
+  }
+  /* Tighter than the default quiet padding, so all five fit on one line on a phone. */
+  .verktyg :global(button.quiet) {
+    padding-inline: 5px;
+  }
+  .primära {
+    display: flex;
+    gap: 10px;
     margin-left: auto;
+    flex: none;
   }
   .visning {
     display: flex;
@@ -503,8 +528,20 @@
       grid-template-columns: minmax(0, 1fr);
       min-height: 0;
     }
+    /* The other Projekt stack below the Scope index instead of a side column. */
     .grannar {
-      display: none;
+      order: 3;
+      border-right: none;
+      border-top: 1px solid var(--line);
+      padding: 20px 16px 64px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      column-gap: 14px;
+      align-content: start;
+    }
+    .grannar .cap,
+    .grannar .meta {
+      grid-column: 1 / -1;
     }
     .huvud {
       padding: 20px 16px 24px;
@@ -512,7 +549,7 @@
     aside {
       border-left: none;
       border-top: 1px solid var(--line);
-      padding: 20px 16px 64px;
+      padding: 20px 16px 32px;
     }
   }
 </style>

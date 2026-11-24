@@ -1,4 +1,4 @@
-import type { PersonVy } from "./apogee.js";
+import type { PersonVy } from "./apogee/vyer.js";
 
 export type DomainErrorCode =
   /** The referenced Funktionsområde or Projekt does not exist. */

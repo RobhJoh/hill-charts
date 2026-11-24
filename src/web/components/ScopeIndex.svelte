@@ -4,6 +4,7 @@
   // Scope; the "Ny Scope" form adds one. Writes are the parent's callbacks.
   import type { PersonVy, ScopeVy } from "../../core/index.js";
   import { lägeFärg, rampGradient, type Tema } from "../lib/hill.js";
+  import { personHref } from "../lib/links.js";
 
   let {
     scopes,
@@ -153,6 +154,11 @@
                 {/if}
                 {#each aktiva as p (p.id)}<option value={p.id}>{p.namn}</option>{/each}
               </select>
+              {#if s.ägare.aktiv}
+                <a class="karta" href={personHref(s.ägare)} title="{s.ägare.namn}s Stjärnkarta" aria-label="{s.ägare.namn}s Stjärnkarta"
+                  >✦</a
+                >
+              {/if}
             </td>
             <td class="num">{s.läge}{#if s.stilla}<span class="stilla" title="Ingen rörelse på {s.stillaDagar} dagar">{s.stillaDagar} d</span>{/if}</td>
           </tr>
@@ -293,5 +299,13 @@
     height: 1px;
     overflow: hidden;
     clip: rect(0 0 0 0);
+  }
+  .karta {
+    margin-left: 6px;
+    color: var(--dim);
+    text-decoration: none;
+  }
+  .karta:hover {
+    color: var(--tx);
   }
 </style>

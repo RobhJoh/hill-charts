@@ -1,4 +1,4 @@
-// Flat, readable URLs: /f/<id>-<namn> and /p/<id>-<namn>. Only the id counts;
+// Flat, readable URLs: /f/<id>-<namn>, /p/<id>-<namn> and /person/<id>-<namn>. Only the id counts;
 // ids never contain "-" (see core/ids.ts), so the id is everything before the
 // first "-". Canonical-slug redirects arrive with the "Stable links" ticket.
 
@@ -18,5 +18,7 @@ const withSlug = (id: string, namn: string) => {
 
 export const funktionsområdeHref = (fo: { id: string; namn: string }) => `/f/${withSlug(fo.id, fo.namn)}`;
 export const projektHref = (p: { id: string; namn: string }) => `/p/${withSlug(p.id, p.namn)}`;
+/** A Person's Stjärnkarta. */
+export const personHref = (p: { id: string; namn: string }) => `/person/${withSlug(p.id, p.namn)}`;
 
 export const idFrånSegment = (segment: string) => decodeURIComponent(segment).split("-")[0] ?? "";

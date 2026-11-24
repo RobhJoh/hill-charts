@@ -9,9 +9,11 @@ import type {
   FunktionsområdeVy,
   HistorikRad,
   PersonHändelse,
+  PersonRad,
   PersonVy,
   Projekt,
   ProjektVy,
+  StjärnkartaVy,
   Uppdatering,
   Översikt,
 } from "../../core/index.js";
@@ -62,6 +64,10 @@ export const api = {
   reactivatePerson: (id: string, vem: string) =>
     call<PersonVy>("POST", `/personer/${enc(id)}/ateraktivera`, undefined, vem),
   personerHistorik: () => call<PersonHändelse[]>("GET", "/personer/historik"),
+  /** The Personer index: every Person with counts and Läge dots. */
+  personerÖversikt: () => call<PersonRad[]>("GET", "/personer/oversikt"),
+  /** A Person's Stjärnkarta; 404 for an inaktiv or unknown Person. */
+  stjärnkarta: (personId: string) => call<StjärnkartaVy>("GET", `/personer/${enc(personId)}/stjarnkarta`),
   createFunktionsområde: (namn: string, vem: string) =>
     call<Funktionsområde>("POST", "/funktionsomraden", { namn }, vem),
   renameFunktionsområde: (id: string, namn: string, vem: string) =>

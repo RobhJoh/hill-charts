@@ -2,12 +2,30 @@ import { HISTORIK_TYP, diagramEfter, lika, nuvarande, senastFlyttad, återställ
 import { DomainError } from "./errors.js";
 import { historikRader, type HistorikRad } from "./historik.js";
 import { annonseraUppdateringar } from "./live.js";
-import { dagarSedan, projektFält, ärAvslutat, ärPågående, ärStilla } from "./status.js";
+import {
+  datumFrån,
+  datumVarningar,
+  idagFrån,
+  iOrdning,
+  nedräkning,
+  nyaDatum,
+  nästaMilstolpe,
+  TOM_TIDSPLAN,
+  ändraMilstolpe,
+  ärÖverTid,
+  type DatumInput,
+  type Nedräkning,
+  type NästaMilstolpe,
+} from "./datum.js";
+import { dagarSedan, fältLika, projektFält, ärAvslutat, ärPågående, ärStilla } from "./status.js";
 import type { Storage } from "./storage.js";
 import type {
   Borttagen,
+  Datum,
   Funktionsområde,
   FunktionsområdeId,
+  Milstolpe,
+  MilstolpeId,
   Person,
   PersonHändelse,
   PersonHändelseTyp,
@@ -17,6 +35,7 @@ import type {
   ProjektId,
   ScopeId,
   ScopeValues,
+  Tidsplan,
   Uppdatering,
   UppdateringId,
 } from "./types.js";
@@ -29,12 +48,27 @@ export type ApogeeDeps = {
   newId: () => string;
 };
 
+/** Where dates and Milstolpar are changed: a Projekt (in its Historik) or a Funktionsområde. */
+export type Mål = { projekt: ProjektId } | { funktionsområde: FunktionsområdeId };
+
+/** Dates and time pressure against today (see datum.ts). */
+export type TidVy = {
+  tidsplan: Tidsplan;
+  /** Null when there is no Slutdatum and it is not Avslutat. */
+  nedräkning: Nedräkning | null;
+  nästaMilstolpe: NästaMilstolpe | null;
+  överTid: boolean;
+};
+
 /** A Projekt in a list: a mini sky chart with its status. */
 export type ProjektRad = {
   id: ProjektId;
   namn: string;
   avslutat: boolean;
   pågående: boolean;
+  nedräkning: Nedräkning | null;
+  nästaMilstolpe: NästaMilstolpe | null;
+  överTid: boolean;
   /** Number of stuck Scopes. */
   stilla: number;
   /** The mini chart's dots, highest Läge first. */
@@ -51,7 +85,7 @@ export type FunktionsområdeVy = {
   projekt: ProjektRad[];
   /** Projekt taken away on their own ("Borttagna Projekt"), newest first. */
   borttagnaProjekt: BorttagetProjekt[];
-};
+} & TidVy;
 /** Who took something away (Ta bort) and when. */
 export type BorttagenVy = { vem: PersonVy; tid: string };
 /** A row in "Borttagna Projekt". */
@@ -63,7 +97,10 @@ export type ProjektVy = {
   funktionsområde: { id: FunktionsområdeId; namn: string };
   /** Who took it away and when (on its own or with its Funktionsområde); null while shown. */
   borttagen: BorttagenVy | null;
-} & DiagramVy;
+  /** Quiet warnings such as "slutar efter Funktionsområdet"; never block saving. */
+  datumVarningar: string[];
+} & DiagramVy &
+  TidVy;
 
 /** A Projekt's Hill chart and derived status. */
 export type DiagramVy = {
@@ -192,6 +229,8 @@ export const ÖVERLÄMNING_TYP = "överlämning";
 export const PROJEKT_TYP = {
   avslutat: "avslutat",
   öppnaIgen: "öppna igen",
+  datum: "datum",
+  milstolpe: "milstolpe",
 } as const;
 
 const svenskOrdning = new Intl.Collator("sv");
@@ -317,6 +356,72 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
     return skriv(projektId, typ, [], signerad.id, ändring);
   }
 
+  /**
+   * Changes Projekt-level fields: signs, checks the Projekt exists, and writes
+   * one Uppdatering holding only the fields that change (null if none do).
+   */
+  async function ändraProjektFält(
+    projektId: ProjektId,
+    typ: string,
+    ändra: (före: ProjektFält) => Partial<ProjektFält>,
+    vem: PersonId | null,
+  ): Promise<Uppdatering | null> {
+    const signerad = await signatur(vem);
+    await requireProjekt(projektId);
+    const nu = projektFält(await storage.readHistorik(projektId));
+    const efter = ändra(nu);
+    const nycklar = (Object.keys(efter) as (keyof ProjektFält)[]).filter((k) => !fältLika(nu[k], efter[k]));
+    if (nycklar.length === 0) return null;
+    const före: Partial<ProjektFält> = {};
+    const ändrat: Partial<ProjektFält> = {};
+    for (const k of nycklar) {
+      Object.assign(före, { [k]: nu[k] });
+      Object.assign(ändrat, { [k]: efter[k] });
+    }
+    return skriv(projektId, typ, [], signerad.id, { före, efter: ändrat });
+  }
+
+  /**
+   * Changes the dates or Milstolpar of a Projekt (an Uppdatering in its
+   * Historik) or a Funktionsområde (saved without Historik; returns null).
+   */
+  async function ändraTidsplan(
+    mål: Mål,
+    typ: string,
+    ändra: (före: Tidsplan) => Partial<Tidsplan>,
+    vem: PersonId | null,
+  ): Promise<Uppdatering | null> {
+    if ("projekt" in mål) return ändraProjektFält(mål.projekt, typ, ändra, vem);
+    await signatur(vem);
+    const fo = await requireFunktionsområde(mål.funktionsområde);
+    const före = fo.tidsplan ?? TOM_TIDSPLAN;
+    const tidsplan = { ...före, ...ändra(före) };
+    const all = await storage.listFunktionsområden();
+    await storage.saveFunktionsområden(all.map((f) => (f.id === fo.id ? { ...f, tidsplan } : f)));
+    return null;
+  }
+
+  /** Checks that the Projekt or Funktionsområde exists. */
+  async function requireMål(mål: Mål): Promise<void> {
+    if ("projekt" in mål) await requireProjekt(mål.projekt);
+    else await requireFunktionsområde(mål.funktionsområde);
+  }
+
+  function tidVy(tidsplan: Tidsplan, avslutat: boolean, idag: Datum): TidVy {
+    return {
+      tidsplan,
+      nedräkning: nedräkning(tidsplan, avslutat, idag),
+      nästaMilstolpe: avslutat ? null : nästaMilstolpe(tidsplan.milstolpar, idag),
+      överTid: ärÖverTid(tidsplan.slutdatum, avslutat, idag),
+    };
+  }
+
+  /** A Projekt's dates, Milstolpar and countdown from its Historik. */
+  function projektTidVy(logg: Uppdatering[], avslutat: boolean): TidVy {
+    const { startdatum, slutdatum, milstolpar } = projektFält(logg);
+    return tidVy({ startdatum, slutdatum, milstolpar }, avslutat, idagFrån(now()));
+  }
+
   /** A Projekt's Hill chart and status from its Historik, against the clock's "now". */
   function diagramVy(logg: Uppdatering[], personer: Person[], borttagen: boolean): DiagramVy {
     const nu = now();
@@ -342,12 +447,17 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
   }
 
   async function projektRad(p: Projekt, personer: Person[]): Promise<ProjektRad> {
-    const { scopes, avslutat, pågående } = diagramVy(await storage.readHistorik(p.id), personer, !!p.borttagen);
+    const logg = await storage.readHistorik(p.id);
+    const { scopes, avslutat, pågående } = diagramVy(logg, personer, !!p.borttagen);
+    const { nedräkning, nästaMilstolpe, överTid } = projektTidVy(logg, avslutat);
     return {
       id: p.id,
       namn: p.namn,
       avslutat,
       pågående,
+      nedräkning,
+      nästaMilstolpe,
+      överTid,
       stilla: scopes.filter((s) => s.stilla).length,
       scopes: scopes.map(({ läge, stilla }) => ({ läge, stilla })),
     };
@@ -365,6 +475,12 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
       .filter(borttagenEnsam)
       .map((p) => ({ id: p.id, namn: p.namn, borttagen: borttagenVy(personer, p.borttagen!) }))
       .sort((a, b) => b.borttagen.tid.localeCompare(a.borttagen.tid) || efterNamn(a, b));
+    // Över tid while any Projekt is not Avslutat; "Avslutat" only once the
+    // Slutdatum has passed with every Projekt Avslutat.
+    const tidsplan = fo.tidsplan ?? TOM_TIDSPLAN;
+    const idag = idagFrån(now());
+    const allaAvslutade = projekt.every((p) => p.avslutat);
+    const passerat = tidsplan.slutdatum !== null && idag > tidsplan.slutdatum;
     return {
       id: fo.id,
       namn: fo.namn,
@@ -372,6 +488,7 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
       stilla: projekt.reduce((n, p) => n + p.stilla, 0),
       projekt,
       borttagnaProjekt,
+      ...tidVy(tidsplan, passerat && allaAvslutade, idag),
     };
   }
 
@@ -630,12 +747,16 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
       const p = await requireProjekt(id);
       const fo = await requireFunktionsområde(p.funktionsområdeId);
       const [logg, personer] = await Promise.all([storage.readHistorik(id), storage.listPersoner()]);
+      const diagram = diagramVy(logg, personer, !!p.borttagen);
+      const tid = projektTidVy(logg, diagram.avslutat);
       return {
         id: p.id,
         namn: p.namn,
         funktionsområde: { id: fo.id, namn: fo.namn },
         borttagen: p.borttagen ? borttagenVy(personer, p.borttagen) : null,
-        ...diagramVy(logg, personer, !!p.borttagen),
+        datumVarningar: datumVarningar(tid.tidsplan, fo.tidsplan ?? TOM_TIDSPLAN),
+        ...diagram,
+        ...tid,
       };
     },
 
@@ -690,6 +811,63 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
      */
     async reopenProjekt(projektId: ProjektId, vem: PersonId | null) {
       return ändraProjekt(projektId, PROJEKT_TYP.öppnaIgen, "avslutat", false, vem);
+    },
+
+    /**
+     * Sets a Projekt's or Funktionsområde's Startdatum and Slutdatum: two dates,
+     * a Startdatum plus weeks, or a new Startdatum keeping the Appetit. A
+     * Projekt's dates outside its Funktionsområde's only warn (`datumVarningar`).
+     * Projekt: the Uppdatering, or null when nothing changed. Funktionsområde: null.
+     */
+    async setDatum(mål: Mål, input: DatumInput, vem: PersonId | null) {
+      return ändraTidsplan(mål, PROJEKT_TYP.datum, (t) => nyaDatum(t, input), vem);
+    },
+
+    /** Adds a Milstolpe (name and date). */
+    async addMilstolpe(
+      mål: Mål,
+      { namn, datum }: { namn: string; datum: Datum },
+      vem: PersonId | null,
+    ): Promise<{ id: MilstolpeId; uppdatering: Uppdatering | null }> {
+      const giltig = { namn: namnFrån(namn), datum: datumFrån(datum) };
+      await signatur(vem);
+      await requireMål(mål);
+      const ny: Milstolpe = { id: newId(), ...giltig };
+      const uppdatering = await ändraTidsplan(
+        mål,
+        PROJEKT_TYP.milstolpe,
+        (t) => ({ milstolpar: iOrdning([...t.milstolpar, ny]) }),
+        vem,
+      );
+      return { id: ny.id, uppdatering };
+    },
+
+    /** Renames a Milstolpe or moves its date. Null when nothing changed (always for a Funktionsområde). */
+    async changeMilstolpe(
+      mål: Mål,
+      id: MilstolpeId,
+      ändring: { namn?: string; datum?: Datum },
+      vem: PersonId | null,
+    ) {
+      const namn = ändring.namn === undefined ? undefined : namnFrån(ändring.namn);
+      const datum = ändring.datum === undefined ? undefined : datumFrån(ändring.datum);
+      return ändraTidsplan(
+        mål,
+        PROJEKT_TYP.milstolpe,
+        (t) => ({
+          milstolpar: ändraMilstolpe(t.milstolpar, id, (m) => ({ ...m, namn: namn ?? m.namn, datum: datum ?? m.datum })),
+        }),
+        vem,
+      );
+    },
+
+    async removeMilstolpe(mål: Mål, id: MilstolpeId, vem: PersonId | null) {
+      return ändraTidsplan(
+        mål,
+        PROJEKT_TYP.milstolpe,
+        (t) => ({ milstolpar: ändraMilstolpe(t.milstolpar, id, () => null) }),
+        vem,
+      );
     },
 
     /** Removes a Scope. Its id stays in the Historik, so Ångra can bring it back. */

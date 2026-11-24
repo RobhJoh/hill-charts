@@ -6,6 +6,21 @@ export type PersonId = string;
 export type ScopeId = string;
 export type UppdateringId = string;
 
+export type MilstolpeId = string;
+
+/** A calendar date, "YYYY-MM-DD". */
+export type Datum = string;
+
+/** A named date within a Projekt or Funktionsområde. */
+export type Milstolpe = { id: MilstolpeId; namn: string; datum: Datum };
+
+/** Optional Startdatum and Slutdatum (the Appetit) and Milstolpar in date order. */
+export type Tidsplan = {
+  startdatum: Datum | null;
+  slutdatum: Datum | null;
+  milstolpar: Milstolpe[];
+};
+
 /** Who took something away (Ta bort) and when. Absent while it is shown. */
 export type Borttagen = {
   vem: PersonId;
@@ -16,6 +31,8 @@ export type Funktionsområde = {
   id: FunktionsområdeId;
   namn: string;
   skapad: string; // ISO timestamp
+  /** Its dates, saved without Historik. Missing = none (records from before #38). */
+  tidsplan?: Tidsplan;
   borttagen?: Borttagen;
 };
 
@@ -72,13 +89,14 @@ export type ScopeValues = {
 export type Ändring = { scopeId: ScopeId; före: ScopeValues | null; efter: ScopeValues | null };
 
 /**
- * Projekt-level fields recorded in the Historik, as for Scopes. Only
- * marked-Avslutat so far; dates and Milstolpar join later.
+ * Projekt-level fields recorded in the Historik, as for Scopes: marked
+ * Avslutat, the dates and the Milstolpar. Compare with `fältLika` (Milstolpar
+ * is an array).
  */
 export type ProjektFält = {
   /** Marked Avslutat (not the derived status; see status.ts). */
   avslutat: boolean;
-};
+} & Tidsplan;
 
 /** One recorded edit to a Projekt's Hill chart or its dates (see spec #31). */
 export type Uppdatering = {

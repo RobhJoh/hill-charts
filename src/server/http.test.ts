@@ -535,6 +535,44 @@ describe("the SPA", () => {
   });
 });
 
+describe("dates and Milstolpar", () => {
+  it("are set on a Projekt (as Uppdateringar) and a Funktionsområde (without)", async () => {
+    const { api, apiAs } = await start();
+    const fo = (await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" })).body.id;
+    const p = (await api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Kassan" })).body.id;
+
+    const datum = await api("PUT", `/api/projekt/${p}/datum`, { startdatum: "2026-11-02", veckor: 6 });
+    expect(datum.status).toBe(200);
+    expect(datum.body.uppdatering).toMatchObject({ typ: "datum", projekt: { efter: { slutdatum: "2026-12-14" } } });
+    const m = await api("POST", `/api/projekt/${p}/milstolpar`, { namn: "Beta", datum: "2026-12-01" });
+    expect(m.status).toBe(201);
+    const ändrad = await api("PATCH", `/api/projekt/${p}/milstolpar/${m.body.id}`, { namn: "Betaversion" });
+    expect(ändrad.body.uppdatering).toMatchObject({ typ: "milstolpe" });
+    expect((await api("GET", `/api/projekt/${p}`)).body.tidsplan).toEqual({
+      startdatum: "2026-11-02",
+      slutdatum: "2026-12-14",
+      milstolpar: [{ id: m.body.id, namn: "Betaversion", datum: "2026-12-01" }],
+    });
+    expect((await api("DELETE", `/api/projekt/${p}/milstolpar/${m.body.id}`)).status).toBe(200);
+
+    const foDatum = await api("PUT", `/api/funktionsomraden/${fo}/datum`, { startdatum: null, slutdatum: "2026-12-07" });
+    expect(foDatum.body).toEqual({ uppdatering: null });
+    const foM = await api("POST", `/api/funktionsomraden/${fo}/milstolpar`, { namn: "Release", datum: "2026-12-05" });
+    expect(foM.status).toBe(201);
+    expect((await api("GET", `/api/funktionsomraden/${fo}`)).body.tidsplan).toEqual({
+      startdatum: null,
+      slutdatum: "2026-12-07",
+      milstolpar: [{ id: foM.body.id, namn: "Release", datum: "2026-12-05" }],
+    });
+    expect((await api("GET", `/api/projekt/${p}`)).body.datumVarningar).toEqual(["slutar efter Funktionsområdet"]);
+
+    expect((await api("PUT", `/api/projekt/${p}/datum`, { startdatum: "nej", slutdatum: null })).status).toBe(400);
+    expect((await api("PUT", `/api/projekt/${p}/datum`, { slutdatum: "2026-12-01" })).status).toBe(400);
+    expect((await apiAs(null, "PUT", `/api/funktionsomraden/${fo}/datum`, { startdatum: null, slutdatum: null })).status).toBe(403);
+    expect((await api("DELETE", `/api/funktionsomraden/${fo}/milstolpar/okänd`)).status).toBe(404);
+  });
+});
+
 describe("headers on every response (ADR 0002)", () => {
   it("are noindex, no-referrer, framable by Notion, and never X-Frame-Options", async () => {
     const { base, api } = await start();

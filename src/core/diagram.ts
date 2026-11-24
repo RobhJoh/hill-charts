@@ -1,7 +1,7 @@
 // The Hill chart as the fold of a Projekt's Historik (lifted from the
 // prototype/historik branch). Pure functions over Uppdateringar; no storage.
 // Återställning, Ångra and the Historik view grouping build on these.
-import { projektFält } from "./status.js";
+import { fältLika, projektFält } from "./status.js";
 import type { ProjektFält, ScopeId, ScopeValues, Uppdatering, UppdateringId, Ändring } from "./types.js";
 
 /** What an Återställning or Ångra writes: Scope changes and, if any, Projekt-field changes. */
@@ -9,7 +9,7 @@ export type Ändringar = Pick<Uppdatering, "ändringar" | "projekt">;
 
 /** The Projekt-field changes from `från` to `till`, only fields that differ; undefined if none. */
 function projektSkillnad(från: ProjektFält, till: ProjektFält): Uppdatering["projekt"] {
-  const fält = (Object.keys(till) as (keyof ProjektFält)[]).filter((k) => från[k] !== till[k]);
+  const fält = (Object.keys(till) as (keyof ProjektFält)[]).filter((k) => !fältLika(från[k], till[k]));
   if (fält.length === 0) return undefined;
   const del = (f: ProjektFält) => Object.fromEntries(fält.map((k) => [k, f[k]])) as Partial<ProjektFält>;
   return { före: del(från), efter: del(till) };
@@ -132,8 +132,8 @@ export function ångraEn(logg: readonly Uppdatering[], index: number): ÅngraRes
   const p = logg[index]!.projekt;
   if (p) {
     const nuFält = projektFält(logg);
-    const fält = (Object.keys(p.efter) as (keyof ProjektFält)[]).filter((k) => p.före[k] !== p.efter[k]);
-    const ändrade = fält.filter((k) => nuFält[k] !== p.efter[k]);
+    const fält = (Object.keys(p.efter) as (keyof ProjektFält)[]).filter((k) => !fältLika(p.före[k], p.efter[k]));
+    const ändrade = fält.filter((k) => !fältLika(nuFält[k], p.efter[k]));
     if (ändrade.length > 0) {
       krockar.push({ scopeId: null, namn: "Projektet", varför: `har ändrats igen sedan dess (${ändrade.join(", ")})` });
     } else {

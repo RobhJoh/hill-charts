@@ -2,6 +2,8 @@
 // Signatur (`vem`, a Person id) and send it in the Apogee-Signatur header;
 // pages get it from `signatur.signera` in signatur.svelte.ts.
 import type {
+  DatumInput,
+  Mål,
   Förhandsvisning,
   Funktionsområde,
   FunktionsområdeVy,
@@ -40,6 +42,9 @@ async function call<T>(method: string, path: string, body?: unknown, vem?: strin
 }
 
 const enc = encodeURIComponent;
+
+const målPath = (mål: Mål) =>
+  "projekt" in mål ? `/projekt/${enc(mål.projekt)}` : `/funktionsomraden/${enc(mål.funktionsområde)}`;
 
 export const api = {
   overview: () => call<Översikt>("GET", "/oversikt"),
@@ -109,6 +114,16 @@ export const api = {
     ),
   removeScope: (projektId: string, scopeId: string, vem: string) =>
     call<{ uppdatering: Uppdatering }>("DELETE", `/projekt/${enc(projektId)}/scopes/${enc(scopeId)}`, undefined, vem),
+
+  /** Dates of a Projekt (an Uppdatering) or Funktionsområde (uppdatering always null). */
+  setDatum: (mål: Mål, input: DatumInput, vem: string) =>
+    call<{ uppdatering: Uppdatering | null }>("PUT", `${målPath(mål)}/datum`, input, vem),
+  addMilstolpe: (mål: Mål, milstolpe: { namn: string; datum: string }, vem: string) =>
+    call<{ id: string; uppdatering: Uppdatering | null }>("POST", `${målPath(mål)}/milstolpar`, milstolpe, vem),
+  changeMilstolpe: (mål: Mål, milstolpeId: string, ändring: { namn?: string; datum?: string }, vem: string) =>
+    call<{ uppdatering: Uppdatering | null }>("PATCH", `${målPath(mål)}/milstolpar/${enc(milstolpeId)}`, ändring, vem),
+  removeMilstolpe: (mål: Mål, milstolpeId: string, vem: string) =>
+    call<{ uppdatering: Uppdatering | null }>("DELETE", `${målPath(mål)}/milstolpar/${enc(milstolpeId)}`, undefined, vem),
 
   /** The Historik panel's rows, newest first, drags merged. */
   historikVy: (projektId: string) => call<HistorikRad<PersonVy>[]>("GET", `/projekt/${enc(projektId)}/historikvy`),

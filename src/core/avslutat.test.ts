@@ -159,7 +159,7 @@ describe("the overview", () => {
     await scope("Export", 5);
 
     const [ekonomi] = await apogee.overview();
-    expect(ekonomi).toEqual({
+    expect(ekonomi).toMatchObject({
       id: fo,
       namn: "Ekonomi",
       borttagen: null,

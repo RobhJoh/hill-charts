@@ -258,7 +258,7 @@
           <line class="ledare" x1={e.ledare.x1} y1={e.ledare.y1} x2={e.ledare.x2} y2={e.ledare.y2} />
         {/if}
         <text class="sn" x={e.x} y={e.y} text-anchor={e.anchor}
-          >{#if märken[s.id]}<tspan class="sm">{märken[s.id]}</tspan> {/if}{s.namn} <tspan class="sm">{läge}</tspan></text>
+          >{#if märken[s.id]}<tspan class="sm">{märken[s.id] + " "}</tspan>{/if}{s.namn} <tspan class="sm">{läge}</tspan></text>
       {/if}
     </g>
   {/each}

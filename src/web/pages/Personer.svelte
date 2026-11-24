@@ -324,6 +324,9 @@
   .namn {
     font-weight: 600;
   }
+  .namn {
+    min-width: 180px;
+  }
   .namn a {
     text-decoration: none;
   }

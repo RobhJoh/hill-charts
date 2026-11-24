@@ -10,15 +10,19 @@
   import Toast from "../components/Toast.svelte";
   import { api, ApiError } from "../lib/api.js";
   import { dagarSedan, lägeFärg, radie } from "../lib/hill.js";
-  import { projektHref } from "../lib/links.js";
+  import { personHref, projektHref } from "../lib/links.js";
+  import { router } from "../lib/router.svelte.js";
   import { följProjekt, liveUrl } from "../lib/live.js";
-  import { Avbruten, signatur } from "../lib/signatur.svelte.js";
+  import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
   import { tema } from "../lib/tema.svelte.js";
+  import Saknas from "./Saknas.svelte";
 
   let { id }: { id: string } = $props();
 
   let karta = $state<StjärnkartaVy | undefined>();
   let saknas = $state(false);
+  /** Set when the Person exists but is inaktiv: they have no Stjärnkarta. */
+  let inaktiv = $state<string | null>(null);
   let loadError = $state("");
   let skrivFel = $state("");
   let medAvslutade = $state(false);
@@ -31,10 +35,20 @@
     const denna = ++laddning;
     try {
       const svar = await api.stjärnkarta(id);
-      if (denna === laddning) karta = svar;
+      if (denna !== laddning) return;
+      karta = svar;
+      // Canonical URL in the address bar (the server redirects; client-side links may be stale).
+      const href = personHref(svar.person);
+      if (router.route.sida === "person" && location.pathname !== href) {
+        router.navigate(href + location.search + location.hash, { replace: true });
+      }
     } catch (e) {
       if (denna !== laddning) return;
-      if (e instanceof ApiError && e.status === 404) saknas = true;
+      if (e instanceof ApiError && e.status === 404) {
+        const person = (await laddaPersoner().catch(() => [])).find((p) => p.id === id);
+        if (person && !person.aktiv) inaktiv = person.namn;
+        else saknas = true;
+      }
       else loadError = e instanceof Error ? e.message : "Kunde inte läsa in";
     }
   }
@@ -95,9 +109,15 @@
 <svelte:head><title>{karta ? `${karta.person.namn} · Apogee` : "Stjärnkarta · Apogee"}</title></svelte:head>
 
 {#if saknas}
+  <Saknas längre />
+{:else if inaktiv}
   <div class="page">
-    <h1>Ingen Stjärnkarta</h1>
-    <p>Personen finns inte eller är inaktiv. <a href="/installningar/personer">Till Personer</a></p>
+    <div class="crumbs"><a href="/installningar/personer">Personer</a></div>
+    <h1>{inaktiv}</h1>
+    <p class="meta">
+      {inaktiv} är inaktiv och har ingen Stjärnkarta. Återaktivera under
+      <a href="/installningar/personer">Personer</a>.
+    </p>
   </div>
 {:else if loadError}
   <div class="page"><p class="error">{loadError}</p></div>

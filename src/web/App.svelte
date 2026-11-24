@@ -4,6 +4,9 @@
   import Funktionsomrade from "./pages/Funktionsomrade.svelte";
   import Projekt from "./pages/Projekt.svelte";
   import Personer from "./pages/Personer.svelte";
+  import Stjarnkarta from "./pages/Stjarnkarta.svelte";
+  import Mina from "./pages/Mina.svelte";
+  import { personHref } from "./lib/links.js";
   import Saknas from "./pages/Saknas.svelte";
   import VemStrip from "./components/VemStrip.svelte";
   import { laddaPersoner, signatur } from "./lib/signatur.svelte.js";
@@ -29,6 +32,14 @@
     Apogee
   </a>
   <div class="right">
+    {#if signatur.person}
+      <!-- Mina Scopes: the remembered Signatur's Stjärnkarta; absent when none is remembered. -->
+      <a
+        class="nav"
+        href={personHref(signatur.person)}
+        aria-current={route.sida === "person" && route.id === signatur.person.id ? "page" : undefined}>Mina Scopes</a
+      >
+    {/if}
     {#if signatur.person}
       <label class="sig">
         <span class="cap">Signatur</span>
@@ -74,6 +85,10 @@
     {#key route.id}<Projekt id={route.id} />{/key}
   {:else if route.sida === "personer"}
     <Personer />
+  {:else if route.sida === "person"}
+    {#key route.id}<Stjarnkarta id={route.id} />{/key}
+  {:else if route.sida === "mina"}
+    <Mina />
   {:else}
     <Saknas />
   {/if}
@@ -115,6 +130,18 @@
   .sig select {
     padding: 4px 8px;
     max-width: 180px;
+  }
+  .nav {
+    text-decoration: none;
+    color: var(--mid);
+    padding: 17px 0;
+  }
+  .nav:hover,
+  .nav[aria-current="page"] {
+    color: var(--tx);
+  }
+  .nav[aria-current="page"] {
+    box-shadow: inset 0 -2px 0 var(--red);
   }
   .gear {
     display: flex;

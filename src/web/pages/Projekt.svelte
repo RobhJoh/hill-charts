@@ -4,6 +4,7 @@
   import NamnForm from "../components/NamnForm.svelte";
   import ScopeIndex from "../components/ScopeIndex.svelte";
   import { api, ApiError } from "../lib/api.js";
+  import { följProjekt, liveUrl } from "../lib/live.js";
   import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
   import { tema } from "../lib/tema.svelte.js";
   import { funktionsområdeHref, projektHref } from "../lib/links.js";
@@ -24,16 +25,36 @@
   let nyScope = $state(false);
   let skrivFel = $state("");
 
-  /** Reloads the Projekt and its Hill chart (after a write; live sync can call it too). */
+  let laddning = 0;
+  /** Reloads the Projekt and its Hill chart (after a write, and on live sync). */
   async function load() {
+    const denna = ++laddning;
     try {
-      projekt = await api.getProjekt(id);
+      const svar = await api.getProjekt(id);
+      // Live sync can reload in quick succession: only the latest answer counts.
+      if (denna === laddning) projekt = svar;
     } catch (e) {
+      if (denna !== laddning) return;
       if (e instanceof ApiError && e.status === 404) saknas = true;
       else loadError = e instanceof Error ? e.message : "Kunde inte läsa in";
     }
   }
   load();
+  // Live sync (#36): re-fetch whenever anyone writes to this Projekt's Historik,
+  // and on every (re)connect to catch up on what happened while offline.
+  $effect(() => {
+    const följ = följProjekt(liveUrl(id), { onÄndring: () => void load() });
+    const synlig = () => {
+      if (document.visibilityState === "visible") följ.återanslut();
+    };
+    document.addEventListener("visibilitychange", synlig);
+    window.addEventListener("online", följ.återanslut);
+    return () => {
+      document.removeEventListener("visibilitychange", synlig);
+      window.removeEventListener("online", följ.återanslut);
+      följ.stäng();
+    };
+  });
   laddaPersoner()
     .then((p) => (personer = p))
     .catch(() => {});

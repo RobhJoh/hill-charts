@@ -162,6 +162,8 @@ describe("the overview", () => {
     expect(ekonomi).toEqual({
       id: fo,
       namn: "Ekonomi",
+      borttagen: null,
+      borttagnaProjekt: [],
       stilla: 2,
       projekt: [
         { id: klar, namn: "Bokslut", avslutat: true, pågående: false, stilla: 0, scopes: [{ läge: 100, stilla: false }] },

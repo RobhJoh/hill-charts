@@ -73,6 +73,14 @@ export function createJsonFileStorage(dir: string): Storage {
       await writeDocument(projektFile(projekt.id), { formatVersion: FORMAT_VERSION, projekt });
     },
 
+    async eraseProjekt(id) {
+      if (!isSafeId(id)) return;
+      // The document first: once it is gone the Projekt no longer exists,
+      // so a crash in between leaves at worst an orphaned Historik.
+      await rm(projektFile(id), { force: true });
+      await rm(historikFile(id), { force: true });
+    },
+
     async appendUppdatering(projektId, uppdatering) {
       requireSafeId(projektId);
       await mkdir(projektDir, { recursive: true });

@@ -91,6 +91,25 @@ export function storageContract(name: string, makeFixture: () => Promise<Storage
       expect(await storage.readHistorik("p2")).toEqual([uppdatering("u2", 20)]);
     });
 
+    it("erases a Projekt and its Historik for good, leaving others untouched", async () => {
+      const fixture = await makeFixture();
+      const { storage } = fixture;
+      await storage.saveProjekt(projekt("p1", "Sökindex"));
+      await storage.saveProjekt(projekt("p2", "Betaltjänst"));
+      await storage.appendUppdatering("p1", uppdatering("u1", 10));
+      await storage.appendUppdatering("p2", uppdatering("u2", 20));
+
+      await storage.eraseProjekt("p1");
+      await storage.eraseProjekt("finns-inte");
+
+      for (const s of [storage, fixture.reopen()]) {
+        expect(await s.getProjekt("p1")).toBeUndefined();
+        expect(await s.readHistorik("p1")).toEqual([]);
+        expect(await s.listProjekt()).toEqual([projekt("p2", "Betaltjänst")]);
+        expect(await s.readHistorik("p2")).toEqual([uppdatering("u2", 20)]);
+      }
+    });
+
     it("returns copies, so mutating a result never changes what is stored", async () => {
       const { storage } = await makeFixture();
       await storage.saveFunktionsområden([fo("f1", "Ekonomi")]);

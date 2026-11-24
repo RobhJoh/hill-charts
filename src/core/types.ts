@@ -6,10 +6,17 @@ export type PersonId = string;
 export type ScopeId = string;
 export type UppdateringId = string;
 
+/** Who took something away (Ta bort) and when. Absent while it is shown. */
+export type Borttagen = {
+  vem: PersonId;
+  tid: string; // ISO timestamp
+};
+
 export type Funktionsområde = {
   id: FunktionsområdeId;
   namn: string;
   skapad: string; // ISO timestamp
+  borttagen?: Borttagen;
 };
 
 export type Projekt = {
@@ -17,6 +24,11 @@ export type Projekt = {
   namn: string;
   funktionsområdeId: FunktionsområdeId;
   skapad: string; // ISO timestamp
+  /**
+   * Set while Borttagen. `medFunktionsområde`: it went with its
+   * Funktionsområde and comes back with it; otherwise it was taken away on its own.
+   */
+  borttagen?: Borttagen & { medFunktionsområde: boolean };
 };
 
 /** Someone who can sign edits and own Scopes. Names are unique ignoring case. */

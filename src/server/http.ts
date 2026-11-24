@@ -2,7 +2,7 @@ import { readFile, stat } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { extname, join, normalize, sep } from "node:path";
-import { DomainError, type Apogee } from "../core/index.js";
+import { DomainError, type Apogee, type DatumInput, type Mål } from "../core/index.js";
 import { attachLive } from "./live.js";
 
 /**
@@ -90,6 +90,10 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
 
     const vem = signaturFrån(req);
 
+    if (id !== undefined && sub !== undefined && TIDSPLAN_DELAR.has(sub)) {
+      if (resource === "projekt") return tidsplanDel(method, { projekt: id }, sub, subId, req, vem);
+      if (resource === "funktionsomraden") return tidsplanDel(method, { funktionsområde: id }, sub, subId, req, vem);
+    }
     if (resource === "projekt" && id !== undefined && sub !== undefined) {
       return projektDel(method, id, sub, subId, req, vem);
     }
@@ -238,6 +242,49 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
     throw notFound();
   }
 
+  /**
+   * Dates and Milstolpar of a Projekt (Uppdateringar) or Funktionsområde
+   * (saved without Historik; `uppdatering` is always null):
+   *   PUT    /api/{projekt|funktionsomraden}/:id/datum                  DatumInput → 200 { uppdatering }
+   *   POST   /api/{projekt|funktionsomraden}/:id/milstolpar             { namn, datum } → 201 { id, uppdatering }
+   *   PATCH  /api/{projekt|funktionsomraden}/:id/milstolpar/:mid        { namn?, datum? } → 200 { uppdatering }
+   *   DELETE /api/{projekt|funktionsomraden}/:id/milstolpar/:mid        → 200 { uppdatering }
+   */
+  async function tidsplanDel(
+    method: string,
+    mål: Mål,
+    sub: string,
+    subId: string | undefined,
+    req: IncomingMessage,
+    vem: string | null,
+  ): Promise<Reply> {
+    if (sub === "datum" && subId === undefined && method === "PUT") {
+      const input = datumInput(await readJson(req));
+      const uppdatering = await serialize(() => apogee.setDatum(mål, input, vem));
+      return { status: 200, body: { uppdatering } };
+    }
+    if (sub !== "milstolpar") throw notFound();
+    if (subId === undefined && method === "POST") {
+      const body = await readJson(req);
+      const ny = await serialize(() => apogee.addMilstolpe(mål, { namn: text(body.namn), datum: text(body.datum) }, vem));
+      return { status: 201, body: ny };
+    }
+    if (subId !== undefined && method === "PATCH") {
+      const body = await readJson(req);
+      const ändring = {
+        ...(body.namn !== undefined && { namn: text(body.namn) }),
+        ...(body.datum !== undefined && { datum: text(body.datum) }),
+      };
+      const uppdatering = await serialize(() => apogee.changeMilstolpe(mål, subId, ändring, vem));
+      return { status: 200, body: { uppdatering } };
+    }
+    if (subId !== undefined && method === "DELETE") {
+      const uppdatering = await serialize(() => apogee.removeMilstolpe(mål, subId, vem));
+      return { status: 200, body: { uppdatering } };
+    }
+    throw notFound();
+  }
+
   async function web(path: string): Promise<{ file: string; type: string }> {
     const index = { file: join(webDir, "index.html"), type: CONTENT_TYPES[".html"]! };
     let decoded: string;
@@ -313,6 +360,16 @@ const DOMAIN_STATUS: Record<DomainError["code"], number> = {
 };
 
 /** Sub-resources of a Projekt served by `historikDel`. */
+const TIDSPLAN_DELAR = new Set(["datum", "milstolpar"]);
+
+/** `{ startdatum, slutdatum }` (each a date or null), `{ startdatum, veckor }` or `{ startdatum, behållAppetit: true }`. */
+function datumInput(body: Record<string, unknown>): DatumInput {
+  if (body.veckor !== undefined) return { startdatum: text(body.startdatum), veckor: number(body.veckor) };
+  if (body.behållAppetit === true) return { startdatum: text(body.startdatum), behållAppetit: true };
+  const datumEllerNull = (v: unknown) => (v === null ? null : text(v));
+  return { startdatum: datumEllerNull(body.startdatum), slutdatum: datumEllerNull(body.slutdatum) };
+}
+
 const HISTORIK_DELAR = new Set(["historik", "historikvy", "aterstallning", "angra"]);
 
 /**

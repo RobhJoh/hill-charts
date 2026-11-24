@@ -1,8 +1,12 @@
 export { createApogee, PROJEKT_TYP, SCOPE_TYP } from "./apogee.js";
 export { diagramEfter, lika, nuvarande, senastFlyttad, tillämpa, SCOPE_FÄLT } from "./diagram.js";
-export type { Diagram } from "./diagram.js";
+export { återställHit, ångraEn, gruppera, bortåterställda, HISTORIK_TYP, DRAG_FÖNSTER_MS } from "./diagram.js";
+export type { Diagram, Grupp, Krock, ÅngraResultat } from "./diagram.js";
+export { historikRader } from "./historik.js";
+export type { HistorikRad } from "./historik.js";
 export type { BorttagenVy, BorttagetProjekt } from "./apogee.js";
 export type { Apogee, ApogeeDeps, DiagramVy, Översikt, FunktionsområdeVy, ProjektRad, ProjektVy, PersonVy, ScopeVy } from "./apogee.js";
+export type { Förhandsvisning } from "./apogee.js";
 export { DomainError } from "./errors.js";
 export type { DomainErrorCode } from "./errors.js";
 export type { Storage } from "./storage.js";

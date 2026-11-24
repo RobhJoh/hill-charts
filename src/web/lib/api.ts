@@ -2,8 +2,10 @@
 // Signatur (`vem`, a Person id) and send it in the Apogee-Signatur header;
 // pages get it from `signatur.signera` in signatur.svelte.ts.
 import type {
+  Förhandsvisning,
   Funktionsområde,
   FunktionsområdeVy,
+  HistorikRad,
   PersonVy,
   Projekt,
   ProjektVy,
@@ -98,4 +100,16 @@ export const api = {
     ),
   removeScope: (projektId: string, scopeId: string, vem: string) =>
     call<{ uppdatering: Uppdatering }>("DELETE", `/projekt/${enc(projektId)}/scopes/${enc(scopeId)}`, undefined, vem),
+
+  /** The Historik panel's rows, newest first, drags merged. */
+  historikVy: (projektId: string) => call<HistorikRad<PersonVy>[]>("GET", `/projekt/${enc(projektId)}/historikvy`),
+  /** Visa: the chart right after an Uppdatering, and the Scopes that differ from now. */
+  förhandsvisa: (projektId: string, uppdateringId: string) =>
+    call<Förhandsvisning>("GET", `/projekt/${enc(projektId)}/historik/${enc(uppdateringId)}`),
+  /** Återställ hit. The Uppdatering is null when the chart already looks like that. */
+  återställHit: (projektId: string, mål: string, vem: string) =>
+    call<{ uppdatering: Uppdatering | null }>("POST", `/projekt/${enc(projektId)}/aterstallning`, { mål }, vem),
+  /** Ångra bara denna. Rejects with fel "krock" (409) when a field has changed since. */
+  ångra: (projektId: string, mål: string, vem: string) =>
+    call<{ uppdatering: Uppdatering }>("POST", `/projekt/${enc(projektId)}/angra`, { mål }, vem),
 };

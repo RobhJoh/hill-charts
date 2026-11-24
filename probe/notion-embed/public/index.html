@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Apogee Notion probe</title>
+<style>
+  :root { color-scheme: light dark; font: 14px/1.4 system-ui, sans-serif; }
+  body { margin: 0; padding: 12px; background: Canvas; color: CanvasText; }
+  h1 { font-size: 16px; margin: 0 0 8px; }
+  table { border-collapse: collapse; width: 100%; }
+  td { border-top: 1px solid #8884; padding: 3px 6px; vertical-align: top; word-break: break-all; }
+  td:first-child { white-space: nowrap; font-weight: 600; width: 1%; word-break: normal; }
+  #pad { position: relative; height: 140px; margin: 10px 0; border: 1px dashed #888; border-radius: 8px; touch-action: none; user-select: none; }
+  #dot { position: absolute; left: 20px; top: 50px; width: 40px; height: 40px; border-radius: 50%; background: #e8a33d; cursor: grab; touch-action: none; }
+  button { font: inherit; padding: 6px 10px; margin: 4px 4px 0 0; }
+  #log { font: 11px/1.3 ui-monospace, monospace; max-height: 90px; overflow: auto; background: #8881; padding: 4px; }
+</style>
+</head>
+<body>
+<h1>Apogee · Notion-probe</h1>
+<div id="pad"><div id="dot"></div></div>
+<div>
+  <button id="copy">Kopiera resultat</button>
+  <button id="grow">Resize +200px</button>
+  <button id="popup">Testa popup</button>
+  <button id="sa">requestStorageAccess</button>
+</div>
+<table id="t"></table>
+<div id="log"></div>
+<script>
+const R = {};
+const t = document.getElementById('t');
+function set(k, v) {
+  R[k] = v;
+  let row = document.getElementById('r-' + k);
+  if (!row) { row = t.insertRow(); row.id = 'r-' + k; row.insertCell().textContent = k; row.insertCell(); }
+  row.cells[1].textContent = typeof v === 'string' ? v : JSON.stringify(v);
+}
+const logEl = document.getElementById('log');
+function log(s) { logEl.textContent = s + '\n' + logEl.textContent.slice(0, 3000); }
+const safe = (f) => { try { return f(); } catch (e) { return 'ERR ' + e.name + ': ' + e.message; } };
+
+// 1. Framing and origin
+set('userAgent', navigator.userAgent);
+set('inIframe', window.self !== window.top);
+set('window.origin', safe(() => window.origin));
+set('ancestorOrigins', safe(() => location.ancestorOrigins ? Array.from(location.ancestorOrigins) : 'unsupported'));
+set('document.referrer', document.referrer || '(empty)');
+set('frameDepth', safe(() => { let d = 0, w = window; while (w !== w.parent && d < 10) { w = w.parent; d++; } return d; }));
+set('sandboxed (origin null)', safe(() => window.origin === 'null'));
+set('location.href', location.href);
+
+// 2. localStorage counter
+set('localStorage', safe(() => {
+  const n = (+localStorage.getItem('probe-count') || 0) + 1;
+  localStorage.setItem('probe-count', n);
+  return 'ok, loads=' + localStorage.getItem('probe-count');
+}));
+set('sessionStorage', safe(() => { sessionStorage.setItem('x', '1'); return 'ok'; }));
+set('indexedDB', safe(() => (window.indexedDB ? 'present' : 'missing')));
+if (document.hasStorageAccess) document.hasStorageAccess().then((v) => set('hasStorageAccess', v), (e) => set('hasStorageAccess', 'ERR ' + e));
+else set('hasStorageAccess', 'unsupported');
+
+// 3. Cookie
+set('document.cookie (before)', safe(() => document.cookie || '(empty)'));
+fetch('/api/cookie', { credentials: 'include' }).then((r) => r.json()).then((j) => {
+  set('cookie sent to server', j.received || '(none; reload to check persistence)');
+  set('document.cookie (after)', safe(() => document.cookie || '(empty)'));
+}).catch((e) => set('cookie sent to server', 'ERR ' + e));
+
+// 4. Drag: pointer and touch
+const dot = document.getElementById('dot'), pad = document.getElementById('pad');
+const ev = { pointerdown: 0, pointermove: 0, pointerup: 0, pointercancel: 0, touchstart: 0, touchmove: 0, touchend: 0, touchcancel: 0, maxDragPx: 0 };
+set('drag events', ev);
+let drag = null;
+dot.addEventListener('pointerdown', (e) => {
+  ev.pointerdown++; drag = { x: e.clientX, y: e.clientY, l: dot.offsetLeft, t: dot.offsetTop };
+  safe(() => dot.setPointerCapture(e.pointerId)); log('pointerdown ' + e.pointerType); set('drag events', ev);
+});
+dot.addEventListener('pointermove', (e) => {
+  if (!drag) return; ev.pointermove++;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  ev.maxDragPx = Math.max(ev.maxDragPx, Math.round(Math.hypot(dx, dy)));
+  dot.style.left = Math.max(0, Math.min(pad.clientWidth - 40, drag.l + dx)) + 'px';
+  dot.style.top = Math.max(0, Math.min(pad.clientHeight - 40, drag.t + dy)) + 'px';
+  set('drag events', ev);
+});
+for (const n of ['pointerup', 'pointercancel']) dot.addEventListener(n, (e) => { ev[n]++; drag = null; log(n + ' ' + e.pointerType); set('drag events', ev); });
+for (const n of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) dot.addEventListener(n, () => { ev[n]++; if (n !== 'touchmove') log(n); set('drag events', ev); }, { passive: true });
+
+// 5. Server-sent events
+let ticks = 0;
+function sse() {
+  const es = new EventSource('/api/tick');
+  es.onopen = () => set('SSE', 'open');
+  es.onmessage = (m) => { ticks++; set('SSE ticks', ticks + ' (last n=' + JSON.parse(m.data).n + ')'); };
+  es.onerror = () => set('SSE', 'error/reconnecting, readyState=' + es.readyState);
+}
+safe(sse);
+
+// 6. Resize requests to parent (Iframely and generic formats)
+let h = document.documentElement.scrollHeight;
+document.getElementById('grow').onclick = () => {
+  h += 200; document.body.style.minHeight = h + 'px';
+  const msgs = [
+    JSON.stringify({ src: location.href, context: 'iframe.resize', height: h }),
+    { method: 'resize', height: h },
+    { type: 'resize', height: h },
+  ];
+  for (const m of msgs) safe(() => window.parent.postMessage(m, '*'));
+  set('resize sent', h + 'px; viewport now ' + innerWidth + 'x' + innerHeight);
+};
+window.addEventListener('message', (e) => log('message from ' + e.origin + ': ' + String(JSON.stringify(e.data)).slice(0, 200)));
+const vp = () => set('viewport', innerWidth + 'x' + innerHeight + ' @' + devicePixelRatio);
+vp(); addEventListener('resize', vp);
+
+// Extras
+document.getElementById('popup').onclick = () => {
+  const w = safe(() => window.open(location.href + '?popup=1', '_blank'));
+  set('window.open', w && typeof w === 'object' ? 'opened' : String(w));
+};
+document.getElementById('sa').onclick = () => {
+  if (!document.requestStorageAccess) return set('requestStorageAccess', 'unsupported');
+  document.requestStorageAccess().then(() => set('requestStorageAccess', 'granted'), (e) => set('requestStorageAccess', 'denied: ' + e));
+};
+document.getElementById('copy').onclick = () => {
+  const text = JSON.stringify(R, null, 2);
+  const done = (how) => set('copy', how);
+  (navigator.clipboard ? navigator.clipboard.writeText(text).then(() => done('clipboard ok')) : Promise.reject('no clipboard api'))
+    .catch(() => {
+      const ta = document.createElement('textarea'); ta.value = text; document.body.append(ta); ta.select();
+      done(document.execCommand('copy') ? 'execCommand ok' : 'copy failed; select the table manually');
+      ta.remove();
+    });
+};
+window.addEventListener('error', (e) => log('error: ' + e.message));
+</script>
+</body>
+</html>

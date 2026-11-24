@@ -4,6 +4,7 @@
 import type {
   Funktionsområde,
   FunktionsområdeVy,
+  PersonHändelse,
   PersonVy,
   Projekt,
   ProjektVy,
@@ -46,6 +47,14 @@ export const api = {
 
   /** `vem` is null only when adding the first Person to an empty list. */
   createPerson: (namn: string, vem: string | null) => call<PersonVy>("POST", "/personer", { namn }, vem),
+  renamePerson: (id: string, namn: string, vem: string) =>
+    call<PersonVy>("PATCH", `/personer/${enc(id)}`, { namn }, vem),
+  /** Hands their Scopes in Pågående Projekt to `nyÄgare` and makes them inaktiv. */
+  removePerson: (id: string, nyÄgare: string, vem: string) =>
+    call<{ uppdateringar: Uppdatering[] }>("DELETE", `/personer/${enc(id)}`, { nyÄgare }, vem),
+  reactivatePerson: (id: string, vem: string) =>
+    call<PersonVy>("POST", `/personer/${enc(id)}/ateraktivera`, undefined, vem),
+  personerHistorik: () => call<PersonHändelse[]>("GET", "/personer/historik"),
   createFunktionsområde: (namn: string, vem: string) =>
     call<Funktionsområde>("POST", "/funktionsomraden", { namn }, vem),
   renameFunktionsområde: (id: string, namn: string, vem: string) =>

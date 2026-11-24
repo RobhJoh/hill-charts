@@ -134,6 +134,7 @@ describe("JSON API", () => {
       id: p.body.id,
       namn: "Inloggning",
       funktionsområde: { id: pl.body.id, namn: "Plattform" },
+      scopes: [],
     });
   });
 

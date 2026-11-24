@@ -1,3 +1,4 @@
+import { lika, nuvarande, senastFlyttad } from "./diagram.js";
 import { DomainError } from "./errors.js";
 import type { Storage } from "./storage.js";
 import type {
@@ -7,6 +8,9 @@ import type {
   PersonId,
   Projekt,
   ProjektId,
+  ScopeId,
+  ScopeValues,
+  Uppdatering,
 } from "./types.js";
 
 export type ApogeeDeps = {
@@ -24,10 +28,27 @@ export type ProjektVy = {
   id: ProjektId;
   namn: string;
   funktionsområde: { id: FunktionsområdeId; namn: string };
+  /** The Hill chart: current Scopes, highest Läge first. */
+  scopes: ScopeVy[];
+};
+
+/** A Scope as shown on the Hill chart and in the Scope index. */
+export type ScopeVy = {
+  id: ScopeId;
+  namn: string;
+  läge: number;
+  /** The Ägare; `aktiv: false` is shown as "(inaktiv)". */
+  ägare: PersonVy;
+  /** ISO time its Läge last changed (or it was added). */
+  flyttad: string;
 };
 
 export type PersonVy = { id: PersonId; namn: string; aktiv: boolean };
 const personVy = ({ id, namn, aktiv }: Person): PersonVy => ({ id, namn, aktiv });
+const ägareVy = (personer: Person[], id: PersonId): PersonVy => {
+  const p = personer.find((x) => x.id === id);
+  return p ? personVy(p) : { id, namn: "Okänd", aktiv: false };
+};
 
 export type Apogee = ReturnType<typeof createApogee>;
 
@@ -51,6 +72,32 @@ function requireSignatur(personer: Person[], vem: PersonId | null | undefined): 
   return person;
 }
 
+/** A Scope's Ägare: required, and chosen among the active Personer. */
+function requireÄgare(personer: Person[], ägare: PersonId | null | undefined): PersonId {
+  if (!ägare) throw new DomainError("ogiltig", "Ett Scope måste ha en Ägare");
+  const person = personer.find((p) => p.id === ägare);
+  if (!person) throw new DomainError("ogiltig", "Ägaren är inte en Person");
+  if (!person.aktiv) throw new DomainError("ogiltig", `${person.namn} är inaktiv och kan inte äga Scopes`);
+  return person.id;
+}
+
+/** Läge is a whole number, clamped to 0–100. */
+function lägeFrån(input: number): number {
+  if (typeof input !== "number" || !Number.isFinite(input)) {
+    throw new DomainError("ogiltig", "Läge måste vara ett tal");
+  }
+  return Math.min(100, Math.max(0, Math.round(input)));
+}
+
+/** Uppdatering types written by the Scope commands. */
+export const SCOPE_TYP = {
+  ny: "ny",
+  flytt: "flytt",
+  bytNamn: "byt namn",
+  bytÄgare: "byt ägare",
+  taBort: "ta bort",
+} as const;
+
 const svenskOrdning = new Intl.Collator("sv");
 const efterNamn = (a: { namn: string }, b: { namn: string }) => svenskOrdning.compare(a.namn, b.namn);
 
@@ -73,6 +120,39 @@ export function createApogee({ storage, now, newId }: ApogeeDeps) {
   /** The active Person signing this write; rejects a missing, unknown or inaktiv Signatur. */
   async function signatur(vem: PersonId | null): Promise<Person> {
     return requireSignatur(await storage.listPersoner(), vem);
+  }
+
+  /** Appends one Uppdatering to a Projekt's Historik. Every chart edit goes through here. */
+  async function skriv(
+    projektId: ProjektId,
+    typ: string,
+    ändringar: Uppdatering["ändringar"],
+    vem: PersonId,
+  ): Promise<Uppdatering> {
+    const u: Uppdatering = { id: newId(), typ, vem, tid: now().toISOString(), ändringar };
+    await storage.appendUppdatering(projektId, u);
+    return u;
+  }
+
+  /**
+   * Changes one existing Scope: signs, checks it exists, and writes one
+   * Uppdatering unless the values would not change (then returns null).
+   */
+  async function ändraScope(
+    projektId: ProjektId,
+    scopeId: ScopeId,
+    typ: string,
+    vem: PersonId | null,
+    ändring: (före: ScopeValues, personer: Person[]) => ScopeValues | null,
+  ): Promise<Uppdatering | null> {
+    const personer = await storage.listPersoner();
+    const signerad = requireSignatur(personer, vem);
+    await requireProjekt(projektId);
+    const före = nuvarande(await storage.readHistorik(projektId))[scopeId];
+    if (!före) throw new DomainError("finns-inte", `Scopet ${scopeId} finns inte`);
+    const efter = ändring(före, personer);
+    if (efter !== null && lika(före, efter)) return null;
+    return skriv(projektId, typ, [{ scopeId, före, efter }], signerad.id);
   }
 
   function vy(fo: Funktionsområde, allProjekt: Projekt[]): FunktionsområdeVy {
@@ -166,7 +246,63 @@ export function createApogee({ storage, now, newId }: ApogeeDeps) {
     async getProjekt(id: ProjektId): Promise<ProjektVy> {
       const p = await requireProjekt(id);
       const fo = await requireFunktionsområde(p.funktionsområdeId);
-      return { id: p.id, namn: p.namn, funktionsområde: { id: fo.id, namn: fo.namn } };
+      const [logg, personer] = await Promise.all([storage.readHistorik(id), storage.listPersoner()]);
+      const flyttad = senastFlyttad(logg);
+      const scopes = Object.entries(nuvarande(logg))
+        .map(([scopeId, s]): ScopeVy => ({
+          id: scopeId,
+          namn: s.namn,
+          läge: s.läge,
+          ägare: ägareVy(personer, s.ägare),
+          flyttad: flyttad[scopeId]!,
+        }))
+        .sort((a, b) => b.läge - a.läge || efterNamn(a, b));
+      return { id: p.id, namn: p.namn, funktionsområde: { id: fo.id, namn: fo.namn }, scopes };
+    },
+
+    /** A Projekt's Historik, oldest first. */
+    async historik(id: ProjektId): Promise<Uppdatering[]> {
+      await requireProjekt(id);
+      return storage.readHistorik(id);
+    },
+
+    /** Adds a Scope at Läge 0. Ägare is required and must be an active Person. */
+    async addScope(
+      projektId: ProjektId,
+      { namn, ägare }: { namn: string; ägare: PersonId },
+      vem: PersonId | null,
+    ): Promise<{ id: ScopeId; uppdatering: Uppdatering }> {
+      const personer = await storage.listPersoner();
+      const signerad = requireSignatur(personer, vem);
+      const efter: ScopeValues = { namn: namnFrån(namn), läge: 0, ägare: requireÄgare(personer, ägare) };
+      await requireProjekt(projektId);
+      const id = newId();
+      const uppdatering = await skriv(projektId, SCOPE_TYP.ny, [{ scopeId: id, före: null, efter }], signerad.id);
+      return { id, uppdatering };
+    },
+
+    /** Moves a Scope to a new Läge (clamped to 0–100). Null when it is already there. */
+    async moveScope(projektId: ProjektId, scopeId: ScopeId, läge: number, vem: PersonId | null) {
+      const nytt = lägeFrån(läge);
+      return ändraScope(projektId, scopeId, SCOPE_TYP.flytt, vem, (s) => ({ ...s, läge: nytt }));
+    },
+
+    async renameScope(projektId: ProjektId, scopeId: ScopeId, namn: string, vem: PersonId | null) {
+      const nytt = namnFrån(namn);
+      return ändraScope(projektId, scopeId, SCOPE_TYP.bytNamn, vem, (s) => ({ ...s, namn: nytt }));
+    },
+
+    /** Hands a Scope to another active Person. The Ägare can never be cleared. */
+    async changeScopeÄgare(projektId: ProjektId, scopeId: ScopeId, ägare: PersonId, vem: PersonId | null) {
+      return ändraScope(projektId, scopeId, SCOPE_TYP.bytÄgare, vem, (s, personer) => ({
+        ...s,
+        ägare: requireÄgare(personer, ägare),
+      }));
+    },
+
+    /** Removes a Scope. Its id stays in the Historik, so Ångra can bring it back. */
+    async removeScope(projektId: ProjektId, scopeId: ScopeId, vem: PersonId | null) {
+      return ändraScope(projektId, scopeId, SCOPE_TYP.taBort, vem, () => null);
     },
   };
 }

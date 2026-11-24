@@ -24,6 +24,7 @@
     scopes,
     tema,
     valt = null,
+    markerade = [],
     nu = new Date(),
     etiketter = true,
     onvälj,
@@ -35,6 +36,8 @@
     tema: Tema;
     /** The selected Scope's id (red ring). */
     valt?: string | null;
+    /** Scopes to highlight with a dashed ring (Historik's Visa: they differ from now). */
+    markerade?: string[];
     /** "Now", for star size by days since moved. */
     nu?: Date;
     /** Draw star labels (the embed's narrow layout may turn them off). */
@@ -227,6 +230,9 @@
       {#if s.id === valt}
         <circle class="ring" cx={x} cy={y} r="20" />
       {/if}
+      {#if markerade.includes(s.id)}
+        <circle class="markerad" cx={x} cy={y} r="25" />
+      {/if}
       {#if e}
         {#if e.ledare}
           <line class="ledare" x1={e.ledare.x1} y1={e.ledare.y1} x2={e.ledare.x2} y2={e.ledare.y2} />
@@ -270,6 +276,12 @@
   .scope:focus-visible circle:nth-child(3) {
     stroke: var(--red);
     stroke-width: 2;
+  }
+  .markerad {
+    fill: none;
+    stroke: var(--tx);
+    stroke-width: 1.2;
+    stroke-dasharray: 3 4;
   }
   .sn {
     font: 600 15px Barlow, system-ui, sans-serif;

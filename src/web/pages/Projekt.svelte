@@ -1,6 +1,9 @@
 <script lang="ts">
-  import type { Översikt, PersonVy, ProjektVy } from "../../core/index.js";
+  import type { Förhandsvisning, HistorikRad, Översikt, PersonVy, ProjektVy } from "../../core/index.js";
   import HillChart from "../components/HillChart.svelte";
+  import HistorikPanel from "../components/HistorikPanel.svelte";
+  import Toast from "../components/Toast.svelte";
+  import { beskrivRad, UTAN_NAMN, visaTid } from "../lib/historik.js";
   import NamnForm from "../components/NamnForm.svelte";
   import ScopeIndex from "../components/ScopeIndex.svelte";
   import { api, ApiError } from "../lib/api.js";
@@ -39,9 +42,9 @@
     .catch(() => {});
 
   /** Runs a signed chart edit, then reloads. Errors reach the caller (and are shown). */
-  async function redigera(edit: (vem: string) => Promise<unknown>) {
+  async function redigera<T>(edit: (vem: string) => Promise<T>): Promise<T> {
     try {
-      await signatur.signera(edit);
+      return await signatur.signera(edit);
     } finally {
       await load();
       personer = await laddaPersoner().catch(() => personer);
@@ -56,6 +59,36 @@
       if (!(e instanceof Avbruten)) skrivFel = e instanceof Error ? e.message : "Kunde inte spara";
       throw e;
     }
+  }
+
+  // --- Historik (#35): panel, Visa preview, Återställ hit, Ångra, removal toast ---
+  let historikÖppen = $state(false);
+  let visning = $state<{ rad: HistorikRad<PersonVy>; vy: Förhandsvisning } | null>(null);
+  /** The removal the "Scope borttagen · Ångra" toast would undo. */
+  let borttagning = $state<string | null>(null);
+
+  async function visa(rad: HistorikRad<PersonVy> | null) {
+    visning = rad ? { rad, vy: await api.förhandsvisa(id, rad.id) } : null;
+  }
+
+  async function återställ(uppdateringId: string) {
+    await redigera((vem) => api.återställHit(id, uppdateringId, vem));
+    visning = null;
+  }
+
+  async function ångra(uppdateringId: string) {
+    await redigera((vem) => api.ångra(id, uppdateringId, vem));
+    visning = null;
+  }
+
+  async function taBort(scopeId: string) {
+    const { uppdatering } = await redigera((vem) => api.removeScope(id, scopeId, vem));
+    borttagning = uppdatering.id;
+  }
+
+  function stängHistorik() {
+    historikÖppen = false;
+    visning = null;
   }
 
   async function läggTill(namn: string, ägare: string) {
@@ -120,7 +153,10 @@
           <h1>{projekt.namn}</h1>
           <button class="quiet" onclick={() => (läge = "byt namn")}>Byt namn</button>
           <button class="quiet" onclick={öppnaFlytta}>Flytta</button>
-          <button class="pr ny" onclick={() => (nyScope = true)}>Ny Scope</button>
+          <button class="ny" aria-pressed={historikÖppen} onclick={() => (historikÖppen ? stängHistorik() : (historikÖppen = true))}>
+            Historik
+          </button>
+          <button class="pr" onclick={() => (nyScope = true)}>Ny Scope</button>
         </div>
       {/if}
 
@@ -141,20 +177,52 @@
         </form>
       {/if}
 
-      <div class="chart">
-        <HillChart
-          namn={projekt.namn}
-          scopes={projekt.scopes}
-          tema={tema.nu}
-          {valt}
-          onvälj={(s) => (valt = s)}
-          onflytta={flyttaScope}
-        />
-      </div>
+      {#if visning}
+        {@const namn = (pid: string) => personer.find((p) => p.id === pid)?.namn ?? "Okänd"}
+        <div class="visning" role="status">
+          <span>
+            Visar läget efter: <strong>{visning.rad.vem?.namn ?? UTAN_NAMN}</strong>
+            {beskrivRad(visning.rad, namn)} · {visaTid(visning.rad.tid)}.
+            {visning.vy.skiljer.length === 0
+              ? "Samma som nu."
+              : `${visning.vy.skiljer.length} Scopes skiljer sig från nu (streckad ring).`}
+          </span>
+          <button class="pr" disabled={visning.vy.skiljer.length === 0} onclick={() => återställ(visning!.rad.id)}>
+            Återställ hit
+          </button>
+          <button class="quiet" onclick={() => (visning = null)}>Tillbaka till nu</button>
+        </div>
+        <div class="chart">
+          <HillChart namn={projekt.namn} scopes={visning.vy.scopes} tema={tema.nu} markerade={visning.vy.skiljer} />
+        </div>
+      {:else}
+        <div class="chart">
+          <HillChart
+            namn={projekt.namn}
+            scopes={projekt.scopes}
+            tema={tema.nu}
+            {valt}
+            onvälj={(s) => (valt = s)}
+            onflytta={flyttaScope}
+          />
+        </div>
+      {/if}
       {#if skrivFel}<p class="error" role="alert">{skrivFel}</p>{/if}
     </div>
 
     <aside>
+      {#if historikÖppen}
+        <HistorikPanel
+          projektId={id}
+          {personer}
+          version={projekt}
+          visad={visning?.rad.id ?? null}
+          onvisa={visa}
+          onåterställ={återställ}
+          onångra={ångra}
+          onstäng={stängHistorik}
+        />
+      {:else}
       <ScopeIndex
         scopes={projekt.scopes}
         {personer}
@@ -165,10 +233,15 @@
         onlägg={läggTill}
         onbytnamn={(scopeId, namn) => redigera((vem) => api.changeScope(id, scopeId, { namn }, vem))}
         onbytägare={(scopeId, ägare) => redigera((vem) => api.changeScope(id, scopeId, { ägare }, vem))}
-        ontabort={(scopeId) => redigera((vem) => api.removeScope(id, scopeId, vem))}
+        ontabort={taBort}
       />
+      {/if}
     </aside>
     </div>
+    {#if borttagning}
+      {@const mål = borttagning}
+      <Toast text="Scope borttagen" åtgärd="Ångra" onåtgärd={() => ångra(mål)} onstäng={() => (borttagning = null)} />
+    {/if}
   {/if}
 {/if}
 
@@ -209,6 +282,19 @@
   }
   .titlerow .ny {
     margin-left: auto;
+  }
+  .visning {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+    padding: 10px 14px;
+    border: 1px dashed var(--orbit);
+    background: var(--sel);
+  }
+  .visning span {
+    flex: 1 1 280px;
   }
   .chart {
     margin-top: 20px;

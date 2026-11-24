@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { felText } from "../lib/fel.js";
   // A one-field form for naming something: used to create and to rename.
   type Props = {
     label: string;
@@ -21,7 +22,7 @@
     try {
       await onsubmit(namn);
     } catch (e) {
-      error = e instanceof Error ? e.message : "Något gick fel";
+      error = felText(e);
     } finally {
       busy = false;
     }

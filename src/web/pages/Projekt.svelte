@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { felText } from "../lib/fel.js";
   import type { Förhandsvisning, HistorikRad, Översikt, PersonVy, ProjektRad, ProjektVy } from "../../core/index.js";
   import HillChart from "../components/HillChart.svelte";
   import HistorikPanel from "../components/HistorikPanel.svelte";
@@ -62,7 +63,7 @@
     } catch (e) {
       if (denna !== laddning) return;
       if (e instanceof ApiError && e.status === 404) saknas = true;
-      else loadError = e instanceof Error ? e.message : "Kunde inte läsa in";
+      else loadError = felText(e, "Kunde inte läsa in");
     }
   }
   load();
@@ -100,7 +101,7 @@
     try {
       await redigera((vem) => api.changeScope(id, scopeId, { läge }, vem));
     } catch (e) {
-      if (!(e instanceof Avbruten)) skrivFel = e instanceof Error ? e.message : "Kunde inte spara";
+      if (!(e instanceof Avbruten)) skrivFel = felText(e, "Kunde inte spara");
       throw e;
     }
   }
@@ -147,7 +148,7 @@
     try {
       await redigera((vem) => (markera ? api.markAvslutat(id, vem) : api.reopenProjekt(id, vem)));
     } catch (e) {
-      if (!(e instanceof Avbruten)) skrivFel = e instanceof Error ? e.message : "Kunde inte spara";
+      if (!(e instanceof Avbruten)) skrivFel = felText(e, "Kunde inte spara");
     }
   }
 
@@ -184,7 +185,7 @@
       await load();
       läge = "visa";
     } catch (e) {
-      flyttError = e instanceof Error ? e.message : "Kunde inte flytta";
+      flyttError = felText(e, "Kunde inte flytta");
     }
   }
 </script>

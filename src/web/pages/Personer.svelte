@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { felText } from "../lib/fel.js";
   // Inställningar › Personer: everyone who can sign edits and own Scopes.
   // Add, rename, remove (handover of their Scopes in Pågående Projekt),
   // Återaktivera, and the Personer-historik. Nothing here has an Ångra.
@@ -43,12 +44,10 @@
       historik = h.reverse();
       last = Object.fromEntries(rader.map((r) => [r.id, r]));
     } catch (e) {
-      loadError = e instanceof Error ? e.message : "Kunde inte läsa in";
+      loadError = felText(e, "Kunde inte läsa in");
     }
   }
   load();
-
-  const meddelande = (e: unknown) => (e instanceof Error ? e.message : "Något gick fel");
 
   async function läggTill(event: SubmitEvent) {
     event.preventDefault();
@@ -63,7 +62,7 @@
       await load();
     } catch (e) {
       if (e instanceof ApiError && e.fel === "finns-inaktiv") inaktivTräff = e.person;
-      if (!inaktivTräff) error = meddelande(e);
+      if (!inaktivTräff) error = felText(e);
     } finally {
       busy = false;
     }
@@ -80,7 +79,7 @@
       }
       await load();
     } catch (e) {
-      radError = meddelande(e);
+      radError = felText(e);
     } finally {
       busy = false;
     }
@@ -102,7 +101,7 @@
       byterNamn = undefined;
       await load();
     } catch (e) {
-      radError = meddelande(e);
+      radError = felText(e);
     } finally {
       busy = false;
     }
@@ -126,7 +125,7 @@
       tarBort = undefined;
       await load();
     } catch (e) {
-      radError = meddelande(e);
+      radError = felText(e);
     } finally {
       busy = false;
     }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { felText } from "../lib/fel.js";
   // The Scope index beside the Hill chart: Namn, Ägare and Läge, highest Läge
   // first, with the colour legend. Rows edit Namn and Ägare and remove a
   // Scope; the "Ny Scope" form adds one. Writes are the parent's callbacks.
@@ -48,7 +49,7 @@
       await arbete();
       return true;
     } catch (e) {
-      fel = e instanceof Error ? e.message : "Något gick fel";
+      fel = felText(e);
       return false;
     } finally {
       upptagen = false;

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { felText } from "../lib/fel.js";
   // "Ta bort" with an inline confirmation that says what goes. A blocked Ta
   // bort shows the reason from the core.
   import { Avbruten } from "../lib/signatur.svelte.js";
@@ -21,7 +22,7 @@
       await ontabort();
       öppen = false;
     } catch (e) {
-      if (!(e instanceof Avbruten)) fel = e instanceof Error ? e.message : "Något gick fel";
+      if (!(e instanceof Avbruten)) fel = felText(e);
     } finally {
       busy = false;
     }

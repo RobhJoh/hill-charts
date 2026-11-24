@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { felText } from "../lib/fel.js";
   // The Notion embed (#43), variant B "Himmel + lista" of prototype/embed:
   // the Projekt's Hill chart in the `dag` theme beside a compact Scope list,
   // filling whatever box Notion gives it. Editing is drag only (plus the
@@ -48,7 +49,7 @@
     } catch (e) {
       if (denna !== laddning) return;
       if (e instanceof ApiError && e.status === 404) saknas = true;
-      else fel = e instanceof Error ? e.message : "Kunde inte läsa in";
+      else fel = felText(e, "Kunde inte läsa in");
     }
   }
   load();
@@ -75,7 +76,7 @@
     try {
       await signatur.signera((vem) => api.changeScope(id, scopeId, { läge }, vem));
     } catch (e) {
-      if (!(e instanceof Avbruten)) fel = e instanceof Error ? e.message : "Kunde inte spara";
+      if (!(e instanceof Avbruten)) fel = felText(e, "Kunde inte spara");
       throw e;
     } finally {
       await load();

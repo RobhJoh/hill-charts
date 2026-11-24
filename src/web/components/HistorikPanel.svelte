@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { felText } from "../lib/fel.js";
   // The Historik panel: a Projekt's Uppdateringar newest first (consecutive
   // drags merged into one "N drag" row), each with Visa, Återställ hit and
   // (on single rows) Ångra bara denna. Reads the rows itself; writes and the
@@ -42,7 +43,7 @@
     api
       .historikVy(projektId)
       .then((r) => (rader = r))
-      .catch((e) => (fel = e instanceof Error ? e.message : "Kunde inte läsa Historiken"))
+      .catch((e) => (fel = felText(e, "Kunde inte läsa Historiken")))
       .finally(() => (laddar = false));
   });
 
@@ -56,7 +57,7 @@
       await arbete();
     } catch (e) {
       if (e instanceof Avbruten) return;
-      fel = e instanceof Error ? e.message : "Något gick fel";
+      fel = felText(e);
       felRad = radId;
     } finally {
       upptagen = false;

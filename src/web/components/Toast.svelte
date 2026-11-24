@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { felText } from "../lib/fel.js";
   // A short-lived notice at the bottom of the screen with one action,
   // e.g. "Scope borttagen · Ångra". Closes itself after `ms`.
   let {
@@ -27,7 +28,7 @@
       await onåtgärd();
       onstäng();
     } catch (e) {
-      fel = e instanceof Error ? e.message : "Något gick fel";
+      fel = felText(e);
     }
   }
 </script>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { felText } from "../lib/fel.js";
   import type { FunktionsområdeVy, Översikt } from "../../core/index.js";
   import Borttagna from "../components/Borttagna.svelte";
   import NamnForm from "../components/NamnForm.svelte";
@@ -17,7 +18,7 @@
     try {
       [översikt, borttagna] = await Promise.all([api.overview(), api.borttagnaFunktionsområden()]);
     } catch (e) {
-      loadError = e instanceof Error ? e.message : "Kunde inte läsa in";
+      loadError = felText(e, "Kunde inte läsa in");
     }
   }
   load();

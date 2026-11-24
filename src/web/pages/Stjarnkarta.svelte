@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { felText } from "../lib/fel.js";
   // A Person's Stjärnkarta: every Scope they own, as stars on one sky. Each
   // star carries its Projekt's letter from the key beside the chart. Dragging
   // a star is an Uppdatering in that Scope's own Projekt, with a toast
@@ -49,7 +50,7 @@
         if (person && !person.aktiv) inaktiv = person.namn;
         else saknas = true;
       }
-      else loadError = e instanceof Error ? e.message : "Kunde inte läsa in";
+      else loadError = felText(e, "Kunde inte läsa in");
     }
   }
   load();
@@ -87,7 +88,7 @@
         };
       }
     } catch (e) {
-      if (!(e instanceof Avbruten)) skrivFel = e instanceof Error ? e.message : "Kunde inte spara";
+      if (!(e instanceof Avbruten)) skrivFel = felText(e, "Kunde inte spara");
       throw e;
     } finally {
       await load();

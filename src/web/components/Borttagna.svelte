@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { felText } from "../lib/fel.js";
   // "Borttagna Projekt" / "Borttagna Funktionsområden": who took each away and
   // when, with Återställ and Radera. Radera is confirmed by typing the name,
   // and lists what goes with it (`följer`).
@@ -28,7 +29,7 @@
       await action();
       raderar = null;
     } catch (e) {
-      if (!(e instanceof Avbruten)) fel = e instanceof Error ? e.message : "Något gick fel";
+      if (!(e instanceof Avbruten)) fel = felText(e);
     } finally {
       busy = false;
     }

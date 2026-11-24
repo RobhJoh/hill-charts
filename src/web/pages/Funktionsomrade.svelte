@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { felText } from "../lib/fel.js";
   import type { FunktionsområdeVy } from "../../core/index.js";
   import NamnForm from "../components/NamnForm.svelte";
   import Nedrakning from "../components/Nedrakning.svelte";
@@ -31,7 +32,7 @@
       }
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) saknas = true;
-      else loadError = e instanceof Error ? e.message : "Kunde inte läsa in";
+      else loadError = felText(e, "Kunde inte läsa in");
     }
   }
   load();

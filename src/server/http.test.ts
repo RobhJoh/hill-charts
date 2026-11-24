@@ -271,6 +271,52 @@ describe("Scopes", () => {
   });
 });
 
+describe("Historik, Återställning and Ångra", () => {
+  it("lists rows, previews, restores and undoes over HTTP; a blocked Ångra is 409", async () => {
+    const { api, apiAs, vem, base } = await start();
+    const fo = await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" });
+    const projekt = (await api("POST", "/api/projekt", { funktionsområdeId: fo.body.id, namn: "Kassan" })).body.id;
+    const p = `/api/projekt/${projekt}`;
+    const id = (await api("POST", `${p}/scopes`, { namn: "Prislista", ägare: vem })).body.id;
+    const flytt = (await api("PATCH", `${p}/scopes/${id}`, { läge: 40 })).body.uppdatering;
+    await api("PATCH", `${p}/scopes/${id}`, { läge: 50 });
+    const bort = (await api("DELETE", `${p}/scopes/${id}`)).body.uppdatering;
+
+    const rader = await api("GET", `${p}/historikvy`);
+    expect(rader.status).toBe(200);
+    expect(rader.body.map((r: { typ: string; antal: number }) => [r.typ, r.antal])).toEqual([
+      ["ta bort", 1],
+      ["flytt", 2],
+      ["ny", 1],
+    ]);
+    expect(rader.body[0].vem).toEqual({ id: vem, namn: "Testare", aktiv: true });
+
+    const visa = await api("GET", `${p}/historik/${flytt.id}`);
+    expect(visa.body).toMatchObject({ scopes: [{ id, läge: 40 }], skiljer: [id], avslutat: false });
+    expect((await api("GET", `${p}/historik/saknas`)).status).toBe(404);
+
+    const ångra = await api("POST", `${p}/angra`, { mål: bort.id });
+    expect(ångra.status).toBe(200);
+    expect(ångra.body.uppdatering).toMatchObject({ typ: "ångra", mål: bort.id });
+    expect((await api("GET", p)).body.scopes).toEqual([expect.objectContaining({ id, läge: 50 })]);
+
+    const krock = await api("POST", `${p}/angra`, { mål: flytt.id });
+    expect(krock.status).toBe(409);
+    expect(krock.body).toEqual({ fel: "krock", meddelande: expect.stringContaining("Återställ hit") });
+
+    const åter = await api("POST", `${p}/aterstallning`, { mål: flytt.id });
+    expect(åter.status).toBe(200);
+    expect(åter.body.uppdatering).toMatchObject({ typ: "återställning", mål: flytt.id });
+    expect((await api("POST", `${p}/aterstallning`, { mål: flytt.id })).body).toEqual({ uppdatering: null });
+    expect((await api("GET", p)).body.scopes).toEqual([expect.objectContaining({ id, läge: 40 })]);
+
+    expect((await api("POST", `${p}/angra`, {})).status).toBe(400);
+    expect((await apiAs(null, "POST", `${p}/angra`, { mål: flytt.id })).status).toBe(403);
+    expect((await apiAs(null, "POST", `${p}/aterstallning`, { mål: bort.id })).status).toBe(403);
+    expect((await fetch(`${base}/api/projekt/saknas/historikvy`)).status).toBe(404);
+  });
+});
+
 describe("Avslutat", () => {
   it("marks a Projekt Avslutat and reopens it, each one Uppdatering; signed", async () => {
     const { api, apiAs, vem } = await start();

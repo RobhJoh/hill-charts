@@ -1,9 +1,11 @@
 <script lang="ts">
-  import type { Översikt, ProjektVy } from "../../core/index.js";
-  import EmptyHill from "../components/EmptyHill.svelte";
+  import type { Översikt, PersonVy, ProjektVy } from "../../core/index.js";
+  import HillChart from "../components/HillChart.svelte";
   import NamnForm from "../components/NamnForm.svelte";
+  import ScopeIndex from "../components/ScopeIndex.svelte";
   import { api, ApiError } from "../lib/api.js";
-  import { signatur } from "../lib/signatur.svelte.js";
+  import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
+  import { tema } from "../lib/tema.svelte.js";
   import { funktionsområdeHref, projektHref } from "../lib/links.js";
   import { router } from "../lib/router.svelte.js";
   import Saknas from "./Saknas.svelte";
@@ -17,7 +19,12 @@
   let funktionsområden = $state<Översikt>([]);
   let flyttaTill = $state("");
   let flyttError = $state("");
+  let personer = $state<PersonVy[]>([]);
+  let valt = $state<string | null>(null);
+  let nyScope = $state(false);
+  let skrivFel = $state("");
 
+  /** Reloads the Projekt and its Hill chart (after a write; live sync can call it too). */
   async function load() {
     try {
       projekt = await api.getProjekt(id);
@@ -27,6 +34,35 @@
     }
   }
   load();
+  laddaPersoner()
+    .then((p) => (personer = p))
+    .catch(() => {});
+
+  /** Runs a signed chart edit, then reloads. Errors reach the caller (and are shown). */
+  async function redigera(edit: (vem: string) => Promise<unknown>) {
+    try {
+      await signatur.signera(edit);
+    } finally {
+      await load();
+      personer = await laddaPersoner().catch(() => personer);
+    }
+  }
+
+  async function flyttaScope(scopeId: string, läge: number) {
+    skrivFel = "";
+    try {
+      await redigera((vem) => api.changeScope(id, scopeId, { läge }, vem));
+    } catch (e) {
+      if (!(e instanceof Avbruten)) skrivFel = e instanceof Error ? e.message : "Kunde inte spara";
+      throw e;
+    }
+  }
+
+  async function läggTill(namn: string, ägare: string) {
+    let nytt: string | undefined;
+    await redigera(async (vem) => (nytt = (await api.addScope(id, namn, ägare, vem)).id));
+    valt = nytt ?? null;
+  }
 
   async function bytNamn(namn: string) {
     await signatur.signera((vem) => api.renameProjekt(id, namn, vem));
@@ -60,10 +96,11 @@
 {#if saknas}
   <Saknas />
 {:else}
-  <div class="page">
-    {#if loadError}
-      <p class="error">{loadError}</p>
-    {:else if projekt}
+  {#if loadError}
+    <div class="page"><p class="error">{loadError}</p></div>
+  {:else if projekt}
+    <div class="projekt">
+    <div class="huvud">
       <nav class="crumbs" aria-label="Brödsmulor">
         <a href="/">Alla Funktionsområden</a>
         <span aria-hidden="true">/</span>
@@ -83,6 +120,7 @@
           <h1>{projekt.namn}</h1>
           <button class="quiet" onclick={() => (läge = "byt namn")}>Byt namn</button>
           <button class="quiet" onclick={öppnaFlytta}>Flytta</button>
+          <button class="pr ny" onclick={() => (nyScope = true)}>Ny Scope</button>
         </div>
       {/if}
 
@@ -104,11 +142,34 @@
       {/if}
 
       <div class="chart">
-        <EmptyHill namn={projekt.namn} />
-        <p class="meta">Inga Scopes ännu.</p>
+        <HillChart
+          namn={projekt.namn}
+          scopes={projekt.scopes}
+          tema={tema.nu}
+          {valt}
+          onvälj={(s) => (valt = s)}
+          onflytta={flyttaScope}
+        />
       </div>
-    {/if}
-  </div>
+      {#if skrivFel}<p class="error" role="alert">{skrivFel}</p>{/if}
+    </div>
+
+    <aside>
+      <ScopeIndex
+        scopes={projekt.scopes}
+        {personer}
+        tema={tema.nu}
+        {valt}
+        bind:nyScope
+        onvälj={(s) => (valt = s)}
+        onlägg={läggTill}
+        onbytnamn={(scopeId, namn) => redigera((vem) => api.changeScope(id, scopeId, { namn }, vem))}
+        onbytägare={(scopeId, ägare) => redigera((vem) => api.changeScope(id, scopeId, { ägare }, vem))}
+        ontabort={(scopeId) => redigera((vem) => api.removeScope(id, scopeId, vem))}
+      />
+    </aside>
+    </div>
+  {/if}
 {/if}
 
 <style>
@@ -132,13 +193,40 @@
   .flytta p {
     flex-basis: 100%;
   }
-  .chart {
-    margin-top: 24px;
-    padding: 18px 22px 16px;
-    border: 1px solid var(--line);
-    background: radial-gradient(ellipse at 50% 60%, #11204a 0%, var(--chart) 55%, var(--bg) 100%);
+  .projekt {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    min-height: calc(100vh - 56px);
   }
-  .chart p {
-    text-align: center;
+  .huvud {
+    padding: 28px 28px 48px;
+    min-width: 0;
+  }
+  aside {
+    background: var(--panel);
+    border-left: 1px solid var(--line);
+    padding: 28px 22px;
+  }
+  .titlerow .ny {
+    margin-left: auto;
+  }
+  .chart {
+    margin-top: 20px;
+    border: 1px solid var(--line);
+    background: var(--chart-ground);
+  }
+  @media (max-width: 900px) {
+    .projekt {
+      grid-template-columns: minmax(0, 1fr);
+      min-height: 0;
+    }
+    .huvud {
+      padding: 20px 16px 24px;
+    }
+    aside {
+      border-left: none;
+      border-top: 1px solid var(--line);
+      padding: 20px 16px 64px;
+    }
   }
 </style>

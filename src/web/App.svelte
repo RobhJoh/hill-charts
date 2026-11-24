@@ -7,6 +7,7 @@
   import Saknas from "./pages/Saknas.svelte";
   import VemStrip from "./components/VemStrip.svelte";
   import { laddaPersoner, signatur } from "./lib/signatur.svelte.js";
+  import { tema } from "./lib/tema.svelte.js";
 
   const route = $derived(router.route);
 
@@ -40,6 +41,14 @@
         </select>
       </label>
     {/if}
+    <button
+      class="quiet tema"
+      onclick={() => tema.växla()}
+      aria-label={tema.nu === "natt" ? "Byt till ljust tema (dag)" : "Byt till mörkt tema (natt)"}
+      title={tema.nu === "natt" ? "Dag" : "Natt"}
+    >
+      {tema.nu === "natt" ? "Dag" : "Natt"}
+    </button>
     <a
       class="gear"
       href="/installningar/personer"

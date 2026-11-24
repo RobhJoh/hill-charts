@@ -116,6 +116,7 @@ describe("Projekt", () => {
       id: p.id,
       namn: "Sökindex",
       funktionsområde: { id: fo.id, namn: "Plattform" },
+      scopes: [],
     });
   });
 

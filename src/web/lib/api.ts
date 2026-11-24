@@ -7,6 +7,7 @@ import type {
   PersonVy,
   Projekt,
   ProjektVy,
+  Uppdatering,
   Översikt,
 } from "../../core/index.js";
 
@@ -55,4 +56,23 @@ export const api = {
     call<void>("PATCH", `/projekt/${enc(id)}`, { namn }, vem),
   moveProjekt: (id: string, funktionsområdeId: string, vem: string) =>
     call<void>("PATCH", `/projekt/${enc(id)}`, { funktionsområdeId }, vem),
+
+  historik: (projektId: string) => call<Uppdatering[]>("GET", `/projekt/${enc(projektId)}/historik`),
+  addScope: (projektId: string, namn: string, ägare: string, vem: string) =>
+    call<{ id: string; uppdatering: Uppdatering }>("POST", `/projekt/${enc(projektId)}/scopes`, { namn, ägare }, vem),
+  /** Exactly one of läge, namn, ägare. The Uppdatering is null when nothing changed. */
+  changeScope: (
+    projektId: string,
+    scopeId: string,
+    ändring: { läge: number } | { namn: string } | { ägare: string },
+    vem: string,
+  ) =>
+    call<{ uppdatering: Uppdatering | null }>(
+      "PATCH",
+      `/projekt/${enc(projektId)}/scopes/${enc(scopeId)}`,
+      ändring,
+      vem,
+    ),
+  removeScope: (projektId: string, scopeId: string, vem: string) =>
+    call<{ uppdatering: Uppdatering }>("DELETE", `/projekt/${enc(projektId)}/scopes/${enc(scopeId)}`, undefined, vem),
 };

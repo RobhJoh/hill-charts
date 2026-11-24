@@ -80,10 +80,15 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
 
   async function api(method: string, path: string, req: IncomingMessage): Promise<Reply> {
     const parts = path.split("/").filter(Boolean).map(decodeURIComponent); // ["api", ...]
-    const [, resource, id, ...rest] = parts;
+    const [, resource, id, sub, subId, ...rest] = parts;
     if (rest.length > 0) throw notFound();
 
     const vem = signaturFrån(req);
+
+    if (resource === "projekt" && id !== undefined && sub !== undefined) {
+      return projektDel(method, id, sub, subId, req, vem);
+    }
+    if (sub !== undefined) throw notFound();
 
     if (resource === "personer" && id === undefined) {
       if (method === "GET") return { status: 200, body: await apogee.listPersoner() };
@@ -132,6 +137,58 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
         });
         return { status: 204 };
       }
+    }
+    throw notFound();
+  }
+
+  /**
+   * A Projekt's Hill chart:
+   *   GET    /api/projekt/:id/historik            its Uppdateringar, oldest first
+   *   POST   /api/projekt/:id/scopes              { namn, ägare } → 201 { id, uppdatering }
+   *   PATCH  /api/projekt/:id/scopes/:scopeId     exactly one of { läge } | { namn } | { ägare }
+   *                                                → 200 { uppdatering } (null if nothing changed)
+   *   DELETE /api/projekt/:id/scopes/:scopeId     → 200 { uppdatering }
+   */
+  async function projektDel(
+    method: string,
+    projektId: string,
+    sub: string,
+    scopeId: string | undefined,
+    req: IncomingMessage,
+    vem: string | null,
+  ): Promise<Reply> {
+    if (sub === "historik" && scopeId === undefined && method === "GET") {
+      return { status: 200, body: await apogee.historik(projektId) };
+    }
+    if (sub !== "scopes") throw notFound();
+    if (scopeId === undefined && method === "POST") {
+      const body = await readJson(req);
+      const ny = await serialize(() =>
+        apogee.addScope(projektId, { namn: text(body.namn), ägare: text(body.ägare) }, vem),
+      );
+      return { status: 201, body: ny };
+    }
+    if (scopeId !== undefined && method === "PATCH") {
+      const body = await readJson(req);
+      const fält = (["läge", "namn", "ägare"] as const).filter((k) => body[k] !== undefined);
+      if (fält.length !== 1) {
+        throw new HttpError(400, "ogiltig", "Ändra precis ett av läge, namn och ägare");
+      }
+      const uppdatering = await serialize(() => {
+        switch (fält[0]) {
+          case "läge":
+            return apogee.moveScope(projektId, scopeId, number(body.läge), vem);
+          case "namn":
+            return apogee.renameScope(projektId, scopeId, text(body.namn), vem);
+          default:
+            return apogee.changeScopeÄgare(projektId, scopeId, text(body.ägare), vem);
+        }
+      });
+      return { status: 200, body: { uppdatering } };
+    }
+    if (scopeId !== undefined && method === "DELETE") {
+      const uppdatering = await serialize(() => apogee.removeScope(projektId, scopeId, vem));
+      return { status: 200, body: { uppdatering } };
     }
     throw notFound();
   }
@@ -225,6 +282,12 @@ const notFound = () => new HttpError(404, "finns-inte", "Finns inte");
 /** A required string field; anything else is a 400. */
 function text(value: unknown): string {
   if (typeof value !== "string") throw new HttpError(400, "ogiltig", "Ett textfält saknas");
+  return value;
+}
+
+/** A required number field; anything else is a 400. */
+function number(value: unknown): number {
+  if (typeof value !== "number") throw new HttpError(400, "ogiltig", "Ett talfält saknas");
   return value;
 }
 

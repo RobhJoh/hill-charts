@@ -2,6 +2,7 @@
   import type { FunktionsområdeVy, Översikt } from "../../core/index.js";
   import Borttagna from "../components/Borttagna.svelte";
   import NamnForm from "../components/NamnForm.svelte";
+  import Nedrakning from "../components/Nedrakning.svelte";
   import ProjektCells from "../components/ProjektCells.svelte";
   import { api } from "../lib/api.js";
   import { signatur } from "../lib/signatur.svelte.js";
@@ -84,6 +85,9 @@
             >{fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<em class="stilla">{fo.stilla} stilla</em>{/if}</span
           >
         </h2>
+        {#if fo.nedräkning || fo.nästaMilstolpe}
+          <div class="cd"><Nedrakning nedräkning={fo.nedräkning} nästaMilstolpe={fo.nästaMilstolpe} liten /></div>
+        {/if}
         <ProjektCells projekt={fo.projekt} />
       </section>
     {/each}
@@ -114,6 +118,9 @@
   h2 span {
     font: 400 14px Barlow, system-ui, sans-serif;
     color: var(--dim);
+  }
+  .cd {
+    margin: 4px 0 10px;
   }
   .stilla {
     font-style: normal;

@@ -216,6 +216,7 @@
           <MiniHill scopes={g.scopes} tema={tema.nu} width={160} height={46} />
           <span class="gnamn">{g.namn}</span>
           {#if g.stilla > 0}<span class="stilla">{g.stilla} stilla</span>{/if}
+          {#if !g.avslutat}<Nedrakning nedräkning={g.nedräkning} nästaMilstolpe={g.nästaMilstolpe} liten />{/if}
         </a>
       {:else}
         <p class="meta">Inga andra Projekt.</p>

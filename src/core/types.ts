@@ -19,6 +19,14 @@ export type Projekt = {
   skapad: string; // ISO timestamp
 };
 
+/** Someone who can sign edits and own Scopes. Names are unique ignoring case. */
+export type Person = {
+  id: PersonId;
+  namn: string;
+  aktiv: boolean;
+  skapad: string; // ISO timestamp
+};
+
 export type ScopeValues = {
   namn: string;
   läge: number; // 0–100

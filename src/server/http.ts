@@ -83,6 +83,16 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
     const [, resource, id, ...rest] = parts;
     if (rest.length > 0) throw notFound();
 
+    const vem = signaturFrån(req);
+
+    if (resource === "personer" && id === undefined) {
+      if (method === "GET") return { status: 200, body: await apogee.listPersoner() };
+      if (method === "POST") {
+        const body = await readJson(req);
+        const person = await serialize(() => apogee.createPerson(text(body.namn), vem));
+        return { status: 201, body: person };
+      }
+    }
     if (method === "GET" && resource === "oversikt" && id === undefined) {
       return { status: 200, body: await apogee.overview() };
     }
@@ -92,12 +102,12 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
       }
       if (method === "POST" && id === undefined) {
         const body = await readJson(req);
-        const fo = await serialize(() => apogee.createFunktionsområde(text(body.namn)));
+        const fo = await serialize(() => apogee.createFunktionsområde(text(body.namn), vem));
         return { status: 201, body: fo };
       }
       if (method === "PATCH" && id !== undefined) {
         const body = await readJson(req);
-        await serialize(() => apogee.renameFunktionsområde(id, text(body.namn)));
+        await serialize(() => apogee.renameFunktionsområde(id, text(body.namn), vem));
         return { status: 204 };
       }
     }
@@ -108,16 +118,16 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
       if (method === "POST" && id === undefined) {
         const body = await readJson(req);
         const p = await serialize(() =>
-          apogee.createProjekt(text(body.funktionsområdeId), text(body.namn)),
+          apogee.createProjekt(text(body.funktionsområdeId), text(body.namn), vem),
         );
         return { status: 201, body: p };
       }
       if (method === "PATCH" && id !== undefined) {
         const body = await readJson(req);
         await serialize(async () => {
-          if (body.namn !== undefined) await apogee.renameProjekt(id, text(body.namn));
+          if (body.namn !== undefined) await apogee.renameProjekt(id, text(body.namn), vem);
           if (body.funktionsområdeId !== undefined) {
-            await apogee.moveProjekt(id, text(body.funktionsområdeId));
+            await apogee.moveProjekt(id, text(body.funktionsområdeId), vem);
           }
         });
         return { status: 204 };
@@ -171,7 +181,7 @@ function errorReply(error: unknown): Reply {
     return { status: error.status, body: { fel: error.fel, meddelande: error.message } };
   }
   if (error instanceof DomainError) {
-    const status = error.code === "finns-inte" ? 404 : 400;
+    const status = DOMAIN_STATUS[error.code];
     return { status, body: { fel: error.code, meddelande: error.message } };
   }
   return { status: 500, body: { fel: "serverfel", meddelande: "Något gick fel" } };
@@ -189,6 +199,25 @@ function sendJson(res: ServerResponse, status: number, body: unknown) {
     "Cache-Control": "no-store",
   });
   res.end(text);
+}
+
+/** HTTP status per domain error code. */
+const DOMAIN_STATUS: Record<DomainError["code"], number> = {
+  "finns-inte": 404,
+  ogiltig: 400,
+  "finns-redan": 409,
+  signatur: 403,
+};
+
+/**
+ * The Signatur of a write: the signing Person's id, sent in the
+ * `Apogee-Signatur` header. The core decides whether it is valid.
+ */
+export const SIGNATUR_HEADER = "apogee-signatur";
+
+function signaturFrån(req: IncomingMessage): string | null {
+  const value = req.headers[SIGNATUR_HEADER];
+  return typeof value === "string" && value !== "" ? value : null;
 }
 
 const notFound = () => new HttpError(404, "finns-inte", "Finns inte");

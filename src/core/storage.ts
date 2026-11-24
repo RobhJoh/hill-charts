@@ -1,4 +1,4 @@
-import type { Funktionsområde, Projekt, ProjektId, Uppdatering } from "./types.js";
+import type { Funktionsområde, Person, Projekt, ProjektId, Uppdatering } from "./types.js";
 
 /**
  * The domain-level storage interface (ADR 0001). The core reaches storage only
@@ -10,6 +10,11 @@ export interface Storage {
   listFunktionsområden(): Promise<Funktionsområde[]>;
   /** Replaces the whole set of Funktionsområden. */
   saveFunktionsområden(all: Funktionsområde[]): Promise<void>;
+
+  /** All Personer, active and inaktiva, in no particular order. */
+  listPersoner(): Promise<Person[]>;
+  /** Replaces the whole set of Personer. */
+  savePersoner(all: Person[]): Promise<void>;
 
   /** All Projekt, in no particular order. */
   listProjekt(): Promise<Projekt[]>;

@@ -2,12 +2,13 @@ import { randomBytes } from "node:crypto";
 import { appendFile, mkdir, open, readdir, readFile, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import type { Storage } from "../core/storage.js";
-import type { Funktionsområde, Projekt, ProjektId, Uppdatering } from "../core/types.js";
+import type { Funktionsområde, Person, Projekt, ProjektId, Uppdatering } from "../core/types.js";
 
 /**
  * Storage as JSON files in one directory (ADR 0001):
  *
  *   funktionsomraden.json         all Funktionsområden
+ *   personer.json                 all Personer
  *   projekt/<id>.json             one document per Projekt
  *   projekt/<id>.historik.jsonl   the Projekt's Historik, one Uppdatering per line
  *
@@ -19,6 +20,7 @@ import type { Funktionsområde, Projekt, ProjektId, Uppdatering } from "../core/
 export function createJsonFileStorage(dir: string): Storage {
   const projektDir = join(dir, "projekt");
   const foFile = join(dir, "funktionsomraden.json");
+  const personerFile = join(dir, "personer.json");
   const projektFile = (id: ProjektId) => join(projektDir, `${id}.json`);
   const historikFile = (id: ProjektId) => join(projektDir, `${id}.historik.jsonl`);
 
@@ -38,6 +40,15 @@ export function createJsonFileStorage(dir: string): Storage {
 
     async saveFunktionsområden(all) {
       await writeDocument(foFile, { formatVersion: FORMAT_VERSION, funktionsområden: all });
+    },
+
+    async listPersoner() {
+      const doc = await readDocument(personerFile);
+      return doc === undefined ? [] : upgradePersoner(doc);
+    },
+
+    async savePersoner(all) {
+      await writeDocument(personerFile, { formatVersion: FORMAT_VERSION, personer: all });
     },
 
     async listProjekt() {
@@ -119,6 +130,11 @@ function upgradeFunktionsområden(raw: unknown): Funktionsområde[] {
     0: (bare) => ({ formatVersion: 1, funktionsområden: bare }),
   });
   return doc.funktionsområden as Funktionsområde[];
+}
+
+function upgradePersoner(raw: unknown): Person[] {
+  // Personer arrived in format version 1, so there is nothing older to upgrade.
+  return upgrade(raw, {}).personer as Person[];
 }
 
 function upgradeProjekt(raw: unknown): Projekt {

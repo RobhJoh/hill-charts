@@ -1,6 +1,13 @@
 import { DomainError } from "./errors.js";
 import type { Storage } from "./storage.js";
-import type { Funktionsområde, FunktionsområdeId, Projekt, ProjektId } from "./types.js";
+import type {
+  Funktionsområde,
+  FunktionsområdeId,
+  Person,
+  PersonId,
+  Projekt,
+  ProjektId,
+} from "./types.js";
 
 export type ApogeeDeps = {
   storage: Storage;
@@ -19,6 +26,9 @@ export type ProjektVy = {
   funktionsområde: { id: FunktionsområdeId; namn: string };
 };
 
+export type PersonVy = { id: PersonId; namn: string; aktiv: boolean };
+const personVy = ({ id, namn, aktiv }: Person): PersonVy => ({ id, namn, aktiv });
+
 export type Apogee = ReturnType<typeof createApogee>;
 
 const MAX_NAMN = 200;
@@ -30,6 +40,15 @@ function namnFrån(input: string): string {
     throw new DomainError("ogiltig", `Namnet får vara högst ${MAX_NAMN} tecken`);
   }
   return namn;
+}
+
+/** Every write is signed by an active Person; anything else is rejected. */
+function requireSignatur(personer: Person[], vem: PersonId | null | undefined): Person {
+  if (!vem) throw new DomainError("signatur", "Välj vem du är innan du ändrar något");
+  const person = personer.find((p) => p.id === vem);
+  if (!person) throw new DomainError("signatur", "Signaturen är inte en Person");
+  if (!person.aktiv) throw new DomainError("signatur", `${person.namn} är inaktiv`);
+  return person;
 }
 
 const svenskOrdning = new Intl.Collator("sv");
@@ -51,6 +70,11 @@ export function createApogee({ storage, now, newId }: ApogeeDeps) {
     return p;
   }
 
+  /** The active Person signing this write; rejects a missing, unknown or inaktiv Signatur. */
+  async function signatur(vem: PersonId | null): Promise<Person> {
+    return requireSignatur(await storage.listPersoner(), vem);
+  }
+
   function vy(fo: Funktionsområde, allProjekt: Projekt[]): FunktionsområdeVy {
     return {
       id: fo.id,
@@ -63,14 +87,37 @@ export function createApogee({ storage, now, newId }: ApogeeDeps) {
   }
 
   return {
-    async createFunktionsområde(namn: string): Promise<Funktionsområde> {
+    async createPerson(namn: string, vem: PersonId | null): Promise<PersonVy> {
+      const giltigt = namnFrån(namn);
+      const all = await storage.listPersoner();
+      if (all.length > 0) requireSignatur(all, vem);
+      const nyckel = giltigt.toLocaleLowerCase("sv");
+      if (all.some((p) => p.namn.toLocaleLowerCase("sv") === nyckel)) {
+        throw new DomainError("finns-redan", `Det finns redan en Person som heter ${giltigt}`);
+      }
+      const person: Person = { id: newId(), namn: giltigt, aktiv: true, skapad: now().toISOString() };
+      await storage.savePersoner([...all, person]);
+      return personVy(person);
+    },
+
+    async listPersoner(): Promise<PersonVy[]> {
+      return (await storage.listPersoner()).sort(efterNamn).map(personVy);
+    },
+
+    async createFunktionsområde(namn: string, vem: PersonId | null): Promise<Funktionsområde> {
+      await signatur(vem);
       const fo: Funktionsområde = { id: newId(), namn: namnFrån(namn), skapad: now().toISOString() };
       const all = await storage.listFunktionsområden();
       await storage.saveFunktionsområden([...all, fo]);
       return fo;
     },
 
-    async createProjekt(funktionsområdeId: FunktionsområdeId, namn: string): Promise<Projekt> {
+    async createProjekt(
+      funktionsområdeId: FunktionsområdeId,
+      namn: string,
+      vem: PersonId | null,
+    ): Promise<Projekt> {
+      await signatur(vem);
       const giltigt = namnFrån(namn);
       await requireFunktionsområde(funktionsområdeId);
       const p: Projekt = { id: newId(), namn: giltigt, funktionsområdeId, skapad: now().toISOString() };
@@ -78,20 +125,27 @@ export function createApogee({ storage, now, newId }: ApogeeDeps) {
       return p;
     },
 
-    async renameFunktionsområde(id: FunktionsområdeId, nyttNamn: string): Promise<void> {
+    async renameFunktionsområde(id: FunktionsområdeId, nyttNamn: string, vem: PersonId | null): Promise<void> {
+      await signatur(vem);
       const namn = namnFrån(nyttNamn);
       await requireFunktionsområde(id);
       const all = await storage.listFunktionsområden();
       await storage.saveFunktionsområden(all.map((f) => (f.id === id ? { ...f, namn } : f)));
     },
 
-    async renameProjekt(id: ProjektId, namn: string): Promise<void> {
+    async renameProjekt(id: ProjektId, namn: string, vem: PersonId | null): Promise<void> {
+      await signatur(vem);
       const giltigt = namnFrån(namn);
       const p = await requireProjekt(id);
       await storage.saveProjekt({ ...p, namn: giltigt });
     },
 
-    async moveProjekt(id: ProjektId, funktionsområdeId: FunktionsområdeId): Promise<void> {
+    async moveProjekt(
+      id: ProjektId,
+      funktionsområdeId: FunktionsområdeId,
+      vem: PersonId | null,
+    ): Promise<void> {
+      await signatur(vem);
       const p = await requireProjekt(id);
       await requireFunktionsområde(funktionsområdeId);
       await storage.saveProjekt({ ...p, funktionsområdeId });

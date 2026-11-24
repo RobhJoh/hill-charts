@@ -1,7 +1,7 @@
 // The storage contract: one suite every Storage adapter must pass.
 import { describe, expect, it } from "vitest";
 import type { Storage } from "../core/storage.js";
-import type { Funktionsområde, Projekt, Uppdatering } from "../core/types.js";
+import type { Funktionsområde, Person, Projekt, Uppdatering } from "../core/types.js";
 
 export type StorageFixture = {
   storage: Storage;
@@ -23,7 +23,13 @@ const projekt = (id: string, namn: string, funktionsområdeId = "f1"): Projekt =
   funktionsområdeId,
   skapad: "2026-11-24T10:00:00.000Z",
 });
-const uppdatering = (id: string, läge: number): Uppdatering => ({
+const person = (id: string, namn: string, aktiv = true): Person => ({
+  id,
+  namn,
+  aktiv,
+  skapad: "2026-11-24T10:00:00.000Z",
+});
+const uppdatering =(id: string, läge: number): Uppdatering => ({
   id,
   typ: "flytt",
   vem: "person1",
@@ -48,6 +54,17 @@ export function storageContract(name: string, makeFixture: () => Promise<Storage
       await storage.saveFunktionsområden([fo("f1", "Ekonomi"), fo("f2", "Plattform")]);
       await storage.saveFunktionsområden([fo("f2", "Plattform 2")]);
       expect(await storage.listFunktionsområden()).toEqual([fo("f2", "Plattform 2")]);
+    });
+
+    it("saves and lists Personer, replacing the whole set, and keeps them across a reopen", async () => {
+      const fixture = await makeFixture();
+      const { storage } = fixture;
+      expect(await storage.listPersoner()).toEqual([]);
+      await storage.savePersoner([person("a1", "Anna"), person("b1", "Bo")]);
+      await storage.savePersoner([person("b1", "Bo", false)]);
+      expect(await storage.listPersoner()).toEqual([person("b1", "Bo", false)]);
+      (await storage.listPersoner())[0]!.namn = "Ändrad";
+      expect(await fixture.reopen().listPersoner()).toEqual([person("b1", "Bo", false)]);
     });
 
     it("saves, replaces, gets and lists Projekt", async () => {

@@ -21,7 +21,8 @@ async function webDir() {
   return dir;
 }
 
-async function start(storage: Storage = createMemoryStorage()) {
+/** A server over `storage`, with no Personer added. */
+async function startTom(storage: Storage = createMemoryStorage()) {
   let n = 0;
   const apogee = createApogee({
     storage,
@@ -32,17 +33,77 @@ async function start(storage: Storage = createMemoryStorage()) {
   running.push(server);
   const base = `http://127.0.0.1:${(server.address as AddressInfo).port}`;
 
-  const api = async (method: string, path: string, body?: unknown) => {
+  /** Calls the API signed as `vem` (or unsigned when `vem` is null). */
+  const apiAs = async (vem: string | null, method: string, path: string, body?: unknown) => {
+    const headers: Record<string, string> = {};
+    if (body !== undefined) headers["content-type"] = "application/json";
+    if (vem !== null) headers["apogee-signatur"] = vem;
     const res = await fetch(base + path, {
       method,
-      headers: body === undefined ? {} : { "content-type": "application/json" },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const text = await res.text();
     return { status: res.status, headers: res.headers, body: text ? JSON.parse(text) : undefined };
   };
-  return { base, api, server };
+  return { base, apiAs, server, apogee };
 }
+
+/** A server with one Person, `vem`; `api` signs every call as them. */
+async function start(storage: Storage = createMemoryStorage()) {
+  const s = await startTom(storage);
+  const personer = await s.apogee.listPersoner();
+  const vem = personer[0]?.id ?? (await s.apogee.createPerson("Testare", null)).id;
+  const api = (method: string, path: string, body?: unknown) => s.apiAs(vem, method, path, body);
+  return { ...s, api, vem };
+}
+
+describe("Personer and Signatur", () => {
+  it("adds the first Person unsigned, then lists Personer", async () => {
+    const { apiAs } = await startTom();
+    expect((await apiAs(null, "GET", "/api/personer")).body).toEqual([]);
+    const anna = await apiAs(null, "POST", "/api/personer", { namn: "Anna" });
+    expect(anna.status).toBe(201);
+    expect(anna.body).toEqual({ id: expect.any(String), namn: "Anna", aktiv: true });
+    expect((await apiAs(null, "GET", "/api/personer")).body).toEqual([anna.body]);
+  });
+
+  it("rejects a second Person without a valid Signatur, and a duplicate name ignoring case", async () => {
+    const { apiAs } = await startTom();
+    const anna = await apiAs(null, "POST", "/api/personer", { namn: "Anna" });
+    const unsigned = await apiAs(null, "POST", "/api/personer", { namn: "Bo" });
+    expect(unsigned.status).toBe(403);
+    expect(unsigned.body).toEqual({ fel: "signatur", meddelande: expect.any(String) });
+    expect((await apiAs("okänd", "POST", "/api/personer", { namn: "Bo" })).status).toBe(403);
+    const dup = await apiAs(anna.body.id, "POST", "/api/personer", { namn: "anna" });
+    expect(dup.status).toBe(409);
+    expect(dup.body.fel).toBe("finns-redan");
+    expect((await apiAs(anna.body.id, "POST", "/api/personer", { namn: "Bo" })).status).toBe(201);
+  });
+
+  it("rejects every write to Funktionsområden and Projekt without a valid, active Signatur", async () => {
+    const storage = createMemoryStorage();
+    const { api, apiAs } = await start(storage);
+    await storage.savePersoner([
+      ...(await storage.listPersoner()),
+      { id: "inaktiv", namn: "Bo", aktiv: false, skapad: "2026-01-01T00:00:00.000Z" },
+    ]);
+    const fo = await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" });
+    const p = await api("POST", "/api/projekt", { funktionsområdeId: fo.body.id, namn: "Fakturering" });
+    for (const vem of [null, "", "okänd", "inaktiv"]) {
+      const writes = [
+        await apiAs(vem, "POST", "/api/funktionsomraden", { namn: "X" }),
+        await apiAs(vem, "PATCH", `/api/funktionsomraden/${fo.body.id}`, { namn: "X" }),
+        await apiAs(vem, "POST", "/api/projekt", { funktionsområdeId: fo.body.id, namn: "X" }),
+        await apiAs(vem, "PATCH", `/api/projekt/${p.body.id}`, { namn: "X" }),
+      ];
+      expect(writes.map((w) => w.status), String(vem)).toEqual([403, 403, 403, 403]);
+    }
+    expect((await api("GET", "/api/oversikt")).body).toEqual([
+      { id: fo.body.id, namn: "Ekonomi", projekt: [{ id: p.body.id, namn: "Fakturering" }] },
+    ]);
+  });
+});
 
 describe("JSON API", () => {
   it("creates, renames and moves Funktionsområden and Projekt", async () => {

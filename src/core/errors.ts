@@ -2,7 +2,11 @@ export type DomainErrorCode =
   /** The referenced Funktionsområde or Projekt does not exist. */
   | "finns-inte"
   /** The command's input breaks a domain rule (e.g. an empty name). */
-  | "ogiltig";
+  | "ogiltig"
+  /** A name is already taken (e.g. a Person's, ignoring letter case). */
+  | "finns-redan"
+  /** The write's Signatur is missing, unknown or inaktiv. */
+  | "signatur";
 
 /** A command or query was rejected by a domain rule. */
 export class DomainError extends Error {

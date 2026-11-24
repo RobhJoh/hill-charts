@@ -270,20 +270,16 @@ export function createHandler({ apogee, webDir, publicUrl }: ServerOptions) {
     }
     if (scopeId !== undefined && method === "PATCH") {
       const body = await readJson(req);
-      const fält = (["läge", "namn", "ägare"] as const).filter((k) => body[k] !== undefined);
+      const ändra = {
+        läge: () => apogee.moveScope(projektId, scopeId, number(body.läge), vem),
+        namn: () => apogee.renameScope(projektId, scopeId, text(body.namn), vem),
+        ägare: () => apogee.changeScopeÄgare(projektId, scopeId, text(body.ägare), vem),
+      };
+      const fält = (Object.keys(ändra) as (keyof typeof ändra)[]).filter((k) => body[k] !== undefined);
       if (fält.length !== 1) {
         throw new HttpError(400, "ogiltig", "Ändra precis ett av läge, namn och ägare");
       }
-      const uppdatering = await serialize(() => {
-        switch (fält[0]) {
-          case "läge":
-            return apogee.moveScope(projektId, scopeId, number(body.läge), vem);
-          case "namn":
-            return apogee.renameScope(projektId, scopeId, text(body.namn), vem);
-          default:
-            return apogee.changeScopeÄgare(projektId, scopeId, text(body.ägare), vem);
-        }
-      });
+      const uppdatering = await serialize(ändra[fält[0]!]);
       return { status: 200, body: { uppdatering } };
     }
     if (scopeId !== undefined && method === "DELETE") {
@@ -296,7 +292,7 @@ export function createHandler({ apogee, webDir, publicUrl }: ServerOptions) {
   /**
    * A Projekt's Historik panel (#35):
    *   GET  /api/projekt/:id/historikvy             rows newest first, drags merged → HistorikRad[]
-   *   GET  /api/projekt/:id/historik/:uppdatering  Visa → { scopes, skiljer }
+   *   GET  /api/projekt/:id/historik/:uppdatering  Visa → Förhandsvisning
    *   POST /api/projekt/:id/aterstallning          { mål } → 200 { uppdatering } (null if nothing to do)
    *   POST /api/projekt/:id/angra                  { mål } → 200 { uppdatering }; 409 krock if blocked
    */

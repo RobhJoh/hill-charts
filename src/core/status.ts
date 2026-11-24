@@ -22,20 +22,23 @@ export function ärAvslutat(markerad: boolean, lägen: readonly number[]): boole
   return markerad || lägen.every((l) => l === 100);
 }
 
-/** A Scope is stuck after more than this many whole days without a Läge change. */
+/** A Scope is stuck once strictly more than this many days (of 24 h) pass without a Läge change. */
 export const STILLA_EFTER_DAGAR = 14;
+
+const DYGN_MS = 86_400_000;
 
 /** Whole days from `iso` to `nu` (never negative). */
 export const dagarSedan = (iso: string, nu: Date): number =>
-  Math.max(0, Math.floor((nu.getTime() - Date.parse(iso)) / 86_400_000));
+  Math.max(0, Math.floor((nu.getTime() - Date.parse(iso)) / DYGN_MS));
 
 /**
- * Stuck: no Läge change for more than 14 whole days. A Scope at Läge 100 is
- * done, and Scopes of an Avslutat Projekt are not expected to move, so
- * neither is ever stuck.
+ * Stuck: strictly more than 14 × 24 h since its Läge last changed (`flyttad`).
+ * A Scope at Läge 100 is done, and Scopes of an Avslutat Projekt are not
+ * expected to move, so neither is ever stuck.
  */
-export function ärStilla(dagar: number, läge: number, projektAvslutat: boolean): boolean {
-  return dagar > STILLA_EFTER_DAGAR && läge < 100 && !projektAvslutat;
+export function ärStilla(flyttad: string, nu: Date, läge: number, projektAvslutat: boolean): boolean {
+  const stilla = nu.getTime() - Date.parse(flyttad) > STILLA_EFTER_DAGAR * DYGN_MS;
+  return stilla && läge < 100 && !projektAvslutat;
 }
 
 /** Pågående: neither Avslutat nor Borttagen. */

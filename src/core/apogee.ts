@@ -489,7 +489,7 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
           ägare: ägareVy(personer, s.ägare),
           flyttad: flyttad[scopeId]!,
           stillaDagar,
-          stilla: ärStilla(stillaDagar, s.läge, avslutat),
+          stilla: ärStilla(flyttad[scopeId]!, nu, s.läge, avslutat),
         };
       })
       .sort((a, b) => b.läge - a.läge || efterNamn(a, b));

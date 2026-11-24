@@ -109,7 +109,7 @@ describe("Avslutat and Pågående", () => {
 const DAG = 86_400_000;
 
 describe("stuck Scopes", () => {
-  it("a Scope is stuck after more than 14 whole days without a Läge change", async () => {
+  it("a Scope is stuck once strictly more than 14 days (14 × 24 h) pass without a Läge change", async () => {
     const { apogee, projekt, senare, scope } = await setup();
     await scope("Prislista", 30);
     const stilla = async () => {
@@ -117,9 +117,11 @@ describe("stuck Scopes", () => {
       return [s!.stilla, s!.stillaDagar];
     };
     expect(await stilla()).toEqual([false, 0]);
-    senare(15 * DAG - 1);
+    senare(14 * DAG);
     expect(await stilla()).toEqual([false, 14]);
     senare(1);
+    expect(await stilla()).toEqual([true, 14]);
+    senare(DAG);
     expect(await stilla()).toEqual([true, 15]);
   });
 

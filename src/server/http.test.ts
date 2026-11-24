@@ -271,6 +271,28 @@ describe("Scopes", () => {
   });
 });
 
+describe("Avslutat", () => {
+  it("marks a Projekt Avslutat and reopens it, each one Uppdatering; signed", async () => {
+    const { api, apiAs, vem } = await start();
+    const fo = await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" });
+    const projekt = (await api("POST", "/api/projekt", { funktionsområdeId: fo.body.id, namn: "Kassan" })).body.id;
+    await api("POST", `/api/projekt/${projekt}/scopes`, { namn: "Prislista", ägare: vem });
+    const avslutat = `/api/projekt/${projekt}/avslutat`;
+
+    expect((await apiAs(null, "POST", avslutat)).status).toBe(403);
+    const markera = await api("POST", avslutat);
+    expect(markera.status).toBe(200);
+    expect(markera.body.uppdatering).toMatchObject({ typ: "avslutat", vem });
+    expect((await api("POST", avslutat)).body).toEqual({ uppdatering: null });
+    expect((await api("GET", `/api/projekt/${projekt}`)).body).toMatchObject({ avslutat: true, markeradAvslutat: true });
+
+    const öppna = await api("DELETE", avslutat);
+    expect(öppna.body.uppdatering).toMatchObject({ typ: "öppna igen", vem });
+    expect((await api("GET", `/api/projekt/${projekt}`)).body).toMatchObject({ avslutat: false, pågående: true });
+    expect((await api("POST", "/api/projekt/nej/avslutat")).status).toBe(404);
+  });
+});
+
 describe("the SPA", () => {
   it("serves index.html at the bare root and for every client route", async () => {
     const { base } = await start();

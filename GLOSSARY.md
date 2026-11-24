@@ -10,22 +10,25 @@ _Avoid_: Project
 **Avslutat Projekt**: A Projekt that is done: every one of its Scopes is at Läge 100 (or it has none), or someone has marked it Avslutat. A marked Projekt stays Avslutat until someone reopens it; one that is Avslutat only through Läge is ongoing again as soon as a Scope moves back.
 _Avoid_: Klart, Stängt
 
+**Pågående Projekt**: A Projekt that is neither Avslutat nor Borttagen. A Projekt that is Över tid is still Pågående.
+_Avoid_: Aktiv, Öppen
+
 **Hill chart**: The visual of one Projekt: a hill on which each of its Scopes is placed. Uphill (left) is figuring it out; downhill (right) is making it happen.
 _Avoid_: Backdiagram, Kullediagram
 
 **Scope**: One part of a Projekt's work, shown as a dot on the Projekt's Hill chart.
 _Avoid_: Del, Delområde
 
-**Ägare**: The person responsible for a Scope. Every Scope has exactly one, named by free text; names that differ only in letter case are the same person. Renaming an Ägare changes every Scope they own, as one Uppdatering per Projekt; renaming to an existing Ägare merges the two.
+**Ägare**: The Person responsible for a Scope. Every Scope has exactly one. When a Person is removed, every Scope they own in a Pågående Projekt is handed to another Person; in other Projekt the removed Person stays Ägare.
 _Avoid_: Owner
 
 **Läge**: Where a Scope sits on the hill, from 0 (start of uphill) to 100 (bottom of downhill, done).
 _Avoid_: Position
 
-**Uppdatering**: One recorded edit to a Projekt's Hill chart or its dates, such as a Scope changing Läge, a Scope being added, renamed or removed, or the Slutdatum or a Milstolpe changing. Records what changed, when, and optionally the name of whoever made it.
+**Uppdatering**: One recorded edit to a Projekt's Hill chart or its dates, such as a Scope changing Läge, a Scope being added, renamed or removed, or the Slutdatum or a Milstolpe changing. Records what changed, when, and the Signatur of whoever made it.
 _Avoid_: Move, Change
 
-**Person**: Someone on the organization's managed list of people (Personer). Every Ägare and every Signatur is a Person.
+**Person**: Someone on the organization's managed list of people (Personer). Every Ägare and every Signatur is a Person. Known by a name that no other Person has, regardless of letter case; renaming a Person changes that name everywhere, earlier Uppdateringar included. A removed Person becomes inaktiv: never erased and still named where they appear, but cannot be chosen until reactivated.
 _Avoid_: Användare, Medlem, Konto
 
 **Signatur**: The Person who says they are making an edit, so each Uppdatering shows who made it. Required for every Uppdatering, chosen from Personer, and remembered per device and browser. Separate from Ägare: the Signatur says who made an edit, the Ägare who is responsible for a Scope.

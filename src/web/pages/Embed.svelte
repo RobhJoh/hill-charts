@@ -16,7 +16,7 @@
   import { api, ApiError } from "../lib/api.js";
   import { lägeFärg } from "../lib/hill.js";
   import { projektHref } from "../lib/links.js";
-  import { följProjekt, liveUrl } from "../lib/live.js";
+  import { följLive, senasteLaddning } from "../lib/live.js";
   import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
   import { tema } from "../lib/tema.svelte.js";
 
@@ -38,38 +38,22 @@
   const länk = $derived(projekt ? location.origin + projektHref(projekt) : location.origin);
   const visaStrip = $derived(signatur.frågar || byter);
 
-  let laddning = 0;
-  async function load() {
-    const denna = ++laddning;
-    try {
-      const svar = await api.getProjekt(id);
-      if (denna !== laddning) return;
+  const load = senasteLaddning(() => api.getProjekt(id), {
+    svar(svar) {
       projekt = svar;
       fel = "";
-    } catch (e) {
-      if (denna !== laddning) return;
+    },
+    fel(e) {
       if (e instanceof ApiError && e.status === 404) saknas = true;
       else fel = felText(e, "Kunde inte läsa in");
-    }
-  }
+    },
+  });
   load();
   laddaPersoner().catch(() => {});
 
-  // Live sync: re-fetch on every Uppdatering and every (re)connect. Mobile
-  // webviews drop sockets in the background, so reconnect when visible again.
-  $effect(() => {
-    const följ = följProjekt(liveUrl(id), { onÄndring: () => void load() });
-    const synlig = () => {
-      if (document.visibilityState === "visible") följ.återanslut();
-    };
-    document.addEventListener("visibilitychange", synlig);
-    window.addEventListener("online", följ.återanslut);
-    return () => {
-      document.removeEventListener("visibilitychange", synlig);
-      window.removeEventListener("online", följ.återanslut);
-      följ.stäng();
-    };
-  });
+  // Live sync: re-fetch on every Uppdatering and every (re)connect, also when
+  // the page is visible again (mobile webviews drop sockets in the background).
+  $effect(() => följLive([id], () => void load()));
 
   async function flytta(scopeId: string, läge: number) {
     fel = "";

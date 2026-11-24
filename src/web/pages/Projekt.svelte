@@ -16,7 +16,7 @@
   import KopieraLank from "../components/KopieraLank.svelte";
   import BaddaIn from "../components/BaddaIn.svelte";
   import { api, ApiError } from "../lib/api.js";
-  import { följProjekt, liveUrl } from "../lib/live.js";
+  import { följLive, senasteLaddning } from "../lib/live.js";
   import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
   import { tema } from "../lib/tema.svelte.js";
   import { funktionsområdeHref, projektHref } from "../lib/links.js";
@@ -41,14 +41,9 @@
   /** Whether the Funktionsområde is Borttaget too (then its Borttagna list is on the start page). */
   let foBorttaget = $state(false);
 
-  let laddning = 0;
   /** Reloads the Projekt and its Hill chart (after a write, and on live sync). */
-  async function load() {
-    const denna = ++laddning;
-    try {
-      const svar = await api.getProjekt(id);
-      // Live sync can reload in quick succession: only the latest answer counts.
-      if (denna !== laddning) return;
+  const load = senasteLaddning(() => api.getProjekt(id), {
+    async svar(svar, aktuell) {
       projekt = svar;
       // Canonical URL in the address bar (the server redirects; client-side links may be stale).
       const href = projektHref(svar);
@@ -56,32 +51,20 @@
         router.navigate(href + location.search + location.hash, { replace: true });
       }
       const fo = await api.getFunktionsområde(svar.funktionsområde.id).catch(() => undefined);
-      if (denna === laddning && fo) {
+      if (aktuell() && fo) {
         grannar = fo.projekt.filter((p) => p.id !== id);
         foBorttaget = !!fo.borttagen;
       }
-    } catch (e) {
-      if (denna !== laddning) return;
+    },
+    fel(e) {
       if (e instanceof ApiError && e.status === 404) saknas = true;
       else loadError = felText(e, "Kunde inte läsa in");
-    }
-  }
+    },
+  });
   load();
   // Live sync (#36): re-fetch whenever anyone writes to this Projekt's Historik,
   // and on every (re)connect to catch up on what happened while offline.
-  $effect(() => {
-    const följ = följProjekt(liveUrl(id), { onÄndring: () => void load() });
-    const synlig = () => {
-      if (document.visibilityState === "visible") följ.återanslut();
-    };
-    document.addEventListener("visibilitychange", synlig);
-    window.addEventListener("online", följ.återanslut);
-    return () => {
-      document.removeEventListener("visibilitychange", synlig);
-      window.removeEventListener("online", följ.återanslut);
-      följ.stäng();
-    };
-  });
+  $effect(() => följLive([id], () => void load()));
   laddaPersoner()
     .then((p) => (personer = p))
     .catch(() => {});

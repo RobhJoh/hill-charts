@@ -67,3 +67,49 @@ export function följProjekt(url: string, alt: FöljAlternativ): Följning {
     },
   };
 }
+
+/**
+ * Follows Projekt live for a page: `onÄndring` on every (re)connect and
+ * Uppdatering. Mobile browsers and webviews drop sockets in the background,
+ * so it reconnects when the page is visible again or the network returns.
+ * Returns the stop function (an `$effect` cleanup).
+ */
+export function följLive(projektIds: readonly string[], onÄndring: () => void): () => void {
+  const följ = projektIds.map((id) => följProjekt(liveUrl(id), { onÄndring }));
+  const återanslut = () => följ.forEach((f) => f.återanslut());
+  const synlig = () => {
+    if (document.visibilityState === "visible") återanslut();
+  };
+  document.addEventListener("visibilitychange", synlig);
+  window.addEventListener("online", återanslut);
+  return () => {
+    document.removeEventListener("visibilitychange", synlig);
+    window.removeEventListener("online", återanslut);
+    följ.forEach((f) => f.stäng());
+  };
+}
+
+/**
+ * A page's load that live sync may fire in quick succession: only the latest
+ * call's answer (or error) is handled; an overtaken one is dropped. `svar`
+ * gets `aktuell()` to re-check after awaiting more.
+ */
+export function senasteLaddning<T>(
+  hämta: () => Promise<T>,
+  hantera: {
+    svar: (värde: T, aktuell: () => boolean) => void | Promise<void>;
+    fel: (e: unknown) => void | Promise<void>;
+  },
+): () => Promise<void> {
+  let senaste = 0;
+  return async () => {
+    const denna = ++senaste;
+    const aktuell = () => denna === senaste;
+    try {
+      const värde = await hämta();
+      if (aktuell()) await hantera.svar(värde, aktuell);
+    } catch (e) {
+      if (aktuell()) await hantera.fel(e);
+    }
+  };
+}

@@ -13,7 +13,7 @@
   import { dagarSedan, lägeFärg, radie } from "../lib/hill.js";
   import { personHref, projektHref } from "../lib/links.js";
   import { router } from "../lib/router.svelte.js";
-  import { följProjekt, liveUrl } from "../lib/live.js";
+  import { följLive, senasteLaddning } from "../lib/live.js";
   import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
   import { tema } from "../lib/tema.svelte.js";
   import Saknas from "./Saknas.svelte";
@@ -31,28 +31,23 @@
   /** The last drag, which the toast's Ångra undoes. */
   let flytt = $state<{ text: string; projektId: string; uppdateringId: string } | null>(null);
 
-  let laddning = 0;
-  async function load() {
-    const denna = ++laddning;
-    try {
-      const svar = await api.stjärnkarta(id);
-      if (denna !== laddning) return;
+  const load = senasteLaddning(() => api.stjärnkarta(id), {
+    svar(svar) {
       karta = svar;
       // Canonical URL in the address bar (the server redirects; client-side links may be stale).
       const href = personHref(svar.person);
       if (router.route.sida === "person" && location.pathname !== href) {
         router.navigate(href + location.search + location.hash, { replace: true });
       }
-    } catch (e) {
-      if (denna !== laddning) return;
+    },
+    async fel(e) {
       if (e instanceof ApiError && e.status === 404) {
         const person = (await laddaPersoner().catch(() => [])).find((p) => p.id === id);
         if (person && !person.aktiv) inaktiv = person.namn;
         else saknas = true;
-      }
-      else loadError = felText(e, "Kunde inte läsa in");
-    }
-  }
+      } else loadError = felText(e, "Kunde inte läsa in");
+    },
+  });
   load();
 
   /** Letters follow the key's order over all Projekt, so toggling Avslutade never reletters. */
@@ -67,11 +62,7 @@
 
   // Live sync: follow every Projekt on the sky; any write there reloads the map.
   const följda = $derived((karta?.projekt ?? []).map((p) => p.id).join(","));
-  $effect(() => {
-    const ids = följda ? följda.split(",") : [];
-    const följ = ids.map((pid) => följProjekt(liveUrl(pid), { onÄndring: () => void load() }));
-    return () => följ.forEach((f) => f.stäng());
-  });
+  $effect(() => följLive(följda ? följda.split(",") : [], () => void load()));
 
   async function flytta(scopeId: string, läge: number) {
     const p = projektFör(scopeId);

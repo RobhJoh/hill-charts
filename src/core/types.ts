@@ -27,6 +27,29 @@ export type Person = {
   skapad: string; // ISO timestamp
 };
 
+/** What happened to a Person, as recorded in the Personer-historik. */
+export type PersonHändelseTyp = "ny" | "byt namn" | "ta bort" | "återaktivera";
+
+/**
+ * One change to Personer: who (Signatur), what, when, and the name before and
+ * after. Kept apart from Projekt Historik; there is no Ångra for these.
+ */
+export type PersonHändelse = {
+  id: string;
+  typ: PersonHändelseTyp;
+  /** The Person changed. */
+  personId: PersonId;
+  /** Signatur; null only for the first Person added to an empty list. */
+  vem: PersonId | null;
+  tid: string; // ISO timestamp
+  /** Name before the change (null when the Person was just added). */
+  förraNamn: string | null;
+  /** Name after the change. */
+  nyttNamn: string;
+  /** On "ta bort": the Person who took over their Scopes. */
+  nyÄgare?: PersonId;
+};
+
 export type ScopeValues = {
   namn: string;
   läge: number; // 0–100

@@ -1,5 +1,5 @@
 import type { Storage } from "../core/storage.js";
-import type { Funktionsområde, Person, Projekt, ProjektId, Uppdatering } from "../core/types.js";
+import type { Funktionsområde, Person, PersonHändelse, Projekt, ProjektId, Uppdatering } from "../core/types.js";
 
 export type MemoryStorageOptions = {
   /**
@@ -13,6 +13,7 @@ export type MemoryStorageOptions = {
 export function createMemoryStorage(options: MemoryStorageOptions = {}): Storage {
   let funktionsområden: Funktionsområde[] = [];
   let personer: Person[] = [];
+  let personerHistorik: PersonHändelse[] = [];
   const projekt = new Map<ProjektId, Projekt>();
   const historik = new Map<ProjektId, Uppdatering[]>();
 
@@ -36,6 +37,14 @@ export function createMemoryStorage(options: MemoryStorageOptions = {}): Storage
     async savePersoner(all) {
       await tick();
       personer = copy(all);
+    },
+    async appendPersonHändelse(händelse) {
+      await tick();
+      personerHistorik = [...personerHistorik, copy(händelse)];
+    },
+    async readPersonerHistorik() {
+      await tick();
+      return copy(personerHistorik);
     },
     async listProjekt() {
       await tick();

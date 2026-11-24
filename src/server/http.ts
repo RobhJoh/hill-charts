@@ -93,6 +93,7 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
     if (resource === "projekt" && id !== undefined && sub !== undefined) {
       return projektDel(method, id, sub, subId, req, vem);
     }
+    if (resource === "personer" && id !== undefined) return personDel(method, id, sub, subId, req, vem);
     if (sub !== undefined) throw notFound();
 
     if (resource === "personer" && id === undefined) {
@@ -142,6 +143,40 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
         });
         return { status: 204 };
       }
+    }
+    throw notFound();
+  }
+
+  /**
+   * Managing Personer:
+   *   GET    /api/personer/historik               the Personer-historik, oldest first
+   *   PATCH  /api/personer/:id                    { namn } → 200 Person
+   *   DELETE /api/personer/:id                    { nyÄgare } → 200 { uppdateringar } (handover; inaktiv)
+   *   POST   /api/personer/:id/ateraktivera       → 200 Person
+   */
+  async function personDel(
+    method: string,
+    id: string,
+    sub: string | undefined,
+    subId: string | undefined,
+    req: IncomingMessage,
+    vem: string | null,
+  ): Promise<Reply> {
+    if (subId !== undefined) throw notFound();
+    if (sub === undefined && id === "historik" && method === "GET") {
+      return { status: 200, body: await apogee.personerHistorik() };
+    }
+    if (sub === undefined && method === "PATCH") {
+      const body = await readJson(req);
+      return { status: 200, body: await serialize(() => apogee.renamePerson(id, text(body.namn), vem)) };
+    }
+    if (sub === undefined && method === "DELETE") {
+      const body = await readJson(req);
+      const uppdateringar = await serialize(() => apogee.removePerson(id, text(body.nyÄgare), vem));
+      return { status: 200, body: { uppdateringar } };
+    }
+    if (sub === "ateraktivera" && method === "POST") {
+      return { status: 200, body: await serialize(() => apogee.reactivatePerson(id, vem)) };
     }
     throw notFound();
   }
@@ -276,6 +311,7 @@ const DOMAIN_STATUS: Record<DomainError["code"], number> = {
   "finns-inte": 404,
   ogiltig: 400,
   "finns-redan": 409,
+  "finns-inaktiv": 409,
   signatur: 403,
 };
 

@@ -1,7 +1,7 @@
 // The storage contract: one suite every Storage adapter must pass.
 import { describe, expect, it } from "vitest";
 import type { Storage } from "../core/storage.js";
-import type { Funktionsområde, Person, Projekt, Uppdatering } from "../core/types.js";
+import type { Funktionsområde, Person, PersonHändelse, Projekt, Uppdatering } from "../core/types.js";
 
 export type StorageFixture = {
   storage: Storage;
@@ -65,6 +65,27 @@ export function storageContract(name: string, makeFixture: () => Promise<Storage
       expect(await storage.listPersoner()).toEqual([person("b1", "Bo", false)]);
       (await storage.listPersoner())[0]!.namn = "Ändrad";
       expect(await fixture.reopen().listPersoner()).toEqual([person("b1", "Bo", false)]);
+    });
+
+    it("appends Personer-historik in order, returns copies, and keeps it across a reopen", async () => {
+      const fixture = await makeFixture();
+      const händelse = (id: string, typ: PersonHändelse["typ"]): PersonHändelse => ({
+        id,
+        typ,
+        personId: "a1",
+        vem: "b1",
+        tid: "2026-11-24T10:00:00.000Z",
+        förraNamn: "Ana",
+        nyttNamn: "Anna",
+      });
+      expect(await fixture.storage.readPersonerHistorik()).toEqual([]);
+      await fixture.storage.appendPersonHändelse(händelse("h1", "ny"));
+      await fixture.storage.appendPersonHändelse(händelse("h2", "byt namn"));
+      (await fixture.storage.readPersonerHistorik())[0]!.typ = "ta bort";
+      expect(await fixture.reopen().readPersonerHistorik()).toEqual([
+        händelse("h1", "ny"),
+        händelse("h2", "byt namn"),
+      ]);
     });
 
     it("saves, replaces, gets and lists Projekt", async () => {

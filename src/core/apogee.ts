@@ -7,6 +7,8 @@ import type {
   Funktionsområde,
   FunktionsområdeId,
   Person,
+  PersonHändelse,
+  PersonHändelseTyp,
   PersonId,
   Projekt,
   ProjektFält,
@@ -96,6 +98,24 @@ function namnFrån(input: string): string {
   return namn;
 }
 
+/**
+ * Person names are unique ignoring case, across active and inaktiva Personer.
+ * A name an inaktiv Person has is refused with "finns-inaktiv", so that
+ * Återaktivera can be offered instead.
+ */
+function requireLedigtNamn(personer: Person[], namn: string, utom?: PersonId): void {
+  const nyckel = namn.toLocaleLowerCase("sv");
+  const finns = personer.find((p) => p.id !== utom && p.namn.toLocaleLowerCase("sv") === nyckel);
+  if (finns?.aktiv) throw new DomainError("finns-redan", `Det finns redan en Person som heter ${finns.namn}`);
+  if (finns) throw new DomainError("finns-inaktiv", `${finns.namn} finns redan men är inaktiv`);
+}
+
+function requirePerson(personer: Person[], id: PersonId): Person {
+  const person = personer.find((p) => p.id === id);
+  if (!person) throw new DomainError("finns-inte", `Personen ${id} finns inte`);
+  return person;
+}
+
 /** Every write is signed by an active Person; anything else is rejected. */
 function requireSignatur(personer: Person[], vem: PersonId | null | undefined): Person {
   if (!vem) throw new DomainError("signatur", "Välj vem du är innan du ändrar något");
@@ -131,6 +151,9 @@ export const SCOPE_TYP = {
   taBort: "ta bort",
 } as const;
 
+/** Uppdatering type written when a removed Person's Scopes are handed over. */
+export const ÖVERLÄMNING_TYP = "överlämning";
+
 /** Uppdatering types written by the Projekt-level commands. */
 export const PROJEKT_TYP = {
   avslutat: "avslutat",
@@ -160,6 +183,32 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
   }
 
   /** The active Person signing this write; rejects a missing, unknown or inaktiv Signatur. */
+  /**
+   * Saves one Person's new state among `all` and records the change in the
+   * Personer-historik. Every Personer command goes through here.
+   */
+  async function sparaPerson(
+    all: Person[],
+    efter: Person,
+    typ: PersonHändelseTyp,
+    vem: PersonId | null,
+    extra: Pick<PersonHändelse, "nyÄgare"> = {},
+  ): Promise<PersonVy> {
+    const före = all.find((p) => p.id === efter.id);
+    await storage.savePersoner(före ? all.map((p) => (p.id === efter.id ? efter : p)) : [...all, efter]);
+    await storage.appendPersonHändelse({
+      id: newId(),
+      typ,
+      personId: efter.id,
+      vem,
+      tid: now().toISOString(),
+      förraNamn: före?.namn ?? null,
+      nyttNamn: efter.namn,
+      ...extra,
+    });
+    return personVy(efter);
+  }
+
   async function signatur(vem: PersonId | null): Promise<Person> {
     return requireSignatur(await storage.listPersoner(), vem);
   }
@@ -271,13 +320,60 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
     async createPerson(namn: string, vem: PersonId | null): Promise<PersonVy> {
       const giltigt = namnFrån(namn);
       const all = await storage.listPersoner();
-      if (all.length > 0) requireSignatur(all, vem);
-      const nyckel = giltigt.toLocaleLowerCase("sv");
-      const finns = all.find((p) => p.namn.toLocaleLowerCase("sv") === nyckel);
-      if (finns) throw new DomainError("finns-redan", `Det finns redan en Person som heter ${finns.namn}`);
+      const signerad = all.length > 0 ? requireSignatur(all, vem).id : null;
+      requireLedigtNamn(all, giltigt);
       const person: Person = { id: newId(), namn: giltigt, aktiv: true, skapad: now().toISOString() };
-      await storage.savePersoner([...all, person]);
-      return personVy(person);
+      return sparaPerson(all, person, "ny", signerad);
+    },
+
+    /** Renames a Person everywhere (Historik refers to the id); writes no Uppdatering. */
+    async renamePerson(id: PersonId, namn: string, vem: PersonId | null): Promise<PersonVy> {
+      const all = await storage.listPersoner();
+      const signerad = requireSignatur(all, vem);
+      const giltigt = namnFrån(namn);
+      const person = requirePerson(all, id);
+      requireLedigtNamn(all, giltigt, id);
+      return sparaPerson(all, { ...person, namn: giltigt }, "byt namn", signerad.id);
+    },
+
+    /**
+     * Removes a Person by handing their Scopes in every Pågående Projekt to
+     * `nyÄgare` (one Uppdatering per affected Projekt, returned) and making
+     * them inaktiv. Scopes in Avslutade and Borttagna Projekt keep them.
+     */
+    async removePerson(id: PersonId, nyÄgare: PersonId, vem: PersonId | null): Promise<Uppdatering[]> {
+      const all = await storage.listPersoner();
+      const signerad = requireSignatur(all, vem);
+      const person = requirePerson(all, id);
+      if (!person.aktiv) throw new DomainError("ogiltig", `${person.namn} är redan inaktiv`);
+      if (nyÄgare === id) throw new DomainError("ogiltig", "Välj någon annan som ny Ägare");
+      const mottagare = requireÄgare(all, nyÄgare);
+
+      const uppdateringar: Uppdatering[] = [];
+      for (const p of await storage.listProjekt()) {
+        const logg = await storage.readHistorik(p.id);
+        if (!diagramVy(logg, all).pågående) continue;
+        const ändringar = Object.entries(nuvarande(logg))
+          .filter(([, s]) => s.ägare === id)
+          .map(([scopeId, före]) => ({ scopeId, före, efter: { ...före, ägare: mottagare } }));
+        if (ändringar.length) uppdateringar.push(await skriv(p.id, ÖVERLÄMNING_TYP, ändringar, signerad.id));
+      }
+      await sparaPerson(all, { ...person, aktiv: false }, "ta bort", signerad.id, { nyÄgare: mottagare });
+      return uppdateringar;
+    },
+
+    /** Återaktivera: an inaktiv Person is active again. Handed-over Scopes stay where they are. */
+    async reactivatePerson(id: PersonId, vem: PersonId | null): Promise<PersonVy> {
+      const all = await storage.listPersoner();
+      const signerad = requireSignatur(all, vem);
+      const person = requirePerson(all, id);
+      if (person.aktiv) throw new DomainError("ogiltig", `${person.namn} är redan aktiv`);
+      return sparaPerson(all, { ...person, aktiv: true }, "återaktivera", signerad.id);
+    },
+
+    /** The Personer-historik, oldest first. There is no Ångra for these. */
+    async personerHistorik(): Promise<PersonHändelse[]> {
+      return storage.readPersonerHistorik();
     },
 
     async listPersoner(): Promise<PersonVy[]> {

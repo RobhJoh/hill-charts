@@ -193,6 +193,8 @@ export function createHandler({ apogee, webDir, publicUrl }: ServerOptions) {
   /**
    * Managing Personer:
    *   GET    /api/personer/historik               the Personer-historik, oldest first
+   *   GET    /api/personer/oversikt               the Personer index → PersonRad[]
+   *   GET    /api/personer/:id/stjarnkarta        → StjärnkartaVy (404 when inaktiv)
    *   PATCH  /api/personer/:id                    { namn } → 200 Person
    *   DELETE /api/personer/:id                    { nyÄgare } → 200 { uppdateringar } (handover; inaktiv)
    *   POST   /api/personer/:id/ateraktivera       → 200 Person
@@ -208,6 +210,12 @@ export function createHandler({ apogee, webDir, publicUrl }: ServerOptions) {
     if (subId !== undefined) throw notFound();
     if (sub === undefined && id === "historik" && method === "GET") {
       return { status: 200, body: await apogee.personerHistorik() };
+    }
+    if (sub === undefined && id === "oversikt" && method === "GET") {
+      return { status: 200, body: await apogee.personerÖversikt() };
+    }
+    if (sub === "stjarnkarta" && method === "GET") {
+      return { status: 200, body: await apogee.stjärnkarta(id) };
     }
     if (sub === undefined && method === "PATCH") {
       const body = await readJson(req);

@@ -84,6 +84,12 @@ export const signatur = {
     for (const h of släpp) h.reject(new Avbruten());
   },
 
+  /** The remembered, active Signatur's id, asking "Vem?" first when there is none (`/mina`). */
+  async begär(): Promise<string> {
+    await laddaPersoner();
+    return giltig(vem) ? vem! : fråga();
+  },
+
   /**
    * Runs `edit` signed with the remembered Signatur, asking for one first if
    * none is remembered or it is no longer an active Person.

@@ -2,12 +2,18 @@
   // Inställningar › Personer: everyone who can sign edits and own Scopes.
   // Add, rename, remove (handover of their Scopes in Pågående Projekt),
   // Återaktivera, and the Personer-historik. Nothing here has an Ångra.
-  import type { PersonHändelse, PersonVy } from "../../core/index.js";
+  // Each Person shows their load (story 78) and links to their Stjärnkarta.
+  import type { PersonHändelse, PersonRad, PersonVy } from "../../core/index.js";
   import { api, ApiError } from "../lib/api.js";
+  import { lägeFärg } from "../lib/hill.js";
+  import { personHref } from "../lib/links.js";
+  import { tema } from "../lib/tema.svelte.js";
   import { laddaPersoner, signatur } from "../lib/signatur.svelte.js";
 
   let personer = $state<PersonVy[] | undefined>();
   let historik = $state<PersonHändelse[]>([]);
+  /** Load per Person (Scopes, Projekt, stuck, Läge dots), by id. */
+  let last = $state<Record<string, PersonRad>>({});
   let loadError = $state("");
   let namn = $state("");
   let error = $state("");
@@ -32,9 +38,10 @@
 
   async function load() {
     try {
-      const [p, h] = await Promise.all([laddaPersoner(), api.personerHistorik()]);
+      const [p, h, rader] = await Promise.all([laddaPersoner(), api.personerHistorik(), api.personerÖversikt()]);
       personer = p;
       historik = h.reverse();
+      last = Object.fromEntries(rader.map((r) => [r.id, r]));
     } catch (e) {
       loadError = e instanceof Error ? e.message : "Kunde inte läsa in";
     }
@@ -192,10 +199,25 @@
             </form>
           {:else}
             <span class="namn">
-              {p.namn}
+              {#if p.aktiv}<a href={personHref(p)} title="Stjärnkarta för {p.namn}">{p.namn}</a>{:else}{p.namn}{/if}
               {#if !p.aktiv}<span class="meta">(inaktiv)</span>{/if}
               {#if p.id === signatur.person?.id}<span class="meta">Din signatur</span>{/if}
             </span>
+            {@const rad = last[p.id]}
+            {#if rad && p.aktiv}
+              <span class="last">
+                <span class="meta">
+                  {rad.räkning.scopes} Scopes i {rad.räkning.projekt} Projekt{#if rad.räkning.stilla}
+                    · <span class="stilla">{rad.räkning.stilla} stilla</span>{/if}
+                </span>
+                <span class="strip" aria-hidden="true">
+                  {#each rad.lägen as l, i (i)}
+                    <span class="dot" class:stilla={l.stilla} style:left="{l.läge}%" style:background={lägeFärg(l.läge, tema.nu)}
+                    ></span>
+                  {/each}
+                </span>
+              </span>
+            {/if}
             <span class="actions">
               {#if p.aktiv}
                 <button type="button" class="quiet" onclick={() => börjaByta(p)}>Byt namn</button>
@@ -301,6 +323,43 @@
   }
   .namn {
     font-weight: 600;
+  }
+  .namn {
+    min-width: 180px;
+  }
+  .namn a {
+    text-decoration: none;
+  }
+  .namn a:hover {
+    text-decoration: underline;
+  }
+  .last {
+    flex: 1 1 180px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 260px;
+  }
+  .last .stilla {
+    color: var(--redtx);
+  }
+  .strip {
+    position: relative;
+    height: 14px;
+    margin: 0 4px;
+    border-bottom: 1px solid var(--grid);
+  }
+  .dot {
+    position: absolute;
+    top: 3px;
+    width: 8px;
+    height: 8px;
+    margin-left: -4px;
+    border-radius: 50%;
+  }
+  .dot.stilla {
+    outline: 1px dashed var(--red);
+    outline-offset: 2px;
   }
   .inaktiv .namn {
     color: var(--dim);

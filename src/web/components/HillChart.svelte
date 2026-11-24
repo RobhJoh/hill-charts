@@ -33,6 +33,8 @@
     nu = new Date(),
     etiketter = true,
     kompakt = false,
+    märken = {},
+    dimmade = [],
     onvälj,
     onflytta,
   }: {
@@ -50,6 +52,10 @@
     etiketter?: boolean | "valt";
     /** The embed's compact hill, filling its box. */
     kompakt?: boolean;
+    /** A short mark before a Scope's label, by Scope id (the Stjärnkarta's Projekt letter). */
+    märken?: Record<string, string>;
+    /** Scopes drawn dimmed (the Stjärnkarta's Avslutade Projekt). */
+    dimmade?: string[];
     onvälj?: (id: string | null) => void;
     /** Commit a new Läge. Leave out for a read-only chart. Rejecting snaps the star back. */
     onflytta?: (id: string, läge: number) => Promise<unknown> | void;
@@ -105,7 +111,11 @@
       .filter((t) => etiketter !== "valt" || t.s.id === valt)
       .sort((a, b) => Number(b.s.id === valt) - Number(a.s.id === valt) || a.läge - b.läge);
     const lista = placeraEtiketter(
-      ordning.map((t) => ({ id: t.s.id, läge: t.läge, text: `${t.s.namn} ${t.läge}` })),
+      ordning.map((t) => ({
+        id: t.s.id,
+        läge: t.läge,
+        text: `${märken[t.s.id] ? märken[t.s.id] + " " : ""}${t.s.namn} ${t.läge}`,
+      })),
       ruta,
     );
     return new Map(lista.map((e) => [e.id, e]));
@@ -246,6 +256,7 @@
     <g
       class="scope"
       class:dras={pågående[s.id] !== undefined}
+      class:dimmad={dimmade.includes(s.id)}
       role={onflytta ? "slider" : "img"}
       tabindex={onflytta || onvälj ? 0 : undefined}
       aria-label="{s.namn}, Läge {läge}, Ägare {s.ägare.namn}{s.stilla ? `, ingen rörelse på ${s.stillaDagar} dagar` : ""}"
@@ -291,7 +302,8 @@
         {#if e.ledare}
           <line class="ledare" x1={e.ledare.x1} y1={e.ledare.y1} x2={e.ledare.x2} y2={e.ledare.y2} />
         {/if}
-        <text class="sn" x={e.x} y={e.y} text-anchor={e.anchor}>{s.namn} <tspan class="sm">{läge}</tspan></text>
+        <text class="sn" x={e.x} y={e.y} text-anchor={e.anchor}
+          >{#if märken[s.id]}<tspan class="sm">{märken[s.id] + " "}</tspan>{/if}{s.namn} <tspan class="sm">{läge}</tspan></text>
       {/if}
     </g>
   {/each}
@@ -330,6 +342,9 @@
   }
   .scope {
     outline: none;
+  }
+  .scope.dimmad {
+    opacity: 0.45;
   }
   .redigerbar .scope {
     cursor: grab;

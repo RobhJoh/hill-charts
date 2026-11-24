@@ -22,7 +22,7 @@ _Avoid_: Owner
 **Läge**: Where a Scope sits on the hill, from 0 (start of uphill) to 100 (bottom of downhill, done).
 _Avoid_: Position
 
-**Uppdatering**: One recorded edit to a Hill chart, such as a Scope changing Läge, or a Scope being added, renamed or removed. Records what changed, when, and optionally the name of whoever made it.
+**Uppdatering**: One recorded edit to a Projekt's Hill chart or its dates, such as a Scope changing Läge, a Scope being added, renamed or removed, or the Slutdatum or a Milstolpe changing. Records what changed, when, and optionally the name of whoever made it.
 _Avoid_: Move, Change
 
 **Historik**: All Uppdateringar of one Hill chart, oldest to newest. Never edited or shortened; the Hill chart is what you get by applying them in order.
@@ -39,3 +39,12 @@ _Avoid_: Raderad, Arkiverad
 
 **Radera**: Erasing a Borttagen Projekt or Funktionsområde for good. Cannot be undone. Erasing a Funktionsområde erases every Projekt in it.
 _Avoid_: Ta bort (which can be restored)
+
+**Appetit**: The fixed time a Projekt or Funktionsområde is given, from its Startdatum to its Slutdatum. It is a budget, not an estimate. A Projekt or Funktionsområde may have none.
+_Avoid_: Estimat, Deadline, Tidsram
+
+**Milstolpe**: A named date within a Projekt or Funktionsområde, such as an acceptance test. It has only a name and a date.
+_Avoid_: Delmål, Checkpoint
+
+**Över tid**: A Projekt whose Slutdatum has passed without it being Avslutat, or a Funktionsområde whose Slutdatum has passed while any of its Projekt is not Avslutat. Passing the Slutdatum never makes it Avslutat on its own.
+_Avoid_: Försenad, Sen

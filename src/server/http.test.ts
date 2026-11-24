@@ -130,6 +130,36 @@ describe("Personer and Signatur", () => {
   });
 });
 
+describe("Stjärnkarta and Personer index", () => {
+  it("serves a Person's Stjärnkarta and the Personer index; 404 for an inaktiv Person", async () => {
+    const { api, vem } = await start();
+    const bo = (await api("POST", "/api/personer", { namn: "Bo" })).body.id;
+    const fo = (await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" })).body.id;
+    const p = (await api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Kassan" })).body.id;
+    const scope = (await api("POST", `/api/projekt/${p}/scopes`, { namn: "Prislista", ägare: bo })).body.id;
+    await api("PATCH", `/api/projekt/${p}/scopes/${scope}`, { läge: 40 });
+
+    const karta = await api("GET", `/api/personer/${bo}/stjarnkarta`);
+    expect(karta).toMatchObject({
+      status: 200,
+      body: {
+        person: { id: bo, namn: "Bo" },
+        räkning: { scopes: 1, projekt: 1, stilla: 0, avslutade: 0 },
+        projekt: [{ id: p, namn: "Kassan", scopes: [{ id: scope, namn: "Prislista", läge: 40 }] }],
+      },
+    });
+
+    const index = await api("GET", "/api/personer/oversikt");
+    expect(index.body).toMatchObject([
+      { id: bo, namn: "Bo", räkning: { scopes: 1 }, lägen: [{ läge: 40, stilla: false }] },
+      { id: vem, namn: "Testare", räkning: { scopes: 0 }, lägen: [] },
+    ]);
+
+    await api("DELETE", `/api/personer/${bo}`, { nyÄgare: vem });
+    expect((await api("GET", `/api/personer/${bo}/stjarnkarta`)).status).toBe(404);
+  });
+});
+
 describe("JSON API", () => {
   it("creates, renames and moves Funktionsområden and Projekt", async () => {
     const { api } = await start();

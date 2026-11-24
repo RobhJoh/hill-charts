@@ -4,7 +4,7 @@ export { återställHit, ångraEn, gruppera, bortåterställda, HISTORIK_TYP, DR
 export type { Diagram, Grupp, Krock, ÅngraResultat } from "./diagram.js";
 export { historikRader } from "./historik.js";
 export type { HistorikRad } from "./historik.js";
-export type { BorttagenVy, BorttagetProjekt } from "./apogee.js";
+export type { BorttagenVy, BorttagetProjekt, PersonRad, PersonRäkning, StjärnkartaProjekt, StjärnkartaVy } from "./apogee.js";
 export type { Apogee, ApogeeDeps, Mål, TidVy, DiagramVy, Översikt, FunktionsområdeVy, ProjektRad, ProjektVy, PersonVy, ScopeVy } from "./apogee.js";
 export type { Förhandsvisning } from "./apogee.js";
 export { DomainError } from "./errors.js";

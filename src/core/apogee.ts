@@ -136,6 +136,56 @@ export type ScopeVy = {
 export type Förhandsvisning = DiagramVy & { skiljer: ScopeId[] };
 
 export type PersonVy = { id: PersonId; namn: string; aktiv: boolean };
+
+/** A Projekt in a Stjärnkarta's key: its countdown and that Person's Scopes in it. */
+export type StjärnkartaProjekt = {
+  id: ProjektId;
+  namn: string;
+  avslutat: boolean;
+  nedräkning: Nedräkning | null;
+  nästaMilstolpe: NästaMilstolpe | null;
+  överTid: boolean;
+  /** The Person's Scopes, highest Läge first. */
+  scopes: ScopeVy[];
+};
+
+/** A Person's load, counted over Pågående Projekt only (except `avslutade`). */
+export type PersonRäkning = {
+  /** Scopes they own in Pågående Projekt. */
+  scopes: number;
+  /** Pågående Projekt in which they own a Scope. */
+  projekt: number;
+  /** Their stuck Scopes (more than 14 days without movement). */
+  stilla: number;
+  /** Avslutade Projekt in which they own a Scope. */
+  avslutade: number;
+};
+
+/** Everything one Person owns, in one sky. Borttagna Projekt are never included. */
+export type StjärnkartaVy = {
+  person: PersonVy;
+  /** Pågående Projekt first, then Avslutade; each in name order. */
+  projekt: StjärnkartaProjekt[];
+  räkning: PersonRäkning;
+};
+
+/** A Person in the Personer index: load and a strip of Läge dots. */
+export type PersonRad = PersonVy & {
+    räkning: PersonRäkning;
+    /** Their Scopes in Pågående Projekt, highest Läge first. */
+    lägen: { läge: number; stilla: boolean }[];
+  };
+
+function räkna(egna: StjärnkartaProjekt[]): PersonRäkning {
+  const pågående = egna.filter((p) => !p.avslutat);
+  const scopes = pågående.flatMap((p) => p.scopes);
+  return {
+    scopes: scopes.length,
+    projekt: pågående.length,
+    stilla: scopes.filter((s) => s.stilla).length,
+    avslutade: egna.length - pågående.length,
+  };
+}
 const personVy = ({ id, namn, aktiv }: Person): PersonVy => ({ id, namn, aktiv });
 const ägareVy = (personer: Person[], id: PersonId): PersonVy => {
   const p = personer.find((x) => x.id === id);
@@ -463,6 +513,29 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
     };
   }
 
+  /**
+   * Every shown Projekt (Borttagna left out, also those gone with their
+   * Funktionsområde) with its Hill chart and countdown, in name order: what
+   * the Stjärnkarta and the Personer index pick each Person's Scopes from.
+   */
+  async function synligaDiagram(personer: Person[]): Promise<StjärnkartaProjekt[]> {
+    const synliga = (await storage.listProjekt()).filter((p) => !p.borttagen).sort(efterNamn);
+    return Promise.all(
+      synliga.map(async (p) => {
+        const logg = await storage.readHistorik(p.id);
+        const { scopes, avslutat } = diagramVy(logg, personer, false);
+        const { nedräkning, nästaMilstolpe, överTid } = projektTidVy(logg, avslutat);
+        return { id: p.id, namn: p.namn, avslutat, nedräkning, nästaMilstolpe, överTid, scopes };
+      }),
+    );
+  }
+
+  /** The Projekt in which `person` owns Scopes, with only those Scopes. */
+  const egnaProjekt = (alla: StjärnkartaProjekt[], person: PersonId): StjärnkartaProjekt[] =>
+    alla
+      .map((p) => ({ ...p, scopes: p.scopes.filter((s) => s.ägare.id === person) }))
+      .filter((p) => p.scopes.length > 0);
+
   async function vy(fo: Funktionsområde, allProjekt: Projekt[], personer: Person[]): Promise<FunktionsområdeVy> {
     const egna = allProjekt.filter((p) => p.funktionsområdeId === fo.id);
     const projekt = await Promise.all(
@@ -553,6 +626,34 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
     /** The Personer-historik, oldest first. There is no Ångra for these. */
     async personerHistorik(): Promise<PersonHändelse[]> {
       return storage.readPersonerHistorik();
+    },
+
+    /**
+     * A Person's Stjärnkarta: every Scope they own in shown Projekt, grouped
+     * by Projekt (Pågående first, then Avslutade, each in name order).
+     * Borttagna Projekt are never included; inaktiva Personer have none.
+     */
+    async stjärnkarta(id: PersonId): Promise<StjärnkartaVy> {
+      const personer = await storage.listPersoner();
+      const person = requirePerson(personer, id);
+      if (!person.aktiv) throw new DomainError("finns-inte", `${person.namn} är inaktiv och har ingen Stjärnkarta`);
+      const egna = egnaProjekt(await synligaDiagram(personer), id);
+      const projekt = [...egna.filter((p) => !p.avslutat), ...egna.filter((p) => p.avslutat)];
+      return { person: personVy(person), projekt, räkning: räkna(egna) };
+    },
+
+    /** The Personer index: every Person (inaktiva too) with their load and a strip of Läge dots. */
+    async personerÖversikt(): Promise<PersonRad[]> {
+      const personer = (await storage.listPersoner()).sort(efterNamn);
+      const alla = await synligaDiagram(personer);
+      return personer.map((person) => {
+        const egna = egnaProjekt(alla, person.id);
+        const lägen = egna
+          .filter((p) => !p.avslutat)
+          .flatMap((p) => p.scopes.map(({ läge, stilla }) => ({ läge, stilla })))
+          .sort((a, b) => b.läge - a.läge);
+        return { ...personVy(person), räkning: räkna(egna), lägen };
+      });
     },
 
     async listPersoner(): Promise<PersonVy[]> {

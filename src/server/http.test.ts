@@ -99,7 +99,7 @@ describe("Personer and Signatur", () => {
       ];
       expect(writes.map((w) => w.status), String(vem)).toEqual([403, 403, 403, 403]);
     }
-    expect((await api("GET", "/api/oversikt")).body).toEqual([
+    expect((await api("GET", "/api/oversikt")).body).toMatchObject([
       { id: fo.body.id, namn: "Ekonomi", projekt: [{ id: p.body.id, namn: "Fakturering" }] },
     ]);
   });
@@ -121,16 +121,16 @@ describe("JSON API", () => {
       (await api("PATCH", `/api/projekt/${p.body.id}`, { funktionsområdeId: pl.body.id })).status,
     ).toBe(204);
 
-    expect((await api("GET", "/api/oversikt")).body).toEqual([
+    expect((await api("GET", "/api/oversikt")).body).toMatchObject([
       { id: ku.body.id, namn: "Kundupplevelse", projekt: [] },
       { id: pl.body.id, namn: "Plattform", projekt: [{ id: p.body.id, namn: "Inloggning" }] },
     ]);
-    expect((await api("GET", `/api/funktionsomraden/${pl.body.id}`)).body).toEqual({
+    expect((await api("GET", `/api/funktionsomraden/${pl.body.id}`)).body).toMatchObject({
       id: pl.body.id,
       namn: "Plattform",
       projekt: [{ id: p.body.id, namn: "Inloggning" }],
     });
-    expect((await api("GET", `/api/projekt/${p.body.id}`)).body).toEqual({
+    expect((await api("GET", `/api/projekt/${p.body.id}`)).body).toMatchObject({
       id: p.body.id,
       namn: "Inloggning",
       funktionsområde: { id: pl.body.id, namn: "Plattform" },
@@ -180,7 +180,7 @@ describe("JSON API", () => {
     await first.server.close();
 
     const second = await start(createJsonFileStorage(dir));
-    expect((await second.api("GET", "/api/oversikt")).body).toEqual([
+    expect((await second.api("GET", "/api/oversikt")).body).toMatchObject([
       { id: fo.body.id, namn: "Ekonomi", projekt: [{ id: expect.any(String), namn: "Fakturering" }] },
     ]);
   });
@@ -211,7 +211,7 @@ describe("Scopes", () => {
     expect((await api("PATCH", scope, { namn: "Priser" })).status).toBe(200);
     expect((await api("PATCH", scope, { ägare: vem })).status).toBe(200);
 
-    expect((await api("GET", `/api/projekt/${projekt}`)).body.scopes).toEqual([
+    expect((await api("GET", `/api/projekt/${projekt}`)).body.scopes).toMatchObject([
       {
         id: ny.body.id,
         namn: "Priser",

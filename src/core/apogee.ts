@@ -1,6 +1,6 @@
 import { lika, nuvarande, senastFlyttad } from "./diagram.js";
 import { DomainError } from "./errors.js";
-import { projektFält, ärAvslutat, ärPågående } from "./status.js";
+import { dagarSedan, projektFält, ärAvslutat, ärPågående, ärStilla } from "./status.js";
 import type { Storage } from "./storage.js";
 import type {
   Funktionsområde,
@@ -23,13 +23,33 @@ export type ApogeeDeps = {
   newId: () => string;
 };
 
-export type ProjektRad = { id: ProjektId; namn: string };
-export type FunktionsområdeVy = { id: FunktionsområdeId; namn: string; projekt: ProjektRad[] };
+/** A Projekt in a list: a mini sky chart with its status. */
+export type ProjektRad = {
+  id: ProjektId;
+  namn: string;
+  avslutat: boolean;
+  pågående: boolean;
+  /** Number of stuck Scopes. */
+  stilla: number;
+  /** The mini chart's dots, highest Läge first. */
+  scopes: { läge: number; stilla: boolean }[];
+};
+export type FunktionsområdeVy = {
+  id: FunktionsområdeId;
+  namn: string;
+  /** Stuck Scopes across its Projekt. */
+  stilla: number;
+  projekt: ProjektRad[];
+};
 export type Översikt = FunktionsområdeVy[];
 export type ProjektVy = {
   id: ProjektId;
   namn: string;
   funktionsområde: { id: FunktionsområdeId; namn: string };
+} & DiagramVy;
+
+/** A Projekt's Hill chart and derived status. */
+export type DiagramVy = {
   /** The Hill chart: current Scopes, highest Läge first. */
   scopes: ScopeVy[];
   /** Marked Avslutat, or every Scope at Läge 100 (or none). */
@@ -47,8 +67,12 @@ export type ScopeVy = {
   läge: number;
   /** The Ägare; `aktiv: false` is shown as "(inaktiv)". */
   ägare: PersonVy;
-  /** ISO time its Läge last changed (or it was added). */
+  /** ISO time its Läge last changed (or it was added). Drives star size. */
   flyttad: string;
+  /** Whole days since its Läge last changed ("Ingen rörelse på N dagar"). */
+  stillaDagar: number;
+  /** Stuck: no Läge change for more than 14 days (never at Läge 100 or in an Avslutat Projekt). */
+  stilla: boolean;
 };
 
 export type PersonVy = { id: PersonId; namn: string; aktiv: boolean };
@@ -190,15 +214,50 @@ export function createApogee({ storage, now, newId }: ApogeeDeps) {
     return skriv(projektId, typ, [], signerad.id, ändring);
   }
 
-  function vy(fo: Funktionsområde, allProjekt: Projekt[]): FunktionsområdeVy {
+  /** A Projekt's Hill chart and status from its Historik, against the clock's "now". */
+  function diagramVy(logg: Uppdatering[], personer: Person[]): DiagramVy {
+    const nu = now();
+    const flyttad = senastFlyttad(logg);
+    const diagram = Object.entries(nuvarande(logg));
+    const markeradAvslutat = projektFält(logg).avslutat;
+    const avslutat = ärAvslutat(markeradAvslutat, diagram.map(([, s]) => s.läge));
+    const scopes = diagram
+      .map(([scopeId, s]): ScopeVy => {
+        const stillaDagar = dagarSedan(flyttad[scopeId]!, nu);
+        return {
+          id: scopeId,
+          namn: s.namn,
+          läge: s.läge,
+          ägare: ägareVy(personer, s.ägare),
+          flyttad: flyttad[scopeId]!,
+          stillaDagar,
+          stilla: ärStilla(stillaDagar, s.läge, avslutat),
+        };
+      })
+      .sort((a, b) => b.läge - a.läge || efterNamn(a, b));
+    return { scopes, avslutat, markeradAvslutat, pågående: ärPågående({ avslutat, borttagen: false }) };
+  }
+
+  async function projektRad(p: Projekt, personer: Person[]): Promise<ProjektRad> {
+    const { scopes, avslutat, pågående } = diagramVy(await storage.readHistorik(p.id), personer);
     return {
-      id: fo.id,
-      namn: fo.namn,
-      projekt: allProjekt
+      id: p.id,
+      namn: p.namn,
+      avslutat,
+      pågående,
+      stilla: scopes.filter((s) => s.stilla).length,
+      scopes: scopes.map(({ läge, stilla }) => ({ läge, stilla })),
+    };
+  }
+
+  async function vy(fo: Funktionsområde, allProjekt: Projekt[], personer: Person[]): Promise<FunktionsområdeVy> {
+    const projekt = await Promise.all(
+      allProjekt
         .filter((p) => p.funktionsområdeId === fo.id)
         .sort(efterNamn)
-        .map((p) => ({ id: p.id, namn: p.namn })),
-    };
+        .map((p) => projektRad(p, personer)),
+    );
+    return { id: fo.id, namn: fo.namn, stilla: projekt.reduce((n, p) => n + p.stilla, 0), projekt };
   }
 
   return {
@@ -266,43 +325,25 @@ export function createApogee({ storage, now, newId }: ApogeeDeps) {
     },
 
     async overview(): Promise<Översikt> {
-      const [all, allProjekt] = await Promise.all([
+      const [all, allProjekt, personer] = await Promise.all([
         storage.listFunktionsområden(),
         storage.listProjekt(),
+        storage.listPersoner(),
       ]);
-      return [...all].sort(efterNamn).map((fo) => vy(fo, allProjekt));
+      return Promise.all([...all].sort(efterNamn).map((fo) => vy(fo, allProjekt, personer)));
     },
 
     async getFunktionsområde(id: FunktionsområdeId): Promise<FunktionsområdeVy> {
       const fo = await requireFunktionsområde(id);
-      return vy(fo, await storage.listProjekt());
+      const [allProjekt, personer] = await Promise.all([storage.listProjekt(), storage.listPersoner()]);
+      return vy(fo, allProjekt, personer);
     },
 
     async getProjekt(id: ProjektId): Promise<ProjektVy> {
       const p = await requireProjekt(id);
       const fo = await requireFunktionsområde(p.funktionsområdeId);
       const [logg, personer] = await Promise.all([storage.readHistorik(id), storage.listPersoner()]);
-      const flyttad = senastFlyttad(logg);
-      const scopes = Object.entries(nuvarande(logg))
-        .map(([scopeId, s]): ScopeVy => ({
-          id: scopeId,
-          namn: s.namn,
-          läge: s.läge,
-          ägare: ägareVy(personer, s.ägare),
-          flyttad: flyttad[scopeId]!,
-        }))
-        .sort((a, b) => b.läge - a.läge || efterNamn(a, b));
-      const markeradAvslutat = projektFält(logg).avslutat;
-      const avslutat = ärAvslutat(markeradAvslutat, scopes.map((s) => s.läge));
-      return {
-        id: p.id,
-        namn: p.namn,
-        funktionsområde: { id: fo.id, namn: fo.namn },
-        scopes,
-        avslutat,
-        markeradAvslutat,
-        pågående: ärPågående({ avslutat, borttagen: false }),
-      };
+      return { id: p.id, namn: p.namn, funktionsområde: { id: fo.id, namn: fo.namn }, ...diagramVy(logg, personer) };
     },
 
     /** A Projekt's Historik, oldest first. */

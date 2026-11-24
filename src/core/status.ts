@@ -19,6 +19,22 @@ export function ärAvslutat(markerad: boolean, lägen: readonly number[]): boole
   return markerad || lägen.every((l) => l === 100);
 }
 
+/** A Scope is stuck after more than this many whole days without a Läge change. */
+export const STILLA_EFTER_DAGAR = 14;
+
+/** Whole days from `iso` to `nu` (never negative). */
+export const dagarSedan = (iso: string, nu: Date): number =>
+  Math.max(0, Math.floor((nu.getTime() - Date.parse(iso)) / 86_400_000));
+
+/**
+ * Stuck: no Läge change for more than 14 whole days. A Scope at Läge 100 is
+ * done, and Scopes of an Avslutat Projekt are not expected to move, so
+ * neither is ever stuck.
+ */
+export function ärStilla(dagar: number, läge: number, projektAvslutat: boolean): boolean {
+  return dagar > STILLA_EFTER_DAGAR && läge < 100 && !projektAvslutat;
+}
+
 /** Pågående: neither Avslutat nor Borttagen. */
 export function ärPågående({ avslutat, borttagen }: { avslutat: boolean; borttagen: boolean }): boolean {
   return !avslutat && !borttagen;

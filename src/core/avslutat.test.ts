@@ -105,3 +105,81 @@ describe("Avslutat and Pågående", () => {
     expect(await apogee.historik(projekt)).toEqual([]);
   });
 });
+
+const DAG = 86_400_000;
+
+describe("stuck Scopes", () => {
+  it("a Scope is stuck after more than 14 whole days without a Läge change", async () => {
+    const { apogee, projekt, senare, scope } = await setup();
+    await scope("Prislista", 30);
+    const stilla = async () => {
+      const [s] = (await apogee.getProjekt(projekt)).scopes;
+      return [s!.stilla, s!.stillaDagar];
+    };
+    expect(await stilla()).toEqual([false, 0]);
+    senare(15 * DAG - 1);
+    expect(await stilla()).toEqual([false, 14]);
+    senare(1);
+    expect(await stilla()).toEqual([true, 15]);
+  });
+
+  it("renaming or a new Ägare is not movement; a Läge change is", async () => {
+    const { apogee, anna, projekt, senare, scope } = await setup();
+    const a = await scope("Prislista", 30);
+    senare(20 * DAG);
+    await apogee.renameScope(projekt, a, "Priser", anna);
+    expect((await apogee.getProjekt(projekt)).scopes[0]).toMatchObject({ stilla: true, stillaDagar: 20 });
+    await apogee.moveScope(projekt, a, 31, anna);
+    expect((await apogee.getProjekt(projekt)).scopes[0]).toMatchObject({ stilla: false, stillaDagar: 0 });
+  });
+
+  it("a Scope at Läge 100, or in an Avslutat Projekt, is never stuck", async () => {
+    const { apogee, anna, projekt, senare, scope } = await setup();
+    await scope("Prislista", 100);
+    await scope("Kvitton", 50);
+    senare(30 * DAG);
+    expect((await apogee.getProjekt(projekt)).scopes.map((s) => [s.namn, s.stilla])).toEqual([
+      ["Prislista", false],
+      ["Kvitton", true],
+    ]);
+    await apogee.markAvslutat(projekt, anna);
+    expect((await apogee.getProjekt(projekt)).scopes.map((s) => s.stilla)).toEqual([false, false]);
+  });
+});
+
+describe("the overview", () => {
+  it("shows each Projekt as a mini chart with its status and stuck count, and the count per Funktionsområde", async () => {
+    const { apogee, anna, fo, projekt, senare, scope } = await setup();
+    const klar = (await apogee.createProjekt(fo, "Bokslut", anna)).id;
+    await scope("Prislista", 70);
+    await scope("Kvitton", 20);
+    await scope("Moms", 100);
+    await scope("Arkiv", 100, klar);
+    senare(20 * DAG);
+    await scope("Export", 5);
+
+    const [ekonomi] = await apogee.overview();
+    expect(ekonomi).toEqual({
+      id: fo,
+      namn: "Ekonomi",
+      stilla: 2,
+      projekt: [
+        { id: klar, namn: "Bokslut", avslutat: true, pågående: false, stilla: 0, scopes: [{ läge: 100, stilla: false }] },
+        {
+          id: projekt,
+          namn: "Kassan",
+          avslutat: false,
+          pågående: true,
+          stilla: 2,
+          scopes: [
+            { läge: 100, stilla: false },
+            { läge: 70, stilla: true },
+            { läge: 20, stilla: true },
+            { läge: 5, stilla: false },
+          ],
+        },
+      ],
+    });
+    expect(await apogee.getFunktionsområde(fo)).toEqual(ekonomi);
+  });
+});

@@ -1,4 +1,4 @@
-export { createApogee, SCOPE_TYP } from "./apogee.js";
+export { createApogee, PROJEKT_TYP, SCOPE_TYP } from "./apogee.js";
 export { diagramEfter, lika, nuvarande, senastFlyttad, tillämpa, SCOPE_FÄLT } from "./diagram.js";
 export type { Diagram } from "./diagram.js";
 export type { Apogee, ApogeeDeps, Översikt, FunktionsområdeVy, ProjektVy, PersonVy, ScopeVy } from "./apogee.js";

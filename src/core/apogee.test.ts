@@ -112,7 +112,7 @@ describe("Projekt", () => {
     const apogee = await setup();
     const fo = await apogee.createFunktionsområde("Plattform", vem);
     const p = await apogee.createProjekt(fo.id, "Sökindex", vem);
-    expect(await apogee.getProjekt(p.id)).toEqual({
+    expect(await apogee.getProjekt(p.id)).toMatchObject({
       id: p.id,
       namn: "Sökindex",
       funktionsområde: { id: fo.id, namn: "Plattform" },

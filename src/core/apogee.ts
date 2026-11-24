@@ -1,5 +1,6 @@
 import { lika, nuvarande, senastFlyttad } from "./diagram.js";
 import { DomainError } from "./errors.js";
+import { projektFält, ärAvslutat, ärPågående } from "./status.js";
 import type { Storage } from "./storage.js";
 import type {
   Funktionsområde,
@@ -7,6 +8,7 @@ import type {
   Person,
   PersonId,
   Projekt,
+  ProjektFält,
   ProjektId,
   ScopeId,
   ScopeValues,
@@ -30,6 +32,12 @@ export type ProjektVy = {
   funktionsområde: { id: FunktionsområdeId; namn: string };
   /** The Hill chart: current Scopes, highest Läge first. */
   scopes: ScopeVy[];
+  /** Marked Avslutat, or every Scope at Läge 100 (or none). */
+  avslutat: boolean;
+  /** Someone marked it Avslutat (it stays so until "Öppna igen"). */
+  markeradAvslutat: boolean;
+  /** Neither Avslutat nor Borttagen. */
+  pågående: boolean;
 };
 
 /** A Scope as shown on the Hill chart and in the Scope index. */
@@ -98,6 +106,12 @@ export const SCOPE_TYP = {
   taBort: "ta bort",
 } as const;
 
+/** Uppdatering types written by the Projekt-level commands. */
+export const PROJEKT_TYP = {
+  avslutat: "avslutat",
+  öppnaIgen: "öppna igen",
+} as const;
+
 const svenskOrdning = new Intl.Collator("sv");
 const efterNamn = (a: { namn: string }, b: { namn: string }) => svenskOrdning.compare(a.namn, b.namn);
 
@@ -128,8 +142,10 @@ export function createApogee({ storage, now, newId }: ApogeeDeps) {
     typ: string,
     ändringar: Uppdatering["ändringar"],
     vem: PersonId,
+    projekt?: Uppdatering["projekt"],
   ): Promise<Uppdatering> {
     const u: Uppdatering = { id: newId(), typ, vem, tid: now().toISOString(), ändringar };
+    if (projekt) u.projekt = projekt;
     await storage.appendUppdatering(projektId, u);
     return u;
   }
@@ -153,6 +169,25 @@ export function createApogee({ storage, now, newId }: ApogeeDeps) {
     const efter = ändring(före, personer);
     if (efter !== null && lika(före, efter)) return null;
     return skriv(projektId, typ, [{ scopeId, före, efter }], signerad.id);
+  }
+
+  /**
+   * Sets one Projekt-level field: signs, checks the Projekt exists, and writes
+   * one Uppdatering unless the field already has that value (then null).
+   */
+  async function ändraProjekt<K extends keyof ProjektFält>(
+    projektId: ProjektId,
+    typ: string,
+    fält: K,
+    värde: ProjektFält[K],
+    vem: PersonId | null,
+  ): Promise<Uppdatering | null> {
+    const signerad = await signatur(vem);
+    await requireProjekt(projektId);
+    const före = projektFält(await storage.readHistorik(projektId))[fält];
+    if (före === värde) return null;
+    const ändring = { före: { [fält]: före }, efter: { [fält]: värde } };
+    return skriv(projektId, typ, [], signerad.id, ändring);
   }
 
   function vy(fo: Funktionsområde, allProjekt: Projekt[]): FunktionsområdeVy {
@@ -257,7 +292,17 @@ export function createApogee({ storage, now, newId }: ApogeeDeps) {
           flyttad: flyttad[scopeId]!,
         }))
         .sort((a, b) => b.läge - a.läge || efterNamn(a, b));
-      return { id: p.id, namn: p.namn, funktionsområde: { id: fo.id, namn: fo.namn }, scopes };
+      const markeradAvslutat = projektFält(logg).avslutat;
+      const avslutat = ärAvslutat(markeradAvslutat, scopes.map((s) => s.läge));
+      return {
+        id: p.id,
+        namn: p.namn,
+        funktionsområde: { id: fo.id, namn: fo.namn },
+        scopes,
+        avslutat,
+        markeradAvslutat,
+        pågående: ärPågående({ avslutat, borttagen: false }),
+      };
     },
 
     /** A Projekt's Historik, oldest first. */
@@ -298,6 +343,19 @@ export function createApogee({ storage, now, newId }: ApogeeDeps) {
         ...s,
         ägare: requireÄgare(personer, ägare),
       }));
+    },
+
+    /** Marks a Projekt Avslutat whatever its Scopes' Läge. Null when already marked. */
+    async markAvslutat(projektId: ProjektId, vem: PersonId | null) {
+      return ändraProjekt(projektId, PROJEKT_TYP.avslutat, "avslutat", true, vem);
+    },
+
+    /**
+     * "Öppna igen": removes the Avslutat mark. Null when not marked. A Projekt
+     * with every Scope at Läge 100 (or none) stays Avslutat.
+     */
+    async reopenProjekt(projektId: ProjektId, vem: PersonId | null) {
+      return ändraProjekt(projektId, PROJEKT_TYP.öppnaIgen, "avslutat", false, vem);
     },
 
     /** Removes a Scope. Its id stays in the Historik, so Ångra can bring it back. */

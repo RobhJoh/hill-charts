@@ -33,6 +33,15 @@ export type ScopeValues = {
   ägare: PersonId;
 };
 
+/**
+ * Projekt-level fields recorded in the Historik, as for Scopes. Only
+ * marked-Avslutat so far; dates and Milstolpar join later.
+ */
+export type ProjektFält = {
+  /** Marked Avslutat (not the derived status; see status.ts). */
+  avslutat: boolean;
+};
+
 /** One recorded edit to a Projekt's Hill chart or its dates (see spec #31). */
 export type Uppdatering = {
   id: UppdateringId;
@@ -41,4 +50,6 @@ export type Uppdatering = {
   tid: string; // ISO timestamp
   mål?: UppdateringId;
   ändringar: { scopeId: ScopeId; före: ScopeValues | null; efter: ScopeValues | null }[];
+  /** Changed Projekt-level fields: only those changed, before and after. */
+  projekt?: { före: Partial<ProjektFält>; efter: Partial<ProjektFält> };
 };

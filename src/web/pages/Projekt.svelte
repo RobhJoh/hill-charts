@@ -1,6 +1,7 @@
 <script lang="ts">
-  import type { Översikt, PersonVy, ProjektVy } from "../../core/index.js";
+  import type { Översikt, PersonVy, ProjektRad, ProjektVy } from "../../core/index.js";
   import HillChart from "../components/HillChart.svelte";
+  import MiniHill from "../components/MiniHill.svelte";
   import NamnForm from "../components/NamnForm.svelte";
   import ScopeIndex from "../components/ScopeIndex.svelte";
   import { api, ApiError } from "../lib/api.js";
@@ -23,11 +24,15 @@
   let valt = $state<string | null>(null);
   let nyScope = $state(false);
   let skrivFel = $state("");
+  /** The other Projekt in the same Funktionsområde, as mini charts. */
+  let grannar = $state<ProjektRad[]>([]);
 
   /** Reloads the Projekt and its Hill chart (after a write; live sync can call it too). */
   async function load() {
     try {
       projekt = await api.getProjekt(id);
+      const fo = await api.getFunktionsområde(projekt.funktionsområde.id).catch(() => undefined);
+      grannar = fo?.projekt.filter((p) => p.id !== id) ?? grannar;
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) saknas = true;
       else loadError = e instanceof Error ? e.message : "Kunde inte läsa in";
@@ -62,6 +67,16 @@
     let nytt: string | undefined;
     await redigera(async (vem) => (nytt = (await api.addScope(id, namn, ägare, vem)).id));
     valt = nytt ?? null;
+  }
+
+  /** Markera Avslutat / Öppna igen. */
+  async function växlaAvslutat(markera: boolean) {
+    skrivFel = "";
+    try {
+      await redigera((vem) => (markera ? api.markAvslutat(id, vem) : api.reopenProjekt(id, vem)));
+    } catch (e) {
+      if (!(e instanceof Avbruten)) skrivFel = e instanceof Error ? e.message : "Kunde inte spara";
+    }
   }
 
   async function bytNamn(namn: string) {
@@ -100,6 +115,18 @@
     <div class="page"><p class="error">{loadError}</p></div>
   {:else if projekt}
     <div class="projekt">
+    <nav class="grannar" aria-label="Andra Projekt i {projekt.funktionsområde.namn}">
+      <div class="cap">{projekt.funktionsområde.namn}</div>
+      {#each grannar as g (g.id)}
+        <a href={projektHref(g)} class:avslutat={g.avslutat}>
+          <MiniHill scopes={g.scopes} tema={tema.nu} width={160} height={46} />
+          <span class="gnamn">{g.namn}</span>
+          {#if g.stilla > 0}<span class="stilla">{g.stilla} stilla</span>{/if}
+        </a>
+      {:else}
+        <p class="meta">Inga andra Projekt.</p>
+      {/each}
+    </nav>
     <div class="huvud">
       <nav class="crumbs" aria-label="Brödsmulor">
         <a href="/">Alla Funktionsområden</a>
@@ -121,6 +148,15 @@
           <button class="quiet" onclick={() => (läge = "byt namn")}>Byt namn</button>
           <button class="quiet" onclick={öppnaFlytta}>Flytta</button>
           <button class="pr ny" onclick={() => (nyScope = true)}>Ny Scope</button>
+        </div>
+        <div class="status">
+          {#if projekt.markeradAvslutat}
+            <span>Avslutat</span>
+            <button class="quiet" onclick={() => växlaAvslutat(false)}>Öppna igen</button>
+          {:else}
+            {#if projekt.avslutat}<span>Avslutat · alla Scopes på Läge 100</span>{:else}<span>Pågående</span>{/if}
+            <button class="quiet" onclick={() => växlaAvslutat(true)}>Markera Avslutat</button>
+          {/if}
         </div>
       {/if}
 
@@ -195,8 +231,48 @@
   }
   .projekt {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-columns: 236px minmax(0, 1fr) 340px;
     min-height: calc(100vh - 56px);
+  }
+  .grannar {
+    border-right: 1px solid var(--line);
+    padding: 28px 18px;
+  }
+  .grannar .cap {
+    margin-bottom: 10px;
+  }
+  .grannar a {
+    display: block;
+    padding: 8px 6px;
+    text-decoration: none;
+    color: var(--tx);
+    border-bottom: 1px solid var(--line);
+  }
+  .grannar a:hover {
+    background: var(--sel);
+  }
+  .grannar a.avslutat {
+    opacity: 0.55;
+  }
+  .grannar :global(svg) {
+    display: block;
+  }
+  .gnamn {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .stilla {
+    font-size: 13px;
+    color: var(--redtx);
+  }
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+    color: var(--dim);
+    font-size: 14px;
   }
   .huvud {
     padding: 28px 28px 48px;
@@ -219,6 +295,9 @@
     .projekt {
       grid-template-columns: minmax(0, 1fr);
       min-height: 0;
+    }
+    .grannar {
+      display: none;
     }
     .huvud {
       padding: 20px 16px 24px;

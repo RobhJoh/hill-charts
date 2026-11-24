@@ -63,7 +63,9 @@
               <h1>{fo.namn}</h1>
               <button class="quiet" onclick={() => (läge = "byt namn")}>Byt namn</button>
             </div>
-            <div class="meta">{fo.projekt.length} Projekt</div>
+            <div class="meta">
+              {fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<span class="stilla">{fo.stilla} stilla</span>{/if}
+            </div>
           </div>
           {#if läge === "visa"}
             <button class="pr" onclick={() => (läge = "nytt projekt")}>Nytt Projekt</button>
@@ -81,7 +83,7 @@
       {/if}
 
       <section>
-        <ProjektCells projekt={fo.projekt} />
+        <ProjektCells projekt={fo.projekt} stor />
       </section>
     {/if}
   </div>
@@ -90,5 +92,8 @@
 <style>
   section {
     margin-top: 32px;
+  }
+  .stilla {
+    color: var(--redtx);
   }
 </style>

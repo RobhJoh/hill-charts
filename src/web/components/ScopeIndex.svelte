@@ -154,7 +154,7 @@
                 {#each aktiva as p (p.id)}<option value={p.id}>{p.namn}</option>{/each}
               </select>
             </td>
-            <td class="num">{s.läge}</td>
+            <td class="num">{s.läge}{#if s.stilla}<span class="stilla" title="Ingen rörelse på {s.stillaDagar} dagar">{s.stillaDagar} d</span>{/if}</td>
           </tr>
           {#if s.id === valt}
             <tr class="valt åtg">
@@ -229,6 +229,12 @@
   }
   .num {
     text-align: right;
+    white-space: nowrap;
+  }
+  .stilla {
+    display: block;
+    font-size: 12px;
+    color: var(--redtx);
   }
   .dot {
     display: block;

@@ -209,7 +209,7 @@
       class:dras={pågående[s.id] !== undefined}
       role={onflytta ? "slider" : "img"}
       tabindex={onflytta || onvälj ? 0 : undefined}
-      aria-label="{s.namn}, Läge {läge}, Ägare {s.ägare.namn}"
+      aria-label="{s.namn}, Läge {läge}, Ägare {s.ägare.namn}{s.stilla ? `, ingen rörelse på ${s.stillaDagar} dagar` : ""}"
       aria-valuemin={onflytta ? 0 : undefined}
       aria-valuemax={onflytta ? 100 : undefined}
       aria-valuenow={onflytta ? läge : undefined}
@@ -226,6 +226,19 @@
       <circle cx={x} cy={y} {r} fill={färg} />
       {#if s.id === valt}
         <circle class="ring" cx={x} cy={y} r="20" />
+      {/if}
+      {#if s.stilla && pågående[s.id] === undefined}
+        <!-- Stuck: dashed red ring and a leader to the note, turned away from the frame's edges. -->
+        {@const dx = x > 600 ? -1 : 1}
+        {@const dy = y > 470 ? -1 : 1}
+        <circle class="stilla" cx={x} cy={y} r="14" />
+        <polyline
+          class="stilla"
+          points="{x + 12 * dx},{y + 10 * dy} {x + 60 * dx},{y + 52 * dy} {x + 232 * dx},{y + 52 * dy}"
+        />
+        <text class="stillatext" x={x + 64 * dx} y={y + (dy > 0 ? 46 : -58)} text-anchor={dx > 0 ? "start" : "end"}
+          >Ingen rörelse på {s.stillaDagar} dagar</text
+        >
       {/if}
       {#if e}
         {#if e.ledare}
@@ -283,6 +296,26 @@
   .sm {
     font-weight: 500;
     fill: var(--mid);
+  }
+  .stilla {
+    fill: none;
+    stroke: var(--red);
+    stroke-width: 1.1;
+    stroke-dasharray: 3 3;
+  }
+  polyline.stilla {
+    stroke-dasharray: none;
+    stroke-width: 0.8;
+    opacity: 0.8;
+  }
+  .stillatext {
+    font: 500 14px Barlow, system-ui, sans-serif;
+    fill: var(--redtx);
+    paint-order: stroke;
+    stroke: var(--halo);
+    stroke-width: 5px;
+    stroke-linejoin: round;
+    pointer-events: none;
   }
   .ledare {
     stroke: var(--dim);

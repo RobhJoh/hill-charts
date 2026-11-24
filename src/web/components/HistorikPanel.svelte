@@ -7,7 +7,7 @@
   import type { HistorikRad, PersonVy } from "../../core/index.js";
   import { api } from "../lib/api.js";
   import { Avbruten } from "../lib/signatur.svelte.js";
-  import { beskrivRad, beskrivÄndring, UTAN_NAMN, visaTid } from "../lib/historik.js";
+  import { beskrivAlla, beskrivRad, UTAN_NAMN, visaTid } from "../lib/historik.js";
 
   let {
     projektId,
@@ -79,6 +79,7 @@
 
   <ol>
     {#each rader as rad (rad.id)}
+      {@const alla = beskrivAlla(rad, namn)}
       <li class:visad={rad.id === visad} class:bort={rad.bortåterställd}>
         <p class="vad">
           <strong>{rad.vem?.namn ?? UTAN_NAMN}</strong>
@@ -88,12 +89,12 @@
           {#if rad.ångrad}<span class="tag">ångrad</span>{/if}
         </p>
         <p class="meta"><time datetime={rad.tid}>{visaTid(rad.tid)}</time></p>
-        {#if rad.ändringar.length > 1}
+        {#if alla.length > 1}
           <details>
-            <summary>{rad.ändringar.length} ändringar</summary>
+            <summary>{alla.length} ändringar</summary>
             <ul>
-              {#each rad.ändringar as ä (ä.scopeId)}
-                <li>{beskrivÄndring(ä, namn)}</li>
+              {#each alla as text, i (i)}
+                <li>{text}</li>
               {/each}
             </ul>
           </details>

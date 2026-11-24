@@ -59,7 +59,9 @@
       <section>
         <h2>
           <a href={funktionsområdeHref(fo)}>{fo.namn}</a>
-          <span>{fo.projekt.length} Projekt</span>
+          <span
+            >{fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<em class="stilla">{fo.stilla} stilla</em>{/if}</span
+          >
         </h2>
         <ProjektCells projekt={fo.projekt} />
       </section>
@@ -89,5 +91,9 @@
   h2 span {
     font: 400 14px Barlow, system-ui, sans-serif;
     color: var(--dim);
+  }
+  .stilla {
+    font-style: normal;
+    color: var(--redtx);
   }
 </style>

@@ -99,7 +99,7 @@ describe("Personer and Signatur", () => {
       ];
       expect(writes.map((w) => w.status), String(vem)).toEqual([403, 403, 403, 403]);
     }
-    expect((await api("GET", "/api/oversikt")).body).toEqual([
+    expect((await api("GET", "/api/oversikt")).body).toMatchObject([
       { id: fo.body.id, namn: "Ekonomi", projekt: [{ id: p.body.id, namn: "Fakturering" }] },
     ]);
   });
@@ -121,16 +121,16 @@ describe("JSON API", () => {
       (await api("PATCH", `/api/projekt/${p.body.id}`, { funktionsområdeId: pl.body.id })).status,
     ).toBe(204);
 
-    expect((await api("GET", "/api/oversikt")).body).toEqual([
+    expect((await api("GET", "/api/oversikt")).body).toMatchObject([
       { id: ku.body.id, namn: "Kundupplevelse", projekt: [] },
       { id: pl.body.id, namn: "Plattform", projekt: [{ id: p.body.id, namn: "Inloggning" }] },
     ]);
-    expect((await api("GET", `/api/funktionsomraden/${pl.body.id}`)).body).toEqual({
+    expect((await api("GET", `/api/funktionsomraden/${pl.body.id}`)).body).toMatchObject({
       id: pl.body.id,
       namn: "Plattform",
       projekt: [{ id: p.body.id, namn: "Inloggning" }],
     });
-    expect((await api("GET", `/api/projekt/${p.body.id}`)).body).toEqual({
+    expect((await api("GET", `/api/projekt/${p.body.id}`)).body).toMatchObject({
       id: p.body.id,
       namn: "Inloggning",
       funktionsområde: { id: pl.body.id, namn: "Plattform" },
@@ -180,7 +180,7 @@ describe("JSON API", () => {
     await first.server.close();
 
     const second = await start(createJsonFileStorage(dir));
-    expect((await second.api("GET", "/api/oversikt")).body).toEqual([
+    expect((await second.api("GET", "/api/oversikt")).body).toMatchObject([
       { id: fo.body.id, namn: "Ekonomi", projekt: [{ id: expect.any(String), namn: "Fakturering" }] },
     ]);
   });
@@ -211,7 +211,7 @@ describe("Scopes", () => {
     expect((await api("PATCH", scope, { namn: "Priser" })).status).toBe(200);
     expect((await api("PATCH", scope, { ägare: vem })).status).toBe(200);
 
-    expect((await api("GET", `/api/projekt/${projekt}`)).body.scopes).toEqual([
+    expect((await api("GET", `/api/projekt/${projekt}`)).body.scopes).toMatchObject([
       {
         id: ny.body.id,
         namn: "Priser",
@@ -292,7 +292,7 @@ describe("Historik, Återställning and Ångra", () => {
     expect(rader.body[0].vem).toEqual({ id: vem, namn: "Testare", aktiv: true });
 
     const visa = await api("GET", `${p}/historik/${flytt.id}`);
-    expect(visa.body).toEqual({ scopes: [expect.objectContaining({ id, läge: 40 })], skiljer: [id] });
+    expect(visa.body).toMatchObject({ scopes: [{ id, läge: 40 }], skiljer: [id], avslutat: false });
     expect((await api("GET", `${p}/historik/saknas`)).status).toBe(404);
 
     const ångra = await api("POST", `${p}/angra`, { mål: bort.id });
@@ -314,6 +314,28 @@ describe("Historik, Återställning and Ångra", () => {
     expect((await apiAs(null, "POST", `${p}/angra`, { mål: flytt.id })).status).toBe(403);
     expect((await apiAs(null, "POST", `${p}/aterstallning`, { mål: bort.id })).status).toBe(403);
     expect((await fetch(`${base}/api/projekt/saknas/historikvy`)).status).toBe(404);
+  });
+});
+
+describe("Avslutat", () => {
+  it("marks a Projekt Avslutat and reopens it, each one Uppdatering; signed", async () => {
+    const { api, apiAs, vem } = await start();
+    const fo = await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" });
+    const projekt = (await api("POST", "/api/projekt", { funktionsområdeId: fo.body.id, namn: "Kassan" })).body.id;
+    await api("POST", `/api/projekt/${projekt}/scopes`, { namn: "Prislista", ägare: vem });
+    const avslutat = `/api/projekt/${projekt}/avslutat`;
+
+    expect((await apiAs(null, "POST", avslutat)).status).toBe(403);
+    const markera = await api("POST", avslutat);
+    expect(markera.status).toBe(200);
+    expect(markera.body.uppdatering).toMatchObject({ typ: "avslutat", vem });
+    expect((await api("POST", avslutat)).body).toEqual({ uppdatering: null });
+    expect((await api("GET", `/api/projekt/${projekt}`)).body).toMatchObject({ avslutat: true, markeradAvslutat: true });
+
+    const öppna = await api("DELETE", avslutat);
+    expect(öppna.body.uppdatering).toMatchObject({ typ: "öppna igen", vem });
+    expect((await api("GET", `/api/projekt/${projekt}`)).body).toMatchObject({ avslutat: false, pågående: true });
+    expect((await api("POST", "/api/projekt/nej/avslutat")).status).toBe(404);
   });
 });
 

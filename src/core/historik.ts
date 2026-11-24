@@ -20,6 +20,8 @@ export type HistorikRad<V> = {
   mål?: UppdateringId;
   /** For a merged row: one change from the first före to the last efter. */
   ändringar: Ändring[];
+  /** Changed Projekt-level fields (e.g. Avslutat), if any. */
+  projekt?: Uppdatering["projekt"];
   /** Skipped by a later Återställning (for a merged row: its newest Uppdatering). */
   bortåterställd: boolean;
   /** Targeted by a later Ångra. */
@@ -51,6 +53,7 @@ export function historikRader<V>(logg: readonly Uppdatering[], vem: (id: PersonI
         tid: sista.tid,
         ...(sista.mål ? { mål: sista.mål } : {}),
         ändringar,
+        ...(sista.projekt ? { projekt: sista.projekt } : {}),
         bortåterställd: skippade.has(sista.id),
         ångrad: del.some((u) => ångrade.has(u.id)),
         kanÅngras: antal === 1,

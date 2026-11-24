@@ -2,6 +2,7 @@ import { HISTORIK_TYP, diagramEfter, lika, nuvarande, senastFlyttad, återställ
 import { DomainError } from "./errors.js";
 import { historikRader, type HistorikRad } from "./historik.js";
 import { annonseraUppdateringar } from "./live.js";
+import { dagarSedan, projektFält, ärAvslutat, ärPågående, ärStilla } from "./status.js";
 import type { Storage } from "./storage.js";
 import type {
   Funktionsområde,
@@ -9,6 +10,7 @@ import type {
   Person,
   PersonId,
   Projekt,
+  ProjektFält,
   ProjektId,
   ScopeId,
   ScopeValues,
@@ -24,15 +26,41 @@ export type ApogeeDeps = {
   newId: () => string;
 };
 
-export type ProjektRad = { id: ProjektId; namn: string };
-export type FunktionsområdeVy = { id: FunktionsområdeId; namn: string; projekt: ProjektRad[] };
+/** A Projekt in a list: a mini sky chart with its status. */
+export type ProjektRad = {
+  id: ProjektId;
+  namn: string;
+  avslutat: boolean;
+  pågående: boolean;
+  /** Number of stuck Scopes. */
+  stilla: number;
+  /** The mini chart's dots, highest Läge first. */
+  scopes: { läge: number; stilla: boolean }[];
+};
+export type FunktionsområdeVy = {
+  id: FunktionsområdeId;
+  namn: string;
+  /** Stuck Scopes across its Projekt. */
+  stilla: number;
+  projekt: ProjektRad[];
+};
 export type Översikt = FunktionsområdeVy[];
 export type ProjektVy = {
   id: ProjektId;
   namn: string;
   funktionsområde: { id: FunktionsområdeId; namn: string };
+} & DiagramVy;
+
+/** A Projekt's Hill chart and derived status. */
+export type DiagramVy = {
   /** The Hill chart: current Scopes, highest Läge first. */
   scopes: ScopeVy[];
+  /** Marked Avslutat, or every Scope at Läge 100 (or none). */
+  avslutat: boolean;
+  /** Someone marked it Avslutat (it stays so until "Öppna igen"). */
+  markeradAvslutat: boolean;
+  /** Neither Avslutat nor Borttagen. */
+  pågående: boolean;
 };
 
 /** A Scope as shown on the Hill chart and in the Scope index. */
@@ -42,12 +70,19 @@ export type ScopeVy = {
   läge: number;
   /** The Ägare; `aktiv: false` is shown as "(inaktiv)". */
   ägare: PersonVy;
-  /** ISO time its Läge last changed (or it was added). */
+  /** ISO time its Läge last changed (or it was added). Drives star size. */
   flyttad: string;
+  /** Whole days since its Läge last changed ("Ingen rörelse på N dagar"). */
+  stillaDagar: number;
+  /** Stuck: no Läge change for more than 14 days (never at Läge 100 or in an Avslutat Projekt). */
+  stilla: boolean;
 };
 
-/** Visa in the Historik: the chart at a point, and the Scopes that differ from now (incl. added/removed since). */
-export type Förhandsvisning = { scopes: ScopeVy[]; skiljer: ScopeId[] };
+/**
+ * Visa in the Historik: the chart and status at a point, and the Scopes that
+ * differ from now (incl. added/removed since).
+ */
+export type Förhandsvisning = DiagramVy & { skiljer: ScopeId[] };
 
 export type PersonVy = { id: PersonId; namn: string; aktiv: boolean };
 const personVy = ({ id, namn, aktiv }: Person): PersonVy => ({ id, namn, aktiv });
@@ -104,6 +139,12 @@ export const SCOPE_TYP = {
   taBort: "ta bort",
 } as const;
 
+/** Uppdatering types written by the Projekt-level commands. */
+export const PROJEKT_TYP = {
+  avslutat: "avslutat",
+  öppnaIgen: "öppna igen",
+} as const;
+
 const svenskOrdning = new Intl.Collator("sv");
 const efterNamn = (a: { namn: string }, b: { namn: string }) => svenskOrdning.compare(a.namn, b.namn);
 
@@ -137,9 +178,11 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
     typ: string,
     ändringar: Uppdatering["ändringar"],
     vem: PersonId,
+    projekt?: Uppdatering["projekt"],
     mål?: UppdateringId,
   ): Promise<Uppdatering> {
     const u: Uppdatering = { id: newId(), typ, vem, tid: now().toISOString(), ...(mål ? { mål } : {}), ändringar };
+    if (projekt) u.projekt = projekt;
     await storage.appendUppdatering(projektId, u);
     return u;
   }
@@ -174,15 +217,69 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
     return skriv(projektId, typ, [{ scopeId, före, efter }], signerad.id);
   }
 
-  function vy(fo: Funktionsområde, allProjekt: Projekt[]): FunktionsområdeVy {
+  /**
+   * Sets one Projekt-level field: signs, checks the Projekt exists, and writes
+   * one Uppdatering unless the field already has that value (then null).
+   */
+  async function ändraProjekt<K extends keyof ProjektFält>(
+    projektId: ProjektId,
+    typ: string,
+    fält: K,
+    värde: ProjektFält[K],
+    vem: PersonId | null,
+  ): Promise<Uppdatering | null> {
+    const signerad = await signatur(vem);
+    await requireProjekt(projektId);
+    const före = projektFält(await storage.readHistorik(projektId))[fält];
+    if (före === värde) return null;
+    const ändring = { före: { [fält]: före }, efter: { [fält]: värde } };
+    return skriv(projektId, typ, [], signerad.id, ändring);
+  }
+
+  /** A Projekt's Hill chart and status from its Historik, against the clock's "now". */
+  function diagramVy(logg: Uppdatering[], personer: Person[]): DiagramVy {
+    const nu = now();
+    const flyttad = senastFlyttad(logg);
+    const diagram = Object.entries(nuvarande(logg));
+    const markeradAvslutat = projektFält(logg).avslutat;
+    const avslutat = ärAvslutat(markeradAvslutat, diagram.map(([, s]) => s.läge));
+    const scopes = diagram
+      .map(([scopeId, s]): ScopeVy => {
+        const stillaDagar = dagarSedan(flyttad[scopeId]!, nu);
+        return {
+          id: scopeId,
+          namn: s.namn,
+          läge: s.läge,
+          ägare: ägareVy(personer, s.ägare),
+          flyttad: flyttad[scopeId]!,
+          stillaDagar,
+          stilla: ärStilla(stillaDagar, s.läge, avslutat),
+        };
+      })
+      .sort((a, b) => b.läge - a.läge || efterNamn(a, b));
+    return { scopes, avslutat, markeradAvslutat, pågående: ärPågående({ avslutat, borttagen: false }) };
+  }
+
+  async function projektRad(p: Projekt, personer: Person[]): Promise<ProjektRad> {
+    const { scopes, avslutat, pågående } = diagramVy(await storage.readHistorik(p.id), personer);
     return {
-      id: fo.id,
-      namn: fo.namn,
-      projekt: allProjekt
+      id: p.id,
+      namn: p.namn,
+      avslutat,
+      pågående,
+      stilla: scopes.filter((s) => s.stilla).length,
+      scopes: scopes.map(({ läge, stilla }) => ({ läge, stilla })),
+    };
+  }
+
+  async function vy(fo: Funktionsområde, allProjekt: Projekt[], personer: Person[]): Promise<FunktionsområdeVy> {
+    const projekt = await Promise.all(
+      allProjekt
         .filter((p) => p.funktionsområdeId === fo.id)
         .sort(efterNamn)
-        .map((p) => ({ id: p.id, namn: p.namn })),
-    };
+        .map((p) => projektRad(p, personer)),
+    );
+    return { id: fo.id, namn: fo.namn, stilla: projekt.reduce((n, p) => n + p.stilla, 0), projekt };
   }
 
   return {
@@ -253,33 +350,25 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
     },
 
     async overview(): Promise<Översikt> {
-      const [all, allProjekt] = await Promise.all([
+      const [all, allProjekt, personer] = await Promise.all([
         storage.listFunktionsområden(),
         storage.listProjekt(),
+        storage.listPersoner(),
       ]);
-      return [...all].sort(efterNamn).map((fo) => vy(fo, allProjekt));
+      return Promise.all([...all].sort(efterNamn).map((fo) => vy(fo, allProjekt, personer)));
     },
 
     async getFunktionsområde(id: FunktionsområdeId): Promise<FunktionsområdeVy> {
       const fo = await requireFunktionsområde(id);
-      return vy(fo, await storage.listProjekt());
+      const [allProjekt, personer] = await Promise.all([storage.listProjekt(), storage.listPersoner()]);
+      return vy(fo, allProjekt, personer);
     },
 
     async getProjekt(id: ProjektId): Promise<ProjektVy> {
       const p = await requireProjekt(id);
       const fo = await requireFunktionsområde(p.funktionsområdeId);
       const [logg, personer] = await Promise.all([storage.readHistorik(id), storage.listPersoner()]);
-      const flyttad = senastFlyttad(logg);
-      const scopes = Object.entries(nuvarande(logg))
-        .map(([scopeId, s]): ScopeVy => ({
-          id: scopeId,
-          namn: s.namn,
-          läge: s.läge,
-          ägare: ägareVy(personer, s.ägare),
-          flyttad: flyttad[scopeId]!,
-        }))
-        .sort((a, b) => b.läge - a.läge || efterNamn(a, b));
-      return { id: p.id, namn: p.namn, funktionsområde: { id: fo.id, namn: fo.namn }, scopes };
+      return { id: p.id, namn: p.namn, funktionsområde: { id: fo.id, namn: fo.namn }, ...diagramVy(logg, personer) };
     },
 
     /** A Projekt's Historik, oldest first. */
@@ -322,6 +411,19 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
       }));
     },
 
+    /** Marks a Projekt Avslutat whatever its Scopes' Läge. Null when already marked. */
+    async markAvslutat(projektId: ProjektId, vem: PersonId | null) {
+      return ändraProjekt(projektId, PROJEKT_TYP.avslutat, "avslutat", true, vem);
+    },
+
+    /**
+     * "Öppna igen": removes the Avslutat mark. Null when not marked. A Projekt
+     * with every Scope at Läge 100 (or none) stays Avslutat.
+     */
+    async reopenProjekt(projektId: ProjektId, vem: PersonId | null) {
+      return ändraProjekt(projektId, PROJEKT_TYP.öppnaIgen, "avslutat", false, vem);
+    },
+
     /** Removes a Scope. Its id stays in the Historik, so Ångra can bring it back. */
     async removeScope(projektId: ProjektId, scopeId: ScopeId, vem: PersonId | null) {
       return ändraScope(projektId, scopeId, SCOPE_TYP.taBort, vem, () => null);
@@ -336,20 +438,16 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
       return historikRader(logg, (id) => ägareVy(personer, id));
     },
 
-    /** Visa: the chart right after an Uppdatering, and which Scopes differ from now. */
+    /** Visa: the chart (and status) right after an Uppdatering, and which Scopes differ from now. */
     async förhandsvisa(projektId: ProjektId, uppdateringId: UppdateringId): Promise<Förhandsvisning> {
       const { logg, index } = await historikMed(projektId, uppdateringId);
       const personer = await storage.listPersoner();
       const då = diagramEfter(logg, index);
       const nu = nuvarande(logg);
-      const flyttad = senastFlyttad(logg.slice(0, index + 1));
-      const scopes = Object.entries(då)
-        .map(([id, s]): ScopeVy => ({ id, ...s, ägare: ägareVy(personer, s.ägare), flyttad: flyttad[id]! }))
-        .sort((a, b) => b.läge - a.läge || efterNamn(a, b));
       const skiljer = [...new Set([...Object.keys(då), ...Object.keys(nu)])].filter(
         (id) => !lika(då[id] ?? null, nu[id] ?? null),
       );
-      return { scopes, skiljer };
+      return { ...diagramVy(logg.slice(0, index + 1), personer), skiljer };
     },
 
     /**
@@ -359,9 +457,9 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
     async återställHit(projektId: ProjektId, mål: UppdateringId, vem: PersonId | null): Promise<Uppdatering | null> {
       const signerad = await signatur(vem);
       const { logg, index } = await historikMed(projektId, mål);
-      const ändringar = återställHit(logg, index);
-      if (ändringar.length === 0) return null;
-      return skriv(projektId, HISTORIK_TYP.återställning, ändringar, signerad.id, mål);
+      const ä = återställHit(logg, index);
+      if (!ä) return null;
+      return skriv(projektId, HISTORIK_TYP.återställning, ä.ändringar, signerad.id, ä.projekt, mål);
     },
 
     /**
@@ -379,7 +477,7 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
           `Går inte att ångra bara den här: ${skäl}. Använd Återställ hit på Uppdateringen före i stället, eller ändra för hand.`,
         );
       }
-      return skriv(projektId, HISTORIK_TYP.ångra, resultat.ändringar, signerad.id, mål);
+      return skriv(projektId, HISTORIK_TYP.ångra, resultat.ändringar, signerad.id, resultat.projekt, mål);
     },
   };
 }

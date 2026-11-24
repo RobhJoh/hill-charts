@@ -229,6 +229,47 @@ describe("Visa", () => {
   });
 });
 
+describe("Projekt-level Uppdateringar (Avslutat)", () => {
+  it("Ångra of Markera Avslutat reopens; blocked when Avslutat has changed since", async () => {
+    const { apogee, anna, erik, projekt } = await setup();
+    const markera = await apogee.markAvslutat(projekt, anna);
+    const u = await apogee.ångra(projekt, markera!.id, erik);
+    expect(u).toMatchObject({ typ: "ångra", ändringar: [], projekt: { före: { avslutat: true }, efter: { avslutat: false } } });
+    expect(await apogee.getProjekt(projekt)).toMatchObject({ markeradAvslutat: false });
+
+    const igen = await apogee.markAvslutat(projekt, anna);
+    await apogee.reopenProjekt(projekt, erik);
+    await expect(apogee.ångra(projekt, igen!.id, anna)).rejects.toMatchObject({
+      code: "krock",
+      message: expect.stringMatching(/Projektet.*avslutat/),
+    });
+  });
+
+  it("Återställ hit and its Ångra fold the Projekt fields together with the Scopes", async () => {
+    const { apogee, anna, erik, projekt, s2, diagram } = await setup();
+    const före = (await apogee.historik(projekt)).at(-1)!;
+    await apogee.moveScope(projekt, s2, 90, erik);
+    await apogee.markAvslutat(projekt, erik);
+    const innan = await diagram();
+
+    const åter = await apogee.återställHit(projekt, före.id, anna);
+    expect(åter!.projekt).toEqual({ före: { avslutat: true }, efter: { avslutat: false } });
+    expect(await apogee.getProjekt(projekt)).toMatchObject({ markeradAvslutat: false });
+    expect((await diagram()).find(([id]) => id === s2)![2]).toBe(38);
+
+    await apogee.ångra(projekt, åter!.id, anna);
+    expect(await apogee.getProjekt(projekt)).toMatchObject({ markeradAvslutat: true });
+    expect(await diagram()).toEqual(innan);
+  });
+
+  it("Visa shows whether the Projekt was marked Avslutat at that point", async () => {
+    const { apogee, anna, projekt } = await setup();
+    const markera = await apogee.markAvslutat(projekt, anna);
+    await apogee.reopenProjekt(projekt, anna);
+    expect(await apogee.förhandsvisa(projekt, markera!.id)).toMatchObject({ markeradAvslutat: true, avslutat: true });
+  });
+});
+
 describe("Återställning and Ångra rules", () => {
   it("restoring to where the chart already is writes nothing", async () => {
     const { apogee, anna, projekt } = await setup();

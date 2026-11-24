@@ -1,7 +1,19 @@
 // The Hill chart as the fold of a Projekt's Historik (lifted from the
 // prototype/historik branch). Pure functions over Uppdateringar; no storage.
 // Återställning, Ångra and the Historik view grouping build on these.
-import type { ScopeId, ScopeValues, Uppdatering, UppdateringId, Ändring } from "./types.js";
+import { projektFält } from "./status.js";
+import type { ProjektFält, ScopeId, ScopeValues, Uppdatering, UppdateringId, Ändring } from "./types.js";
+
+/** What an Återställning or Ångra writes: Scope changes and, if any, Projekt-field changes. */
+export type Ändringar = Pick<Uppdatering, "ändringar" | "projekt">;
+
+/** The Projekt-field changes from `från` to `till`, only fields that differ; undefined if none. */
+function projektSkillnad(från: ProjektFält, till: ProjektFält): Uppdatering["projekt"] {
+  const fält = (Object.keys(till) as (keyof ProjektFält)[]).filter((k) => från[k] !== till[k]);
+  if (fält.length === 0) return undefined;
+  const del = (f: ProjektFält) => Object.fromEntries(fält.map((k) => [k, f[k]])) as Partial<ProjektFält>;
+  return { före: del(från), efter: del(till) };
+}
 
 /** A Hill chart: the current values of every Scope that exists. */
 export type Diagram = Record<ScopeId, ScopeValues>;
@@ -55,9 +67,10 @@ export function senastFlyttad(logg: readonly Uppdatering[]): Record<ScopeId, str
 
 /**
  * Återställning: the changes that put the whole chart back to right after
- * Uppdatering number `index`. Empty when the chart already looks like that.
+ * Uppdatering number `index`: every Scope and Projekt field that differs.
+ * Null when the chart already looks like that.
  */
-export function återställHit(logg: readonly Uppdatering[], index: number): Ändring[] {
+export function återställHit(logg: readonly Uppdatering[], index: number): Ändringar | null {
   const från = nuvarande(logg);
   const till = diagramEfter(logg, index);
   const ändringar: Ändring[] = [];
@@ -66,13 +79,15 @@ export function återställHit(logg: readonly Uppdatering[], index: number): Än
     const efter = till[scopeId] ?? null;
     if (!lika(före, efter)) ändringar.push({ scopeId, före, efter });
   }
-  return ändringar;
+  const projekt = projektSkillnad(projektFält(logg), projektFält(logg.slice(0, index + 1)));
+  if (ändringar.length === 0 && !projekt) return null;
+  return projekt ? { ändringar, projekt } : { ändringar };
 }
 
-/** Why one Scope blocks an Ångra; `namn` is its latest known name. */
-export type Krock = { scopeId: ScopeId; namn: string; varför: string };
+/** Why a Scope (or, with scopeId null, the Projekt) blocks an Ångra; `namn` is its latest known name. */
+export type Krock = { scopeId: ScopeId | null; namn: string; varför: string };
 
-export type ÅngraResultat = { ok: true; ändringar: Ändring[] } | { ok: false; krockar: Krock[] };
+export type ÅngraResultat = ({ ok: true } & Ändringar) | { ok: false; krockar: Krock[] };
 
 /**
  * Ångra bara denna: the changes that revert only the fields Uppdatering
@@ -112,7 +127,21 @@ export function ångraEn(logg: readonly Uppdatering[], index: number): ÅngraRes
       ändringar.push({ scopeId: ä.scopeId, före: just, efter: tillbaka });
     }
   }
-  return krockar.length > 0 ? { ok: false, krockar } : { ok: true, ändringar };
+  // Projekt fields, field-wise like a Scope's.
+  let projekt: Uppdatering["projekt"];
+  const p = logg[index]!.projekt;
+  if (p) {
+    const nuFält = projektFält(logg);
+    const fält = (Object.keys(p.efter) as (keyof ProjektFält)[]).filter((k) => p.före[k] !== p.efter[k]);
+    const ändrade = fält.filter((k) => nuFält[k] !== p.efter[k]);
+    if (ändrade.length > 0) {
+      krockar.push({ scopeId: null, namn: "Projektet", varför: `har ändrats igen sedan dess (${ändrade.join(", ")})` });
+    } else {
+      projekt = projektSkillnad(nuFält, { ...nuFält, ...p.före });
+    }
+  }
+  if (krockar.length > 0) return { ok: false, krockar };
+  return projekt ? { ok: true, ändringar, projekt } : { ok: true, ändringar };
 }
 
 /** A run of Uppdateringar shown as one Historik row: indexes `start`..`slut` (inclusive). */

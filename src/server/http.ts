@@ -149,6 +149,8 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
   /**
    * A Projekt's Hill chart:
    *   GET    /api/projekt/:id/historik            its Uppdateringar, oldest first
+   *   POST   /api/projekt/:id/avslutat            mark Avslutat → 200 { uppdatering } (null if already)
+   *   DELETE /api/projekt/:id/avslutat            "Öppna igen" → 200 { uppdatering } (null if not marked)
    *   POST   /api/projekt/:id/scopes              { namn, ägare } → 201 { id, uppdatering }
    *   PATCH  /api/projekt/:id/scopes/:scopeId     exactly one of { läge } | { namn } | { ägare }
    *                                                → 200 { uppdatering } (null if nothing changed)
@@ -166,6 +168,12 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
       return { status: 200, body: await apogee.historik(projektId) };
     }
     if (HISTORIK_DELAR.has(sub)) return historikDel(method, projektId, sub, scopeId, req, vem);
+    if (sub === "avslutat" && scopeId === undefined && (method === "POST" || method === "DELETE")) {
+      const uppdatering = await serialize(() =>
+        method === "POST" ? apogee.markAvslutat(projektId, vem) : apogee.reopenProjekt(projektId, vem),
+      );
+      return { status: 200, body: { uppdatering } };
+    }
     if (sub !== "scopes") throw notFound();
     if (scopeId === undefined && method === "POST") {
       const body = await readJson(req);

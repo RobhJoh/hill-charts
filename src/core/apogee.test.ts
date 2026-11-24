@@ -43,7 +43,7 @@ describe("Signatur", () => {
       await expect(apogee.moveProjekt(p.id, fo2.id, ogiltig)).rejects.toMatchObject(signatur);
       await expect(apogee.createPerson("Cia", ogiltig)).rejects.toMatchObject(signatur);
     }
-    expect(await apogee.overview()).toEqual([
+    expect(await apogee.overview()).toMatchObject([
       { id: fo.id, namn: "Ekonomi", projekt: [{ id: p.id, namn: "Fakturering" }] },
       { id: fo2.id, namn: "Plattform", projekt: [] },
     ]);
@@ -87,7 +87,7 @@ describe("Funktionsområden", () => {
   it("a created Funktionsområde appears in the overview", async () => {
     const apogee = await setup();
     const fo = await apogee.createFunktionsområde("Kundupplevelse", vem);
-    expect(await apogee.overview()).toEqual([
+    expect(await apogee.overview()).toMatchObject([
       { id: fo.id, namn: "Kundupplevelse", projekt: [] },
     ]);
   });
@@ -98,10 +98,10 @@ describe("Projekt", () => {
     const apogee = await setup();
     const fo = await apogee.createFunktionsområde("Kundupplevelse", vem);
     const p = await apogee.createProjekt(fo.id, "Nytt bokningsflöde", vem);
-    expect(await apogee.overview()).toEqual([
+    expect(await apogee.overview()).toMatchObject([
       { id: fo.id, namn: "Kundupplevelse", projekt: [{ id: p.id, namn: "Nytt bokningsflöde" }] },
     ]);
-    expect(await apogee.getFunktionsområde(fo.id)).toEqual({
+    expect(await apogee.getFunktionsområde(fo.id)).toMatchObject({
       id: fo.id,
       namn: "Kundupplevelse",
       projekt: [{ id: p.id, namn: "Nytt bokningsflöde" }],
@@ -112,7 +112,7 @@ describe("Projekt", () => {
     const apogee = await setup();
     const fo = await apogee.createFunktionsområde("Plattform", vem);
     const p = await apogee.createProjekt(fo.id, "Sökindex", vem);
-    expect(await apogee.getProjekt(p.id)).toEqual({
+    expect(await apogee.getProjekt(p.id)).toMatchObject({
       id: p.id,
       namn: "Sökindex",
       funktionsområde: { id: fo.id, namn: "Plattform" },
@@ -126,7 +126,7 @@ describe("Projekt", () => {
     const p = await apogee.createProjekt(fo.id, "Sökindx", vem);
     await apogee.renameProjekt(p.id, "Sökindex", vem);
     expect((await apogee.getProjekt(p.id)).namn).toBe("Sökindex");
-    expect((await apogee.getFunktionsområde(fo.id)).projekt).toEqual([
+    expect((await apogee.getFunktionsområde(fo.id)).projekt).toMatchObject([
       { id: p.id, namn: "Sökindex" },
     ]);
   });
@@ -138,7 +138,7 @@ describe("Projekt", () => {
     const p = await apogee.createProjekt(från.id, "Betaltjänst", vem);
     await apogee.moveProjekt(p.id, till.id, vem);
     expect((await apogee.getFunktionsområde(från.id)).projekt).toEqual([]);
-    expect((await apogee.getFunktionsområde(till.id)).projekt).toEqual([
+    expect((await apogee.getFunktionsområde(till.id)).projekt).toMatchObject([
       { id: p.id, namn: "Betaltjänst" },
     ]);
     expect((await apogee.getProjekt(p.id)).funktionsområde).toEqual({ id: till.id, namn: "Ekonomi" });
@@ -164,7 +164,7 @@ describe("names", () => {
     await expect(apogee.createProjekt(fo.id, " ", vem)).rejects.toMatchObject({ code: "ogiltig" });
     const p = await apogee.createProjekt(fo.id, "Fakturering", vem);
     await expect(apogee.renameProjekt(p.id, "\t", vem)).rejects.toMatchObject({ code: "ogiltig" });
-    expect(await apogee.overview()).toEqual([
+    expect(await apogee.overview()).toMatchObject([
       { id: fo.id, namn: "Ekonomi", projekt: [{ id: p.id, namn: "Fakturering" }] },
     ]);
   });

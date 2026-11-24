@@ -18,12 +18,27 @@ export function beskrivÄndring({ före, efter }: Ändring, namn: Namn): string 
   return delar.join(", ");
 }
 
+/** A Projekt-level change, e.g. "markerade Projektet Avslutat". */
+export function beskrivProjekt(projekt: HistorikRad<PersonVy>["projekt"]): string[] {
+  if (!projekt) return [];
+  const delar: string[] = [];
+  if (projekt.efter.avslutat === true) delar.push("markerade Projektet Avslutat");
+  if (projekt.efter.avslutat === false) delar.push("öppnade Projektet igen");
+  return delar;
+}
+
+/** Every change in a row, as text lines. */
+export const beskrivAlla = (rad: HistorikRad<PersonVy>, namn: Namn): string[] => [
+  ...beskrivProjekt(rad.projekt),
+  ...rad.ändringar.map((ä) => beskrivÄndring(ä, namn)),
+];
+
 /** The row's title after who did it, e.g. "flyttade Prislista 38 → 64". */
 export function beskrivRad(rad: HistorikRad<PersonVy>, namn: Namn): string {
   if (rad.typ === "återställning") return "återställde diagrammet";
   if (rad.typ === "ångra") return "ångrade en Uppdatering";
-  if (rad.ändringar.length === 1) return beskrivÄndring(rad.ändringar[0]!, namn);
-  return `${rad.ändringar.length} ändringar`;
+  const alla = beskrivAlla(rad, namn);
+  return alla.length === 1 ? alla[0]! : `${alla.length} ändringar`;
 }
 
 const tidFormat = new Intl.DateTimeFormat("sv-SE", {

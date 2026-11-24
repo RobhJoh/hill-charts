@@ -29,6 +29,8 @@ describe("Scopes", () => {
         läge: 0,
         ägare: { id: erik, namn: "Erik", aktiv: true },
         flyttad: "2026-11-24T10:00:00.000Z",
+        stillaDagar: 0,
+        stilla: false,
       },
     ]);
   });

@@ -1,7 +1,8 @@
 <script lang="ts">
-  import type { Förhandsvisning, HistorikRad, Översikt, PersonVy, ProjektVy } from "../../core/index.js";
+  import type { Förhandsvisning, HistorikRad, Översikt, PersonVy, ProjektRad, ProjektVy } from "../../core/index.js";
   import HillChart from "../components/HillChart.svelte";
   import HistorikPanel from "../components/HistorikPanel.svelte";
+  import MiniHill from "../components/MiniHill.svelte";
   import Toast from "../components/Toast.svelte";
   import { beskrivRad, UTAN_NAMN, visaTid } from "../lib/historik.js";
   import NamnForm from "../components/NamnForm.svelte";
@@ -27,6 +28,8 @@
   let valt = $state<string | null>(null);
   let nyScope = $state(false);
   let skrivFel = $state("");
+  /** The other Projekt in the same Funktionsområde, as mini charts. */
+  let grannar = $state<ProjektRad[]>([]);
 
   let laddning = 0;
   /** Reloads the Projekt and its Hill chart (after a write, and on live sync). */
@@ -35,7 +38,10 @@
     try {
       const svar = await api.getProjekt(id);
       // Live sync can reload in quick succession: only the latest answer counts.
-      if (denna === laddning) projekt = svar;
+      if (denna !== laddning) return;
+      projekt = svar;
+      const fo = await api.getFunktionsområde(svar.funktionsområde.id).catch(() => undefined);
+      if (denna === laddning && fo) grannar = fo.projekt.filter((p) => p.id !== id);
     } catch (e) {
       if (denna !== laddning) return;
       if (e instanceof ApiError && e.status === 404) saknas = true;
@@ -118,6 +124,16 @@
     valt = nytt ?? null;
   }
 
+  /** Markera Avslutat / Öppna igen. */
+  async function växlaAvslutat(markera: boolean) {
+    skrivFel = "";
+    try {
+      await redigera((vem) => (markera ? api.markAvslutat(id, vem) : api.reopenProjekt(id, vem)));
+    } catch (e) {
+      if (!(e instanceof Avbruten)) skrivFel = e instanceof Error ? e.message : "Kunde inte spara";
+    }
+  }
+
   async function bytNamn(namn: string) {
     await signatur.signera((vem) => api.renameProjekt(id, namn, vem));
     await load();
@@ -154,6 +170,18 @@
     <div class="page"><p class="error">{loadError}</p></div>
   {:else if projekt}
     <div class="projekt">
+    <nav class="grannar" aria-label="Andra Projekt i {projekt.funktionsområde.namn}">
+      <div class="cap">{projekt.funktionsområde.namn}</div>
+      {#each grannar as g (g.id)}
+        <a href={projektHref(g)} class:avslutat={g.avslutat}>
+          <MiniHill scopes={g.scopes} tema={tema.nu} width={160} height={46} />
+          <span class="gnamn">{g.namn}</span>
+          {#if g.stilla > 0}<span class="stilla">{g.stilla} stilla</span>{/if}
+        </a>
+      {:else}
+        <p class="meta">Inga andra Projekt.</p>
+      {/each}
+    </nav>
     <div class="huvud">
       <nav class="crumbs" aria-label="Brödsmulor">
         <a href="/">Alla Funktionsområden</a>
@@ -179,6 +207,15 @@
           </button>
           <button class="pr" onclick={() => (nyScope = true)}>Ny Scope</button>
         </div>
+        <div class="status">
+          {#if projekt.markeradAvslutat}
+            <span>Avslutat</span>
+            <button class="quiet" onclick={() => växlaAvslutat(false)}>Öppna igen</button>
+          {:else}
+            {#if projekt.avslutat}<span>Avslutat · alla Scopes på Läge 100</span>{:else}<span>Pågående</span>{/if}
+            <button class="quiet" onclick={() => växlaAvslutat(true)}>Markera Avslutat</button>
+          {/if}
+        </div>
       {/if}
 
       {#if läge === "flytta"}
@@ -200,15 +237,21 @@
 
       {#if visning}
         {@const namn = (pid: string) => personer.find((p) => p.id === pid)?.namn ?? "Okänd"}
+        {@const avslutatSkiljer = visning.vy.markeradAvslutat !== projekt.markeradAvslutat}
+        {@const samma = visning.vy.skiljer.length === 0 && !avslutatSkiljer}
         <div class="visning" role="status">
           <span>
             Visar läget efter: <strong>{visning.rad.vem?.namn ?? UTAN_NAMN}</strong>
             {beskrivRad(visning.rad, namn)} · {visaTid(visning.rad.tid)}.
-            {visning.vy.skiljer.length === 0
-              ? "Samma som nu."
-              : `${visning.vy.skiljer.length} Scopes skiljer sig från nu (streckad ring).`}
+            {#if samma}Samma som nu.{/if}
+            {#if visning.vy.skiljer.length > 0}
+              {visning.vy.skiljer.length} Scopes skiljer sig från nu (streckad ring).
+            {/if}
+            {#if avslutatSkiljer}
+              Projektet var {visning.vy.markeradAvslutat ? "markerat Avslutat" : "inte markerat Avslutat"} då.
+            {/if}
           </span>
-          <button class="pr" disabled={visning.vy.skiljer.length === 0} onclick={() => återställ(visning!.rad.id)}>
+          <button class="pr" disabled={samma} onclick={() => återställ(visning!.rad.id)}>
             Återställ hit
           </button>
           <button class="quiet" onclick={() => (visning = null)}>Tillbaka till nu</button>
@@ -289,8 +332,48 @@
   }
   .projekt {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-columns: 236px minmax(0, 1fr) 340px;
     min-height: calc(100vh - 56px);
+  }
+  .grannar {
+    border-right: 1px solid var(--line);
+    padding: 28px 18px;
+  }
+  .grannar .cap {
+    margin-bottom: 10px;
+  }
+  .grannar a {
+    display: block;
+    padding: 8px 6px;
+    text-decoration: none;
+    color: var(--tx);
+    border-bottom: 1px solid var(--line);
+  }
+  .grannar a:hover {
+    background: var(--sel);
+  }
+  .grannar a.avslutat {
+    opacity: 0.55;
+  }
+  .grannar :global(svg) {
+    display: block;
+  }
+  .gnamn {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .stilla {
+    font-size: 13px;
+    color: var(--redtx);
+  }
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+    color: var(--dim);
+    font-size: 14px;
   }
   .huvud {
     padding: 28px 28px 48px;
@@ -326,6 +409,9 @@
     .projekt {
       grid-template-columns: minmax(0, 1fr);
       min-height: 0;
+    }
+    .grannar {
+      display: none;
     }
     .huvud {
       padding: 20px 16px 24px;

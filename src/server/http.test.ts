@@ -605,3 +605,59 @@ describe("headers on every response (ADR 0002)", () => {
     }
   });
 });
+
+describe("the Notion embed (#43)", () => {
+  async function seeded() {
+    const s = await start();
+    const fo = (await s.api("POST", "/api/funktionsomraden", { namn: "Kund" })).body.id as string;
+    const p = (await s.api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Ny <kassa>" })).body.id as string;
+    const get = (path: string) => fetch(s.base + path, { redirect: "manual" });
+    return { ...s, fo, p, get };
+  }
+
+  it("is the Projekt URL plus /embed; a non-canonical slug redirects to the canonical embed URL", async () => {
+    const { p, get } = await seeded();
+    const res = await get(`/p/${p}-ny-kassa/embed`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toMatch(/^text\/html/);
+    expect(await res.text()).toContain("<title>Ny &lt;kassa&gt; · Apogee</title>");
+
+    for (const path of [`/p/${p}/embed`, `/p/${p}-gammalt/embed`]) {
+      const r = await get(path);
+      expect(r.status, path).toBe(302);
+      expect(r.headers.get("location"), path).toBe(`/p/${p}-ny-kassa/embed`);
+    }
+    expect((await get(`/p/${p}-x/embed?a=1`)).headers.get("location")).toBe(`/p/${p}-ny-kassa/embed?a=1`);
+  });
+
+  it("carries no Open Graph tags, so Notion frames the page instead of drawing a link card", async () => {
+    const { p, get } = await seeded();
+    expect(await (await get(`/p/${p}-ny-kassa/embed`)).text()).not.toContain("og:");
+  });
+
+  it("says 'Det här Projektet är borttaget' for a Borttagen Projekt and 404 'Finns inte längre' once Raderad", async () => {
+    const { api, p, get } = await seeded();
+    await api("POST", `/api/projekt/${p}/borttagen`);
+    const borttagen = await get(`/p/${p}-ny-kassa/embed`);
+    expect(borttagen.status).toBe(200);
+    expect(await borttagen.text()).toContain("<title>Det här Projektet är borttaget · Apogee</title>");
+
+    await api("DELETE", `/api/projekt/${p}`, { namn: "Ny <kassa>" });
+    for (const path of [`/p/${p}-ny-kassa/embed`, `/p/okand-x/embed`]) {
+      const res = await get(path);
+      expect(res.status, path).toBe(404);
+      expect(await res.text(), path).toContain("<title>Finns inte längre · Apogee</title>");
+    }
+  });
+
+  it("may be framed by Notion, whatever the answer", async () => {
+    const { api, p, get } = await seeded();
+    const svar = [await get(`/p/${p}-ny-kassa/embed`), await get(`/p/${p}/embed`), await get(`/p/okand/embed`)];
+    await api("POST", `/api/projekt/${p}/borttagen`);
+    svar.push(await get(`/p/${p}-ny-kassa/embed`));
+    for (const res of svar) {
+      expect(res.headers.get("content-security-policy"), res.url).toMatch(/frame-ancestors [^;]*https:\/\/www\.notion\.so/);
+      expect(res.headers.has("x-frame-options"), res.url).toBe(false);
+    }
+  });
+});

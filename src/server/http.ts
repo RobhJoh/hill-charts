@@ -395,14 +395,15 @@ export function createHandler({ apogee, webDir, publicUrl }: ServerOptions) {
       const sida = sidaFrånPath(path);
       if (sida) {
         const svar = await slåUpp(apogee, sida.slag, sida.id);
-        if (svar.finns && svar.href !== path) {
+        const href = svar.finns ? svar.href + (sida.embed ? "/embed" : "") : undefined;
+        if (href !== undefined && href !== path) {
           const search = new URL(req.url ?? "/", "http://localhost").search;
-          res.writeHead(302, { Location: svar.href + search, "Cache-Control": "no-store" });
+          res.writeHead(302, { Location: href + search, "Cache-Control": "no-store" });
           res.end();
           return;
         }
         const index = await readFile(join(webDir, "index.html"), "utf8");
-        const html = Buffer.from(medHuvud(index, svar, publicUrl?.replace(/\/+$/, "") ?? origin(req)));
+        const html = Buffer.from(medHuvud(index, svar, publicUrl?.replace(/\/+$/, "") ?? origin(req), sida));
         res.writeHead(svar.finns ? 200 : 404, {
           "Content-Type": CONTENT_TYPES[".html"]!,
           "Content-Length": html.length,

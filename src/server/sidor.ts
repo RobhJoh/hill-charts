@@ -29,6 +29,8 @@ export type Sida =
 export const BORTTAGET = {
   projekt: "Projektet är borttaget",
   funktionsområde: "Funktionsområdet är borttaget",
+  /** In the Notion embed, where the page around it gives no context. */
+  embed: "Det här Projektet är borttaget",
 } as const;
 
 /** The static link-preview image, served from the SPA's public files. */
@@ -37,13 +39,17 @@ export const OG_BILD = "/og.png";
 const SLAG = ["p", "f", "person"] as const;
 type Slag = (typeof SLAG)[number];
 
-/** The kind and id of a page path, or undefined if it is no such page. */
-export function sidaFrånPath(path: string): { slag: Slag; id: string } | undefined {
+/**
+ * The kind and id of a page path, or undefined if it is no such page.
+ * `embed` marks a Projekt's Notion embed, `/p/<id>-<namn>/embed` (#43).
+ */
+export function sidaFrånPath(path: string): { slag: Slag; id: string; embed: boolean } | undefined {
   const parts = path.split("/").filter(Boolean);
-  if (parts.length !== 2) return undefined;
+  const embed = parts.length === 3 && parts[0] === "p" && parts[2] === "embed";
+  if (parts.length !== 2 && !embed) return undefined;
   const slag = SLAG.find((s) => s === parts[0]);
   if (!slag) return undefined;
-  return { slag, id: idFrånSegment(parts[1]!) };
+  return { slag, id: idFrånSegment(parts[1]!), embed };
 }
 
 export async function slåUpp(apogee: Apogee, slag: Slag, id: string): Promise<Sida> {
@@ -80,9 +86,12 @@ export async function slåUpp(apogee: Apogee, slag: Slag, id: string): Promise<S
 /**
  * The SPA's index.html with the page's own title and Open Graph tags.
  * `origin` makes the og:url and og:image absolute, as link previews need.
+ * The embed gets a title only: Notion (via Iframely) could turn Open Graph
+ * tags into a link card instead of framing the page.
  */
-export function medHuvud(index: string, sida: Sida, origin: string): string {
+export function medHuvud(index: string, sida: Sida, origin: string, { embed = false } = {}): string {
   if (!sida.finns) return medTitel(index, "Finns inte längre · Apogee", "");
+  if (embed) return medTitel(index, `${sida.borttagen ? BORTTAGET.embed : sida.namn} · Apogee`, "");
   const meta = (property: string, content: string) =>
     `<meta property="${property}" content="${escapeHtml(content)}">`;
   const taggar = [

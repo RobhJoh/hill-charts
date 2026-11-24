@@ -9,6 +9,7 @@
   import { beskrivRad, UTAN_NAMN, visaTid } from "../lib/historik.js";
   import NamnForm from "../components/NamnForm.svelte";
   import ScopeIndex from "../components/ScopeIndex.svelte";
+  import TaBort from "../components/TaBort.svelte";
   import { api, ApiError } from "../lib/api.js";
   import { följProjekt, liveUrl } from "../lib/live.js";
   import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
@@ -136,8 +137,16 @@
     }
   }
 
+  /** Ta bort: hides the Projekt; it is listed under Borttagna Projekt on its Funktionsområde page. */
+  async function taBortProjekt() {
+    const p = projekt;
+    if (!p) return;
+    await signatur.signera((vem) => api.taBortProjekt(id, vem));
+    router.navigate(funktionsområdeHref(p.funktionsområde));
+  }
+
   // --- Dates and Milstolpar (#38): Uppdateringar in the Historik ---
-  const mål = $derived({ projekt: id });
+  const tidMål = $derived({ projekt: id });
 
   async function bytNamn(namn: string) {
     await signatur.signera((vem) => api.renameProjekt(id, namn, vem));
@@ -207,13 +216,21 @@
           <h1>{projekt.namn}</h1>
           <button class="quiet" onclick={() => (läge = "byt namn")}>Byt namn</button>
           <button class="quiet" onclick={öppnaFlytta}>Flytta</button>
+          {#if !projekt.borttagen}
+            <TaBort
+              fråga="Ta bort {projekt.namn} med {projekt.scopes.length} {projekt.scopes.length === 1 ? 'Scope' : 'Scopes'}?"
+              ontabort={taBortProjekt}
+            />
+          {/if}
           <button class="ny" aria-pressed={historikÖppen} onclick={() => (historikÖppen ? stängHistorik() : (historikÖppen = true))}>
             Historik
           </button>
           <button class="pr" onclick={() => (nyScope = true)}>Ny Scope</button>
         </div>
         <div class="status">
-          {#if projekt.markeradAvslutat}
+          {#if projekt.borttagen}
+            <span>Borttaget av {projekt.borttagen.vem.namn}</span>
+          {:else if projekt.markeradAvslutat}
             <span>Avslutat</span>
             <button class="quiet" onclick={() => växlaAvslutat(false)}>Öppna igen</button>
           {:else}
@@ -226,10 +243,10 @@
           <Tidsplan
             tidsplan={projekt.tidsplan}
             varningar={projekt.datumVarningar}
-            onsätt={(input) => redigera((vem) => api.setDatum(mål, input, vem))}
-            onlägg={(m) => redigera((vem) => api.addMilstolpe(mål, m, vem))}
-            onändra={(mid, ä) => redigera((vem) => api.changeMilstolpe(mål, mid, ä, vem))}
-            ontabort={(mid) => redigera((vem) => api.removeMilstolpe(mål, mid, vem))}
+            onsätt={(input) => redigera((vem) => api.setDatum(tidMål, input, vem))}
+            onlägg={(m) => redigera((vem) => api.addMilstolpe(tidMål, m, vem))}
+            onändra={(mid, ä) => redigera((vem) => api.changeMilstolpe(tidMål, mid, ä, vem))}
+            ontabort={(mid) => redigera((vem) => api.removeMilstolpe(tidMål, mid, vem))}
           />
         </div>
       {/if}

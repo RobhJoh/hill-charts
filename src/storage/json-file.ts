@@ -2,13 +2,14 @@ import { randomBytes } from "node:crypto";
 import { appendFile, mkdir, open, readdir, readFile, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import type { Storage } from "../core/storage.js";
-import type { Funktionsområde, Person, Projekt, ProjektId, Uppdatering } from "../core/types.js";
+import type { Funktionsområde, Person, PersonHändelse, Projekt, ProjektId, Uppdatering } from "../core/types.js";
 
 /**
  * Storage as JSON files in one directory (ADR 0001):
  *
  *   funktionsomraden.json         all Funktionsområden
  *   personer.json                 all Personer
+ *   personer.historik.jsonl       the Personer-historik, one change per line
  *   projekt/<id>.json             one document per Projekt
  *   projekt/<id>.historik.jsonl   the Projekt's Historik, one Uppdatering per line
  *
@@ -21,6 +22,7 @@ export function createJsonFileStorage(dir: string): Storage {
   const projektDir = join(dir, "projekt");
   const foFile = join(dir, "funktionsomraden.json");
   const personerFile = join(dir, "personer.json");
+  const personerHistorikFile = join(dir, "personer.historik.jsonl");
   const projektFile = (id: ProjektId) => join(projektDir, `${id}.json`);
   const historikFile = (id: ProjektId) => join(projektDir, `${id}.historik.jsonl`);
 
@@ -51,6 +53,16 @@ export function createJsonFileStorage(dir: string): Storage {
       await writeDocument(personerFile, { formatVersion: FORMAT_VERSION, personer: all });
     },
 
+    async appendPersonHändelse(händelse) {
+      await mkdir(dir, { recursive: true });
+      await appendLine(personerHistorikFile, händelse);
+    },
+
+    async readPersonerHistorik() {
+      const text = await readText(personerHistorikFile);
+      return text === undefined ? [] : parseLog<PersonHändelse>(text);
+    },
+
     async listProjekt() {
       let names: string[];
       try {
@@ -73,18 +85,24 @@ export function createJsonFileStorage(dir: string): Storage {
       await writeDocument(projektFile(projekt.id), { formatVersion: FORMAT_VERSION, projekt });
     },
 
+    async eraseProjekt(id) {
+      if (!isSafeId(id)) return;
+      // The document first: once it is gone the Projekt no longer exists,
+      // so a crash in between leaves at worst an orphaned Historik.
+      await rm(projektFile(id), { force: true });
+      await rm(historikFile(id), { force: true });
+    },
+
     async appendUppdatering(projektId, uppdatering) {
       requireSafeId(projektId);
       await mkdir(projektDir, { recursive: true });
-      const file = historikFile(projektId);
-      await terminateCutOffLine(file);
-      await appendFile(file, JSON.stringify(uppdatering) + "\n", { flush: true });
+      await appendLine(historikFile(projektId), uppdatering);
     },
 
     async readHistorik(projektId) {
       if (!isSafeId(projektId)) return [];
       const text = await readText(historikFile(projektId));
-      return text === undefined ? [] : parseHistorik(text);
+      return text === undefined ? [] : parseLog<Uppdatering>(text);
     },
   };
 }
@@ -146,12 +164,18 @@ function upgradeProjekt(raw: unknown): Projekt {
 
 // ---------- Historik log ----------
 
-function parseHistorik(text: string): Uppdatering[] {
+/** Appends one JSON line to a log, after dropping any cut-off last line. */
+async function appendLine(file: string, value: unknown): Promise<void> {
+  await terminateCutOffLine(file);
+  await appendFile(file, JSON.stringify(value) + "\n", { flush: true });
+}
+
+function parseLog<T>(text: string): T[] {
   const lines = text.split("\n");
   // A complete log ends with "\n", so the last element is "". Anything else
   // there is a line cut off by a crash mid-append: skip it.
   lines.pop();
-  return lines.filter((line) => line.trim() !== "").map((line) => JSON.parse(line) as Uppdatering);
+  return lines.filter((line) => line.trim() !== "").map((line) => JSON.parse(line) as T);
 }
 
 /**

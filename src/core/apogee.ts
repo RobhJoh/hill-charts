@@ -20,12 +20,15 @@ import {
 import { dagarSedan, fältLika, projektFält, ärAvslutat, ärPågående, ärStilla } from "./status.js";
 import type { Storage } from "./storage.js";
 import type {
+  Borttagen,
   Datum,
   Funktionsområde,
   FunktionsområdeId,
   Milstolpe,
   MilstolpeId,
   Person,
+  PersonHändelse,
+  PersonHändelseTyp,
   PersonId,
   Projekt,
   ProjektFält,
@@ -74,15 +77,26 @@ export type ProjektRad = {
 export type FunktionsområdeVy = {
   id: FunktionsområdeId;
   namn: string;
+  /** Who took it away and when; null while it is shown. */
+  borttagen: BorttagenVy | null;
   /** Stuck Scopes across its Projekt. */
   stilla: number;
+  /** Its Projekt, except those taken away on their own (they went with it if it is Borttagen). */
   projekt: ProjektRad[];
+  /** Projekt taken away on their own ("Borttagna Projekt"), newest first. */
+  borttagnaProjekt: BorttagetProjekt[];
 } & TidVy;
+/** Who took something away (Ta bort) and when. */
+export type BorttagenVy = { vem: PersonVy; tid: string };
+/** A row in "Borttagna Projekt". */
+export type BorttagetProjekt = { id: ProjektId; namn: string; borttagen: BorttagenVy };
 export type Översikt = FunktionsområdeVy[];
 export type ProjektVy = {
   id: ProjektId;
   namn: string;
   funktionsområde: { id: FunktionsområdeId; namn: string };
+  /** Who took it away and when (on its own or with its Funktionsområde); null while shown. */
+  borttagen: BorttagenVy | null;
   /** Quiet warnings such as "slutar efter Funktionsområdet"; never block saving. */
   datumVarningar: string[];
 } & DiagramVy &
@@ -128,6 +142,13 @@ const ägareVy = (personer: Person[], id: PersonId): PersonVy => {
   return p ? personVy(p) : { id, namn: "Okänd", aktiv: false };
 };
 
+const borttagenVy = (personer: Person[], b: Borttagen): BorttagenVy => ({
+  vem: ägareVy(personer, b.vem),
+  tid: b.tid,
+});
+/** Taken away on its own, not with its Funktionsområde. */
+const borttagenEnsam = (p: Projekt): boolean => !!p.borttagen && !p.borttagen.medFunktionsområde;
+
 export type Apogee = ReturnType<typeof createApogee>;
 
 const MAX_NAMN = 200;
@@ -139,6 +160,24 @@ function namnFrån(input: string): string {
     throw new DomainError("ogiltig", `Namnet får vara högst ${MAX_NAMN} tecken`);
   }
   return namn;
+}
+
+/**
+ * Person names are unique ignoring case, across active and inaktiva Personer.
+ * A name an inaktiv Person has is refused with "finns-inaktiv", so that
+ * Återaktivera can be offered instead.
+ */
+function requireLedigtNamn(personer: Person[], namn: string, utom?: PersonId): void {
+  const nyckel = namn.toLocaleLowerCase("sv");
+  const finns = personer.find((p) => p.id !== utom && p.namn.toLocaleLowerCase("sv") === nyckel);
+  if (finns?.aktiv) throw new DomainError("finns-redan", `Det finns redan en Person som heter ${finns.namn}`);
+  if (finns) throw new DomainError("finns-inaktiv", `${finns.namn} finns redan men är inaktiv`);
+}
+
+function requirePerson(personer: Person[], id: PersonId): Person {
+  const person = personer.find((p) => p.id === id);
+  if (!person) throw new DomainError("finns-inte", `Personen ${id} finns inte`);
+  return person;
 }
 
 /** Every write is signed by an active Person; anything else is rejected. */
@@ -159,6 +198,13 @@ function requireÄgare(personer: Person[], ägare: PersonId | null | undefined):
   return person.id;
 }
 
+/** Radera is confirmed by typing the exact name (surrounding spaces aside). */
+function requireBekräftelse(namn: string, bekräftelse: string): void {
+  if (String(bekräftelse ?? "").trim() !== namn) {
+    throw new DomainError("ogiltig", `Skriv namnet exakt, ${namn}, för att radera`);
+  }
+}
+
 /** Läge is a whole number, clamped to 0–100. */
 function lägeFrån(input: number): number {
   if (typeof input !== "number" || !Number.isFinite(input)) {
@@ -175,6 +221,9 @@ export const SCOPE_TYP = {
   bytÄgare: "byt ägare",
   taBort: "ta bort",
 } as const;
+
+/** Uppdatering type written when a removed Person's Scopes are handed over. */
+export const ÖVERLÄMNING_TYP = "överlämning";
 
 /** Uppdatering types written by the Projekt-level commands. */
 export const PROJEKT_TYP = {
@@ -200,6 +249,12 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
     return fo;
   }
 
+  /** New or moved Projekt can only go into a shown Funktionsområde. */
+  function inteBorttaget(fo: Funktionsområde): Funktionsområde {
+    if (fo.borttagen) throw new DomainError("ogiltig", `${fo.namn} är borttaget`);
+    return fo;
+  }
+
   async function requireProjekt(id: ProjektId): Promise<Projekt> {
     const p = await storage.getProjekt(id);
     if (!p) throw new DomainError("finns-inte", `Projektet ${id} finns inte`);
@@ -207,6 +262,32 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
   }
 
   /** The active Person signing this write; rejects a missing, unknown or inaktiv Signatur. */
+  /**
+   * Saves one Person's new state among `all` and records the change in the
+   * Personer-historik. Every Personer command goes through here.
+   */
+  async function sparaPerson(
+    all: Person[],
+    efter: Person,
+    typ: PersonHändelseTyp,
+    vem: PersonId | null,
+    extra: Pick<PersonHändelse, "nyÄgare"> = {},
+  ): Promise<PersonVy> {
+    const före = all.find((p) => p.id === efter.id);
+    await storage.savePersoner(före ? all.map((p) => (p.id === efter.id ? efter : p)) : [...all, efter]);
+    await storage.appendPersonHändelse({
+      id: newId(),
+      typ,
+      personId: efter.id,
+      vem,
+      tid: now().toISOString(),
+      förraNamn: före?.namn ?? null,
+      nyttNamn: efter.namn,
+      ...extra,
+    });
+    return personVy(efter);
+  }
+
   async function signatur(vem: PersonId | null): Promise<Person> {
     return requireSignatur(await storage.listPersoner(), vem);
   }
@@ -342,7 +423,7 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
   }
 
   /** A Projekt's Hill chart and status from its Historik, against the clock's "now". */
-  function diagramVy(logg: Uppdatering[], personer: Person[]): DiagramVy {
+  function diagramVy(logg: Uppdatering[], personer: Person[], borttagen: boolean): DiagramVy {
     const nu = now();
     const flyttad = senastFlyttad(logg);
     const diagram = Object.entries(nuvarande(logg));
@@ -362,12 +443,12 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
         };
       })
       .sort((a, b) => b.läge - a.läge || efterNamn(a, b));
-    return { scopes, avslutat, markeradAvslutat, pågående: ärPågående({ avslutat, borttagen: false }) };
+    return { scopes, avslutat, markeradAvslutat, pågående: ärPågående({ avslutat, borttagen }) };
   }
 
   async function projektRad(p: Projekt, personer: Person[]): Promise<ProjektRad> {
     const logg = await storage.readHistorik(p.id);
-    const { scopes, avslutat, pågående } = diagramVy(logg, personer);
+    const { scopes, avslutat, pågående } = diagramVy(logg, personer, !!p.borttagen);
     const { nedräkning, nästaMilstolpe, överTid } = projektTidVy(logg, avslutat);
     return {
       id: p.id,
@@ -383,12 +464,17 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
   }
 
   async function vy(fo: Funktionsområde, allProjekt: Projekt[], personer: Person[]): Promise<FunktionsområdeVy> {
+    const egna = allProjekt.filter((p) => p.funktionsområdeId === fo.id);
     const projekt = await Promise.all(
-      allProjekt
-        .filter((p) => p.funktionsområdeId === fo.id)
+      egna
+        .filter((p) => !borttagenEnsam(p))
         .sort(efterNamn)
         .map((p) => projektRad(p, personer)),
     );
+    const borttagnaProjekt = egna
+      .filter(borttagenEnsam)
+      .map((p) => ({ id: p.id, namn: p.namn, borttagen: borttagenVy(personer, p.borttagen!) }))
+      .sort((a, b) => b.borttagen.tid.localeCompare(a.borttagen.tid) || efterNamn(a, b));
     // Över tid while any Projekt is not Avslutat; "Avslutat" only once the
     // Slutdatum has passed with every Projekt Avslutat.
     const tidsplan = fo.tidsplan ?? TOM_TIDSPLAN;
@@ -398,8 +484,10 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
     return {
       id: fo.id,
       namn: fo.namn,
+      borttagen: fo.borttagen ? borttagenVy(personer, fo.borttagen) : null,
       stilla: projekt.reduce((n, p) => n + p.stilla, 0),
       projekt,
+      borttagnaProjekt,
       ...tidVy(tidsplan, passerat && allaAvslutade, idag),
     };
   }
@@ -411,13 +499,60 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
     async createPerson(namn: string, vem: PersonId | null): Promise<PersonVy> {
       const giltigt = namnFrån(namn);
       const all = await storage.listPersoner();
-      if (all.length > 0) requireSignatur(all, vem);
-      const nyckel = giltigt.toLocaleLowerCase("sv");
-      const finns = all.find((p) => p.namn.toLocaleLowerCase("sv") === nyckel);
-      if (finns) throw new DomainError("finns-redan", `Det finns redan en Person som heter ${finns.namn}`);
+      const signerad = all.length > 0 ? requireSignatur(all, vem).id : null;
+      requireLedigtNamn(all, giltigt);
       const person: Person = { id: newId(), namn: giltigt, aktiv: true, skapad: now().toISOString() };
-      await storage.savePersoner([...all, person]);
-      return personVy(person);
+      return sparaPerson(all, person, "ny", signerad);
+    },
+
+    /** Renames a Person everywhere (Historik refers to the id); writes no Uppdatering. */
+    async renamePerson(id: PersonId, namn: string, vem: PersonId | null): Promise<PersonVy> {
+      const all = await storage.listPersoner();
+      const signerad = requireSignatur(all, vem);
+      const giltigt = namnFrån(namn);
+      const person = requirePerson(all, id);
+      requireLedigtNamn(all, giltigt, id);
+      return sparaPerson(all, { ...person, namn: giltigt }, "byt namn", signerad.id);
+    },
+
+    /**
+     * Removes a Person by handing their Scopes in every Pågående Projekt to
+     * `nyÄgare` (one Uppdatering per affected Projekt, returned) and making
+     * them inaktiv. Scopes in Avslutade and Borttagna Projekt keep them.
+     */
+    async removePerson(id: PersonId, nyÄgare: PersonId, vem: PersonId | null): Promise<Uppdatering[]> {
+      const all = await storage.listPersoner();
+      const signerad = requireSignatur(all, vem);
+      const person = requirePerson(all, id);
+      if (!person.aktiv) throw new DomainError("ogiltig", `${person.namn} är redan inaktiv`);
+      if (nyÄgare === id) throw new DomainError("ogiltig", "Välj någon annan som ny Ägare");
+      const mottagare = requireÄgare(all, nyÄgare);
+
+      const uppdateringar: Uppdatering[] = [];
+      for (const p of await storage.listProjekt()) {
+        const logg = await storage.readHistorik(p.id);
+        if (!diagramVy(logg, all, !!p.borttagen).pågående) continue;
+        const ändringar = Object.entries(nuvarande(logg))
+          .filter(([, s]) => s.ägare === id)
+          .map(([scopeId, före]) => ({ scopeId, före, efter: { ...före, ägare: mottagare } }));
+        if (ändringar.length) uppdateringar.push(await skriv(p.id, ÖVERLÄMNING_TYP, ändringar, signerad.id));
+      }
+      await sparaPerson(all, { ...person, aktiv: false }, "ta bort", signerad.id, { nyÄgare: mottagare });
+      return uppdateringar;
+    },
+
+    /** Återaktivera: an inaktiv Person is active again. Handed-over Scopes stay where they are. */
+    async reactivatePerson(id: PersonId, vem: PersonId | null): Promise<PersonVy> {
+      const all = await storage.listPersoner();
+      const signerad = requireSignatur(all, vem);
+      const person = requirePerson(all, id);
+      if (person.aktiv) throw new DomainError("ogiltig", `${person.namn} är redan aktiv`);
+      return sparaPerson(all, { ...person, aktiv: true }, "återaktivera", signerad.id);
+    },
+
+    /** The Personer-historik, oldest first. There is no Ångra for these. */
+    async personerHistorik(): Promise<PersonHändelse[]> {
+      return storage.readPersonerHistorik();
     },
 
     async listPersoner(): Promise<PersonVy[]> {
@@ -439,7 +574,7 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
     ): Promise<Projekt> {
       await signatur(vem);
       const giltigt = namnFrån(namn);
-      await requireFunktionsområde(funktionsområdeId);
+      inteBorttaget(await requireFunktionsområde(funktionsområdeId));
       const p: Projekt = { id: newId(), namn: giltigt, funktionsområdeId, skapad: now().toISOString() };
       await storage.saveProjekt(p);
       return p;
@@ -467,17 +602,139 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
     ): Promise<void> {
       await signatur(vem);
       const p = await requireProjekt(id);
-      await requireFunktionsområde(funktionsområdeId);
+      inteBorttaget(await requireFunktionsområde(funktionsområdeId));
       await storage.saveProjekt({ ...p, funktionsområdeId });
     },
 
+    /** Ta bort: hides a Projekt (always allowed). It stays whole, Historik included, until Radera. */
+    async taBortProjekt(id: ProjektId, vem: PersonId | null): Promise<void> {
+      const signerad = await signatur(vem);
+      const p = await requireProjekt(id);
+      if (p.borttagen) throw new DomainError("ogiltig", `${p.namn} är redan borttaget`);
+      const borttagen = { vem: signerad.id, tid: now().toISOString(), medFunktionsområde: false };
+      await storage.saveProjekt({ ...p, borttagen });
+    },
+
+    /** Återställ: brings back a Projekt taken away on its own, whole. */
+    async återställProjekt(id: ProjektId, vem: PersonId | null): Promise<void> {
+      await signatur(vem);
+      const { borttagen, ...p } = await requireProjekt(id);
+      if (!borttagen) throw new DomainError("ogiltig", `${p.namn} är inte borttaget`);
+      const fo = await requireFunktionsområde(p.funktionsområdeId);
+      if (fo.borttagen) {
+        throw new DomainError("ogiltig", `${fo.namn} är borttaget; återställ Funktionsområdet först`);
+      }
+      if (borttagen.medFunktionsområde) {
+        throw new DomainError("ogiltig", `${p.namn} togs bort med sitt Funktionsområde; återställ Funktionsområdet`);
+      }
+      await storage.saveProjekt(p);
+    },
+
+    /**
+     * Ta bort: hides a Funktionsområde and, as one unit, its Projekt. Only
+     * when none of its Projekt is Pågående; those taken away on their own
+     * earlier stay so.
+     */
+    async taBortFunktionsområde(id: FunktionsområdeId, vem: PersonId | null): Promise<void> {
+      const signerad = await signatur(vem);
+      const fo = inteBorttaget(await requireFunktionsområde(id));
+      const [allProjekt, personer] = await Promise.all([storage.listProjekt(), storage.listPersoner()]);
+      const medFo = allProjekt.filter((p) => p.funktionsområdeId === id && !p.borttagen);
+      const pågående: string[] = [];
+      for (const p of medFo) {
+        if (diagramVy(await storage.readHistorik(p.id), personer, false).pågående) pågående.push(p.namn);
+      }
+      if (pågående.length > 0) {
+        throw new DomainError(
+          "ogiltig",
+          `${fo.namn} kan tas bort först när alla dess Projekt är Avslutade. Pågående: ${pågående.sort(svenskOrdning.compare).join(", ")}`,
+        );
+      }
+      const tid = now().toISOString();
+      for (const p of medFo) {
+        await storage.saveProjekt({ ...p, borttagen: { vem: signerad.id, tid, medFunktionsområde: true } });
+      }
+      const all = await storage.listFunktionsområden();
+      await storage.saveFunktionsområden(
+        all.map((f) => (f.id === id ? { ...f, borttagen: { vem: signerad.id, tid } } : f)),
+      );
+    },
+
+    /** Återställ: brings back a Funktionsområde with the Projekt that went with it. */
+    async återställFunktionsområde(id: FunktionsområdeId, vem: PersonId | null): Promise<void> {
+      await signatur(vem);
+      const fo = await requireFunktionsområde(id);
+      if (!fo.borttagen) throw new DomainError("ogiltig", `${fo.namn} är inte borttaget`);
+      for (const { borttagen, ...p } of await storage.listProjekt()) {
+        if (p.funktionsområdeId === id && borttagen?.medFunktionsområde) await storage.saveProjekt(p);
+      }
+      const all = await storage.listFunktionsområden();
+      await storage.saveFunktionsområden(
+        all.map((f) => {
+          if (f.id !== id) return f;
+          const { borttagen: _, ...kvar } = f;
+          return kvar;
+        }),
+      );
+    },
+
+    /**
+     * Radera: erases a Projekt taken away on its own, Historik included, for
+     * good. Confirmed by typing its exact name.
+     */
+    async raderaProjekt(id: ProjektId, bekräftelse: string, vem: PersonId | null): Promise<void> {
+      await signatur(vem);
+      const p = await requireProjekt(id);
+      if (!p.borttagen) throw new DomainError("ogiltig", `Ta bort ${p.namn} innan det kan raderas`);
+      if (p.borttagen.medFunktionsområde) {
+        throw new DomainError("ogiltig", `${p.namn} togs bort med sitt Funktionsområde och raderas bara med det`);
+      }
+      requireBekräftelse(p.namn, bekräftelse);
+      await storage.eraseProjekt(id);
+    },
+
+    /**
+     * Radera: erases a Borttaget Funktionsområde and every Projekt in it
+     * (also those taken away on their own) for good. Confirmed by typing its
+     * exact name.
+     */
+    async raderaFunktionsområde(id: FunktionsområdeId, bekräftelse: string, vem: PersonId | null): Promise<void> {
+      await signatur(vem);
+      const fo = await requireFunktionsområde(id);
+      if (!fo.borttagen) throw new DomainError("ogiltig", `Ta bort ${fo.namn} innan det kan raderas`);
+      requireBekräftelse(fo.namn, bekräftelse);
+      for (const p of await storage.listProjekt()) {
+        if (p.funktionsområdeId === id) await storage.eraseProjekt(p.id);
+      }
+      const all = await storage.listFunktionsområden();
+      await storage.saveFunktionsområden(all.filter((f) => f.id !== id));
+    },
+
+    /** Shown Funktionsområden with their Projekt; Borttagna are left out. */
     async overview(): Promise<Översikt> {
       const [all, allProjekt, personer] = await Promise.all([
         storage.listFunktionsområden(),
         storage.listProjekt(),
         storage.listPersoner(),
       ]);
-      return Promise.all([...all].sort(efterNamn).map((fo) => vy(fo, allProjekt, personer)));
+      const synliga = all.filter((fo) => !fo.borttagen).sort(efterNamn);
+      return Promise.all(synliga.map((fo) => vy(fo, allProjekt, personer)));
+    },
+
+    /**
+     * "Borttagna Funktionsområden", newest first: each with the Projekt that
+     * went with it (`projekt`) and those taken away on their own before.
+     */
+    async borttagnaFunktionsområden(): Promise<FunktionsområdeVy[]> {
+      const [all, allProjekt, personer] = await Promise.all([
+        storage.listFunktionsområden(),
+        storage.listProjekt(),
+        storage.listPersoner(),
+      ]);
+      const borttagna = all
+        .filter((fo) => fo.borttagen)
+        .sort((a, b) => b.borttagen!.tid.localeCompare(a.borttagen!.tid) || efterNamn(a, b));
+      return Promise.all(borttagna.map((fo) => vy(fo, allProjekt, personer)));
     },
 
     async getFunktionsområde(id: FunktionsområdeId): Promise<FunktionsområdeVy> {
@@ -490,12 +747,13 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
       const p = await requireProjekt(id);
       const fo = await requireFunktionsområde(p.funktionsområdeId);
       const [logg, personer] = await Promise.all([storage.readHistorik(id), storage.listPersoner()]);
-      const diagram = diagramVy(logg, personer);
+      const diagram = diagramVy(logg, personer, !!p.borttagen);
       const tid = projektTidVy(logg, diagram.avslutat);
       return {
         id: p.id,
         namn: p.namn,
         funktionsområde: { id: fo.id, namn: fo.namn },
+        borttagen: p.borttagen ? borttagenVy(personer, p.borttagen) : null,
         datumVarningar: datumVarningar(tid.tidsplan, fo.tidsplan ?? TOM_TIDSPLAN),
         ...diagram,
         ...tid,
@@ -629,13 +887,13 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
     /** Visa: the chart (and status) right after an Uppdatering, and which Scopes differ from now. */
     async förhandsvisa(projektId: ProjektId, uppdateringId: UppdateringId): Promise<Förhandsvisning> {
       const { logg, index } = await historikMed(projektId, uppdateringId);
-      const personer = await storage.listPersoner();
+      const [personer, p] = await Promise.all([storage.listPersoner(), requireProjekt(projektId)]);
       const då = diagramEfter(logg, index);
       const nu = nuvarande(logg);
       const skiljer = [...new Set([...Object.keys(då), ...Object.keys(nu)])].filter(
         (id) => !lika(då[id] ?? null, nu[id] ?? null),
       );
-      return { ...diagramVy(logg.slice(0, index + 1), personer), skiljer };
+      return { ...diagramVy(logg.slice(0, index + 1), personer, !!p.borttagen), skiljer };
     },
 
     /**

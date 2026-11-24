@@ -21,12 +21,19 @@ export type Tidsplan = {
   milstolpar: Milstolpe[];
 };
 
+/** Who took something away (Ta bort) and when. Absent while it is shown. */
+export type Borttagen = {
+  vem: PersonId;
+  tid: string; // ISO timestamp
+};
+
 export type Funktionsområde = {
   id: FunktionsområdeId;
   namn: string;
   skapad: string; // ISO timestamp
   /** Its dates, saved without Historik. Missing = none (records from before #38). */
   tidsplan?: Tidsplan;
+  borttagen?: Borttagen;
 };
 
 export type Projekt = {
@@ -34,6 +41,11 @@ export type Projekt = {
   namn: string;
   funktionsområdeId: FunktionsområdeId;
   skapad: string; // ISO timestamp
+  /**
+   * Set while Borttagen. `medFunktionsområde`: it went with its
+   * Funktionsområde and comes back with it; otherwise it was taken away on its own.
+   */
+  borttagen?: Borttagen & { medFunktionsområde: boolean };
 };
 
 /** Someone who can sign edits and own Scopes. Names are unique ignoring case. */
@@ -42,6 +54,29 @@ export type Person = {
   namn: string;
   aktiv: boolean;
   skapad: string; // ISO timestamp
+};
+
+/** What happened to a Person, as recorded in the Personer-historik. */
+export type PersonHändelseTyp = "ny" | "byt namn" | "ta bort" | "återaktivera";
+
+/**
+ * One change to Personer: who (Signatur), what, when, and the name before and
+ * after. Kept apart from Projekt Historik; there is no Ångra for these.
+ */
+export type PersonHändelse = {
+  id: string;
+  typ: PersonHändelseTyp;
+  /** The Person changed. */
+  personId: PersonId;
+  /** Signatur; null only for the first Person added to an empty list. */
+  vem: PersonId | null;
+  tid: string; // ISO timestamp
+  /** Name before the change (null when the Person was just added). */
+  förraNamn: string | null;
+  /** Name after the change. */
+  nyttNamn: string;
+  /** On "ta bort": the Person who took over their Scopes. */
+  nyÄgare?: PersonId;
 };
 
 export type ScopeValues = {

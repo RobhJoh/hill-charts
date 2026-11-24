@@ -3,7 +3,9 @@
   import NamnForm from "../components/NamnForm.svelte";
   import Nedrakning from "../components/Nedrakning.svelte";
   import Tidsplan from "../components/Tidsplan.svelte";
+  import Borttagna from "../components/Borttagna.svelte";
   import ProjektCells from "../components/ProjektCells.svelte";
+  import TaBort from "../components/TaBort.svelte";
   import { api, ApiError } from "../lib/api.js";
   import { signatur } from "../lib/signatur.svelte.js";
   import { funktionsområdeHref, projektHref } from "../lib/links.js";
@@ -44,6 +46,22 @@
     if (fo) router.navigate(funktionsområdeHref(fo), { replace: true });
   }
 
+  /** Ta bort: only when all its Projekt are Avslutade (the core says why not). */
+  async function taBort() {
+    await signatur.signera((vem) => api.taBortFunktionsområde(id, vem));
+    router.navigate("/");
+  }
+
+  async function återställProjekt(projektId: string) {
+    await signatur.signera((vem) => api.återställProjekt(projektId, vem));
+    await load();
+  }
+
+  async function raderaProjekt(projektId: string, namn: string) {
+    await signatur.signera((vem) => api.raderaProjekt(projektId, namn, vem));
+    await load();
+  }
+
   async function skapaProjekt(namn: string) {
     const p = await signatur.signera((vem) => api.createProjekt(id, namn, vem));
     router.navigate(projektHref(p));
@@ -74,6 +92,9 @@
             <div class="titlerow">
               <h1>{fo.namn}</h1>
               <button class="quiet" onclick={() => (läge = "byt namn")}>Byt namn</button>
+              {#if !fo.borttagen}
+                <TaBort fråga="Ta bort {fo.namn} med {fo.projekt.length} Projekt?" ontabort={taBort} />
+              {/if}
             </div>
             <div class="meta">
               {fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<span class="stilla">{fo.stilla} stilla</span>{/if}
@@ -107,6 +128,13 @@
       <section>
         <ProjektCells projekt={fo.projekt} stor />
       </section>
+
+      <Borttagna
+        rubrik="Borttagna Projekt"
+        rader={fo.borttagnaProjekt}
+        onåterställ={återställProjekt}
+        onradera={raderaProjekt}
+      />
     {/if}
   </div>
 {/if}

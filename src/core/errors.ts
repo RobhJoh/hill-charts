@@ -5,6 +5,8 @@ export type DomainErrorCode =
   | "ogiltig"
   /** A name is already taken (e.g. a Person's, ignoring letter case). */
   | "finns-redan"
+  /** A Person's name is taken by an inaktiv Person: offer Återaktivera instead. */
+  | "finns-inaktiv"
   /** The write's Signatur is missing, unknown or inaktiv. */
   | "signatur"
   /** Ångra would overwrite newer work: a field it reverts has changed since. */

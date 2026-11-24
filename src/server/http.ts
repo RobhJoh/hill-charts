@@ -94,10 +94,42 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
       if (resource === "projekt") return tidsplanDel(method, { projekt: id }, sub, subId, req, vem);
       if (resource === "funktionsomraden") return tidsplanDel(method, { funktionsområde: id }, sub, subId, req, vem);
     }
+    // Ta bort (POST) and Återställ (DELETE) a Projekt or Funktionsområde.
+    if (
+      (resource === "projekt" || resource === "funktionsomraden") &&
+      id !== undefined &&
+      sub === "borttagen" &&
+      subId === undefined &&
+      (method === "POST" || method === "DELETE")
+    ) {
+      await serialize(() =>
+        resource === "projekt"
+          ? method === "POST"
+            ? apogee.taBortProjekt(id, vem)
+            : apogee.återställProjekt(id, vem)
+          : method === "POST"
+            ? apogee.taBortFunktionsområde(id, vem)
+            : apogee.återställFunktionsområde(id, vem),
+      );
+      return { status: 204 };
+    }
     if (resource === "projekt" && id !== undefined && sub !== undefined) {
       return projektDel(method, id, sub, subId, req, vem);
     }
+    if (resource === "personer" && id !== undefined) return personDel(method, id, sub, subId, req, vem);
     if (sub !== undefined) throw notFound();
+
+    // Radera a Borttagen Projekt or Funktionsområde: { namn } typed to confirm.
+    if ((resource === "projekt" || resource === "funktionsomraden") && id !== undefined && method === "DELETE") {
+      const namn = text((await readJson(req)).namn);
+      await serialize(() =>
+        resource === "projekt" ? apogee.raderaProjekt(id, namn, vem) : apogee.raderaFunktionsområde(id, namn, vem),
+      );
+      return { status: 204 };
+    }
+    if (method === "GET" && resource === "borttagna" && id === undefined) {
+      return { status: 200, body: await apogee.borttagnaFunktionsområden() };
+    }
 
     if (resource === "personer" && id === undefined) {
       if (method === "GET") return { status: 200, body: await apogee.listPersoner() };
@@ -151,7 +183,41 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
   }
 
   /**
-   * A Projekt's Hill chart:
+   * Managing Personer:
+   *   GET    /api/personer/historik               the Personer-historik, oldest first
+   *   PATCH  /api/personer/:id                    { namn } → 200 Person
+   *   DELETE /api/personer/:id                    { nyÄgare } → 200 { uppdateringar } (handover; inaktiv)
+   *   POST   /api/personer/:id/ateraktivera       → 200 Person
+   */
+  async function personDel(
+    method: string,
+    id: string,
+    sub: string | undefined,
+    subId: string | undefined,
+    req: IncomingMessage,
+    vem: string | null,
+  ): Promise<Reply> {
+    if (subId !== undefined) throw notFound();
+    if (sub === undefined && id === "historik" && method === "GET") {
+      return { status: 200, body: await apogee.personerHistorik() };
+    }
+    if (sub === undefined && method === "PATCH") {
+      const body = await readJson(req);
+      return { status: 200, body: await serialize(() => apogee.renamePerson(id, text(body.namn), vem)) };
+    }
+    if (sub === undefined && method === "DELETE") {
+      const body = await readJson(req);
+      const uppdateringar = await serialize(() => apogee.removePerson(id, text(body.nyÄgare), vem));
+      return { status: 200, body: { uppdateringar } };
+    }
+    if (sub === "ateraktivera" && method === "POST") {
+      return { status: 200, body: await serialize(() => apogee.reactivatePerson(id, vem)) };
+    }
+    throw notFound();
+  }
+
+  /**
+   * A Projekt's Hill chart (Ta bort/Återställ at /api/projekt/:id/borttagen is handled in `api`):
    *   GET    /api/projekt/:id/historik            its Uppdateringar, oldest first
    *   POST   /api/projekt/:id/avslutat            mark Avslutat → 200 { uppdatering } (null if already)
    *   DELETE /api/projekt/:id/avslutat            "Öppna igen" → 200 { uppdatering } (null if not marked)
@@ -355,6 +421,7 @@ const DOMAIN_STATUS: Record<DomainError["code"], number> = {
   "finns-inte": 404,
   ogiltig: 400,
   "finns-redan": 409,
+  "finns-inaktiv": 409,
   signatur: 403,
   krock: 409,
 };

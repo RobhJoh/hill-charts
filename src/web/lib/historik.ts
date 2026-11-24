@@ -69,6 +69,11 @@ export function beskrivRad(rad: HistorikRad<PersonVy>, namn: Namn): string {
     const verb = p.före.startdatum && p.före.slutdatum ? "flyttade" : "satte";
     return `${verb} datumen till ${visaDatum(p.efter.startdatum)} – ${visaDatum(p.efter.slutdatum)}`;
   }
+  if (rad.typ === "överlämning" && rad.ändringar[0]?.före && rad.ändringar[0].efter) {
+    const { före, efter } = rad.ändringar[0];
+    const n = rad.ändringar.length;
+    return `lämnade över ${n === 1 ? före.namn : `${n} Scopes`} från ${namn(före.ägare)} till ${namn(efter.ägare)}`;
+  }
   const alla = beskrivAlla(rad, namn);
   return alla.length === 1 ? alla[0]! : `${alla.length} ändringar`;
 }

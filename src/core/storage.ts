@@ -1,4 +1,4 @@
-import type { Funktionsområde, Person, Projekt, ProjektId, Uppdatering } from "./types.js";
+import type { Funktionsområde, Person, PersonHändelse, Projekt, ProjektId, Uppdatering } from "./types.js";
 
 /**
  * The domain-level storage interface (ADR 0001). The core reaches storage only
@@ -15,12 +15,19 @@ export interface Storage {
   listPersoner(): Promise<Person[]>;
   /** Replaces the whole set of Personer. */
   savePersoner(all: Person[]): Promise<void>;
+  /** Appends one change to the Personer-historik. */
+  appendPersonHändelse(händelse: PersonHändelse): Promise<void>;
+  /** The Personer-historik, oldest first. */
+  readPersonerHistorik(): Promise<PersonHändelse[]>;
 
   /** All Projekt, in no particular order. */
   listProjekt(): Promise<Projekt[]>;
   getProjekt(id: ProjektId): Promise<Projekt | undefined>;
   /** Creates or replaces one Projekt. */
   saveProjekt(projekt: Projekt): Promise<void>;
+
+  /** Radera: erases a Projekt and its Historik for good. Nothing happens if it does not exist. */
+  eraseProjekt(id: ProjektId): Promise<void>;
 
   /** Appends one Uppdatering to a Projekt's Historik. */
   appendUppdatering(projektId: ProjektId, uppdatering: Uppdatering): Promise<void>;

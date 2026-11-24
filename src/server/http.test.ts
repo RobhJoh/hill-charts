@@ -416,10 +416,104 @@ describe("Ta bort and Radera", () => {
   });
 });
 
+describe("stable links (#40)", () => {
+  /** A Funktionsområde "Kund & Säljstöd" holding a Projekt "Ny <kassa>". */
+  async function seeded() {
+    const s = await start();
+    const fo = (await s.api("POST", "/api/funktionsomraden", { namn: "Kund & Säljstöd" })).body.id as string;
+    const p = (await s.api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Ny <kassa>" })).body.id as string;
+    const get = (path: string) => fetch(s.base + path, { redirect: "manual" });
+    return { ...s, fo, p, get };
+  }
+
+  it("redirects a wrong, old or missing slug to the canonical URL, keeping the query", async () => {
+    const { api, fo, p, vem, get } = await seeded();
+    for (const [path, canonical] of [
+      [`/p/${p}`, `/p/${p}-ny-kassa`],
+      [`/p/${p}-gammalt-namn`, `/p/${p}-ny-kassa`],
+      [`/f/${fo}-x`, `/f/${fo}-kund-saljstod`],
+      [`/person/${vem}-vem`, `/person/${vem}-testare`],
+    ]) {
+      const res = await get(path!);
+      expect(res.status, path).toBe(302);
+      expect(res.headers.get("location"), path).toBe(canonical);
+    }
+    expect((await get(`/p/${p}-fel?tema=dag`)).headers.get("location")).toBe(`/p/${p}-ny-kassa?tema=dag`);
+
+    await api("PATCH", `/api/projekt/${p}`, { namn: "Kassan" });
+    expect((await get(`/p/${p}-ny-kassa`)).headers.get("location")).toBe(`/p/${p}-kassan`);
+    const canonical = await get(`/p/${p}-kassan`);
+    expect(canonical.status).toBe(200);
+    expect(canonical.headers.get("content-type")).toMatch(/^text\/html/);
+  });
+
+  it("answers 404 'Finns inte längre' for unknown and Raderad ids", async () => {
+    const { api, fo, p, get } = await seeded();
+    await api("POST", `/api/projekt/${p}/borttagen`);
+    await api("DELETE", `/api/projekt/${p}`, { namn: "Ny <kassa>" });
+    for (const path of [`/p/${p}-ny-kassa`, `/p/okand-x`, `/f/okand`, `/person/okand-anna`]) {
+      const res = await get(path);
+      expect(res.status, path).toBe(404);
+      expect(res.headers.get("content-type"), path).toMatch(/^text\/html/);
+      expect(await res.text(), path).toContain("<title>Finns inte längre · Apogee</title>");
+    }
+    expect((await get(`/f/${fo}`)).status).toBe(302);
+  });
+
+  it("renders Open Graph tags with the name, the Funktionsområde and a static image", async () => {
+    const { base, fo, p, get } = await seeded();
+    const html = await (await get(`/p/${p}-ny-kassa`)).text();
+    expect(html).toContain("<title>Ny &lt;kassa&gt; · Apogee</title>");
+    expect(html).toContain('<meta property="og:title" content="Ny &lt;kassa&gt;">');
+    expect(html).toContain('<meta property="og:description" content="Projekt i Kund &amp; Säljstöd">');
+    expect(html).toContain(`<meta property="og:url" content="${base}/p/${p}-ny-kassa">`);
+    expect(html).toContain(`<meta property="og:image" content="${base}/og.png">`);
+    expect(html).toContain('<meta property="og:site_name" content="Apogee">');
+
+    const foHtml = await (await get(`/f/${fo}-kund-saljstod`)).text();
+    expect(foHtml).toContain('<meta property="og:title" content="Kund &amp; Säljstöd">');
+    expect(foHtml).toContain('<meta property="og:description" content="Funktionsområde · 1 Projekt">');
+
+    // Behind a TLS-terminating proxy the absolute URLs are https.
+    const proxied = await (await fetch(`${base}/p/${p}-ny-kassa`, { headers: { "x-forwarded-proto": "https" } })).text();
+    expect(proxied).toContain(`<meta property="og:image" content="${base.replace("http:", "https:")}/og.png">`);
+  });
+
+  it("serves a robots.txt without Disallow, so crawlers see the noindex header instead", async () => {
+    const { base } = await start();
+    const res = await fetch(`${base}/robots.txt`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toMatch(/^text\/plain/);
+    const text = await res.text();
+    expect(text).toMatch(/^User-agent: \*$/m);
+    expect(text).not.toMatch(/disallow/i);
+  });
+
+  it("serves a Borttagen Projekt or Funktionsområde as the 'borttaget' page, still at its canonical URL", async () => {
+    const { api, fo, p, get } = await seeded();
+    await api("POST", `/api/projekt/${p}/borttagen`);
+    expect((await get(`/p/${p}`)).headers.get("location")).toBe(`/p/${p}-ny-kassa`);
+    const projekt = await get(`/p/${p}-ny-kassa`);
+    expect(projekt.status).toBe(200);
+    const html = await projekt.text();
+    expect(html).toContain("<title>Projektet är borttaget · Apogee</title>");
+    expect(html).toContain('<meta property="og:description" content="Projektet är borttaget">');
+
+    await api("POST", `/api/projekt`, { funktionsområdeId: fo, namn: "Annat" });
+    const annat = (await api("GET", `/api/funktionsomraden/${fo}`)).body.projekt[0].id;
+    await api("POST", `/api/projekt/${annat}/avslutat`);
+    await api("POST", `/api/funktionsomraden/${fo}/borttagen`);
+    const foHtml = await (await get(`/f/${fo}-kund-saljstod`)).text();
+    expect(foHtml).toContain('<meta property="og:description" content="Funktionsområdet är borttaget">');
+    const följde = await (await get(`/p/${annat}-annat`)).text();
+    expect(följde).toContain('<meta property="og:description" content="Projektet är borttaget">');
+  });
+});
+
 describe("the SPA", () => {
   it("serves index.html at the bare root and for every client route", async () => {
     const { base } = await start();
-    for (const path of ["/", "/f/id1-ekonomi", "/p/id2-fakturering", "/okand/sida"]) {
+    for (const path of ["/", "/installningar/personer", "/okand/sida"]) {
       const res = await fetch(base + path);
       expect(res.status, path).toBe(200);
       expect(res.headers.get("content-type"), path).toMatch(/^text\/html/);

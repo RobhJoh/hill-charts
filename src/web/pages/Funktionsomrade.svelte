@@ -4,6 +4,8 @@
   import Borttagna from "../components/Borttagna.svelte";
   import ProjektCells from "../components/ProjektCells.svelte";
   import TaBort from "../components/TaBort.svelte";
+  import Borttaget from "../components/Borttaget.svelte";
+  import KopieraLank from "../components/KopieraLank.svelte";
   import { api, ApiError } from "../lib/api.js";
   import { signatur } from "../lib/signatur.svelte.js";
   import { funktionsområdeHref, projektHref } from "../lib/links.js";
@@ -20,6 +22,11 @@
   async function load() {
     try {
       fo = await api.getFunktionsområde(id);
+      // Canonical URL in the address bar (the server redirects; client-side links may be stale).
+      const href = funktionsområdeHref(fo);
+      if (router.route.sida === "funktionsområde" && location.pathname !== href) {
+        router.navigate(href + location.search + location.hash, { replace: true });
+      }
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) saknas = true;
       else loadError = e instanceof Error ? e.message : "Kunde inte läsa in";
@@ -56,10 +63,19 @@
   }
 </script>
 
-<svelte:head><title>{fo ? `${fo.namn} · Apogee` : "Apogee"}</title></svelte:head>
+<svelte:head>
+  <title>{fo?.borttagen ? "Funktionsområdet är borttaget · Apogee" : fo ? `${fo.namn} · Apogee` : "Apogee"}</title>
+</svelte:head>
 
 {#if saknas}
-  <Saknas />
+  <Saknas längre />
+{:else if fo?.borttagen}
+  <Borttaget
+    rubrik="Funktionsområdet är borttaget"
+    namn={fo.namn}
+    borttagen={fo.borttagen}
+    lista={{ href: "/", text: "Till Borttagna Funktionsområden" }}
+  />
 {:else}
   <div class="page">
     <div class="crumbs"><a href="/">Alla Funktionsområden</a></div>
@@ -80,9 +96,8 @@
             <div class="titlerow">
               <h1>{fo.namn}</h1>
               <button class="quiet" onclick={() => (läge = "byt namn")}>Byt namn</button>
-              {#if !fo.borttagen}
-                <TaBort fråga="Ta bort {fo.namn} med {fo.projekt.length} Projekt?" ontabort={taBort} />
-              {/if}
+              <KopieraLank href={funktionsområdeHref(fo)} />
+              <TaBort fråga="Ta bort {fo.namn} med {fo.projekt.length} Projekt?" ontabort={taBort} />
             </div>
             <div class="meta">
               {fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<span class="stilla">{fo.stilla} stilla</span>{/if}

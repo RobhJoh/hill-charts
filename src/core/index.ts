@@ -13,3 +13,4 @@ export type { Storage } from "./storage.js";
 export type * from "./types.js";
 export { randomId } from "./ids.js";
 export type { UppdateringLyssnare } from "./live.js";
+export { slug, funktionsområdeHref, projektHref, personHref, idFrånSegment } from "./links.js";

@@ -16,7 +16,7 @@ _Avoid_: Backdiagram, Kullediagram
 **Scope**: One part of a Projekt's work, shown as a dot on the Projekt's Hill chart.
 _Avoid_: Del, Delområde
 
-**Ägare**: The person responsible for a Scope. Every Scope has exactly one, named by free text; names that differ only in letter case are the same person.
+**Ägare**: The person responsible for a Scope. Every Scope has exactly one, named by free text; names that differ only in letter case are the same person. Renaming an Ägare changes every Scope they own, as one Uppdatering per Projekt; renaming to an existing Ägare merges the two.
 _Avoid_: Owner
 
 **Läge**: Where a Scope sits on the hill, from 0 (start of uphill) to 100 (bottom of downhill, done).

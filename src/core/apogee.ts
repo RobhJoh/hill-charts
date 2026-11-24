@@ -1,5 +1,6 @@
-import { lika, nuvarande, senastFlyttad } from "./diagram.js";
+import { HISTORIK_TYP, diagramEfter, lika, nuvarande, senastFlyttad, återställHit, ångraEn } from "./diagram.js";
 import { DomainError } from "./errors.js";
+import { historikRader, type HistorikRad } from "./historik.js";
 import type { Storage } from "./storage.js";
 import type {
   Funktionsområde,
@@ -11,6 +12,7 @@ import type {
   ScopeId,
   ScopeValues,
   Uppdatering,
+  UppdateringId,
 } from "./types.js";
 
 export type ApogeeDeps = {
@@ -42,6 +44,9 @@ export type ScopeVy = {
   /** ISO time its Läge last changed (or it was added). */
   flyttad: string;
 };
+
+/** Visa in the Historik: the chart at a point, and the Scopes that differ from now (incl. added/removed since). */
+export type Förhandsvisning = { scopes: ScopeVy[]; skiljer: ScopeId[] };
 
 export type PersonVy = { id: PersonId; namn: string; aktiv: boolean };
 const personVy = ({ id, namn, aktiv }: Person): PersonVy => ({ id, namn, aktiv });
@@ -128,8 +133,9 @@ export function createApogee({ storage, now, newId }: ApogeeDeps) {
     typ: string,
     ändringar: Uppdatering["ändringar"],
     vem: PersonId,
+    mål?: UppdateringId,
   ): Promise<Uppdatering> {
-    const u: Uppdatering = { id: newId(), typ, vem, tid: now().toISOString(), ändringar };
+    const u: Uppdatering = { id: newId(), typ, vem, tid: now().toISOString(), ...(mål ? { mål } : {}), ändringar };
     await storage.appendUppdatering(projektId, u);
     return u;
   }
@@ -138,6 +144,15 @@ export function createApogee({ storage, now, newId }: ApogeeDeps) {
    * Changes one existing Scope: signs, checks it exists, and writes one
    * Uppdatering unless the values would not change (then returns null).
    */
+  /** A Projekt's Historik and the index of one of its Uppdateringar. */
+  async function historikMed(projektId: ProjektId, uppdateringId: UppdateringId) {
+    await requireProjekt(projektId);
+    const logg = await storage.readHistorik(projektId);
+    const index = logg.findIndex((u) => u.id === uppdateringId);
+    if (index < 0) throw new DomainError("finns-inte", `Uppdateringen ${uppdateringId} finns inte`);
+    return { logg, index };
+  }
+
   async function ändraScope(
     projektId: ProjektId,
     scopeId: ScopeId,
@@ -303,6 +318,61 @@ export function createApogee({ storage, now, newId }: ApogeeDeps) {
     /** Removes a Scope. Its id stays in the Historik, so Ångra can bring it back. */
     async removeScope(projektId: ProjektId, scopeId: ScopeId, vem: PersonId | null) {
       return ändraScope(projektId, scopeId, SCOPE_TYP.taBort, vem, () => null);
+    },
+
+    // --- Historik: view, Visa, Återställning and Ångra (#35) ---
+
+    /** The Historik panel: rows newest first, consecutive drags merged. */
+    async historikVy(projektId: ProjektId): Promise<HistorikRad<PersonVy>[]> {
+      await requireProjekt(projektId);
+      const [logg, personer] = await Promise.all([storage.readHistorik(projektId), storage.listPersoner()]);
+      return historikRader(logg, (id) => ägareVy(personer, id));
+    },
+
+    /** Visa: the chart right after an Uppdatering, and which Scopes differ from now. */
+    async förhandsvisa(projektId: ProjektId, uppdateringId: UppdateringId): Promise<Förhandsvisning> {
+      const { logg, index } = await historikMed(projektId, uppdateringId);
+      const personer = await storage.listPersoner();
+      const då = diagramEfter(logg, index);
+      const nu = nuvarande(logg);
+      const flyttad = senastFlyttad(logg.slice(0, index + 1));
+      const scopes = Object.entries(då)
+        .map(([id, s]): ScopeVy => ({ id, ...s, ägare: ägareVy(personer, s.ägare), flyttad: flyttad[id]! }))
+        .sort((a, b) => b.läge - a.läge || efterNamn(a, b));
+      const skiljer = [...new Set([...Object.keys(då), ...Object.keys(nu)])].filter(
+        (id) => !lika(då[id] ?? null, nu[id] ?? null),
+      );
+      return { scopes, skiljer };
+    },
+
+    /**
+     * Återställ hit: one Uppdatering that puts the whole chart back to right
+     * after the target. Null when the chart already looks like that.
+     */
+    async återställHit(projektId: ProjektId, mål: UppdateringId, vem: PersonId | null): Promise<Uppdatering | null> {
+      const signerad = await signatur(vem);
+      const { logg, index } = await historikMed(projektId, mål);
+      const ändringar = återställHit(logg, index);
+      if (ändringar.length === 0) return null;
+      return skriv(projektId, HISTORIK_TYP.återställning, ändringar, signerad.id, mål);
+    },
+
+    /**
+     * Ångra bara denna: one Uppdatering reverting only the fields the target
+     * changed. Rejected (`krock`) if any of them has changed since.
+     */
+    async ångra(projektId: ProjektId, mål: UppdateringId, vem: PersonId | null): Promise<Uppdatering> {
+      const signerad = await signatur(vem);
+      const { logg, index } = await historikMed(projektId, mål);
+      const resultat = ångraEn(logg, index);
+      if (!resultat.ok) {
+        const skäl = resultat.krockar.map((k) => `${k.namn} ${k.varför}`).join(", ");
+        throw new DomainError(
+          "krock",
+          `Går inte att ångra bara den här: ${skäl}. Använd Återställ hit på Uppdateringen före i stället, eller ändra för hand.`,
+        );
+      }
+      return skriv(projektId, HISTORIK_TYP.ångra, resultat.ändringar, signerad.id, mål);
     },
   };
 }

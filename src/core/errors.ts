@@ -6,7 +6,9 @@ export type DomainErrorCode =
   /** A name is already taken (e.g. a Person's, ignoring letter case). */
   | "finns-redan"
   /** The write's Signatur is missing, unknown or inaktiv. */
-  | "signatur";
+  | "signatur"
+  /** Ångra would overwrite newer work: a field it reverts has changed since. */
+  | "krock";
 
 /** A command or query was rejected by a domain rule. */
 export class DomainError extends Error {

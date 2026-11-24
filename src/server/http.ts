@@ -160,6 +160,7 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
     if (sub === "historik" && scopeId === undefined && method === "GET") {
       return { status: 200, body: await apogee.historik(projektId) };
     }
+    if (HISTORIK_DELAR.has(sub)) return historikDel(method, projektId, sub, scopeId, req, vem);
     if (sub !== "scopes") throw notFound();
     if (scopeId === undefined && method === "POST") {
       const body = await readJson(req);
@@ -188,6 +189,37 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
     }
     if (scopeId !== undefined && method === "DELETE") {
       const uppdatering = await serialize(() => apogee.removeScope(projektId, scopeId, vem));
+      return { status: 200, body: { uppdatering } };
+    }
+    throw notFound();
+  }
+
+  /**
+   * A Projekt's Historik panel (#35):
+   *   GET  /api/projekt/:id/historikvy             rows newest first, drags merged → HistorikRad[]
+   *   GET  /api/projekt/:id/historik/:uppdatering  Visa → { scopes, skiljer }
+   *   POST /api/projekt/:id/aterstallning          { mål } → 200 { uppdatering } (null if nothing to do)
+   *   POST /api/projekt/:id/angra                  { mål } → 200 { uppdatering }; 409 krock if blocked
+   */
+  async function historikDel(
+    method: string,
+    projektId: string,
+    sub: string,
+    subId: string | undefined,
+    req: IncomingMessage,
+    vem: string | null,
+  ): Promise<Reply> {
+    if (sub === "historikvy" && subId === undefined && method === "GET") {
+      return { status: 200, body: await apogee.historikVy(projektId) };
+    }
+    if (sub === "historik" && subId !== undefined && method === "GET") {
+      return { status: 200, body: await apogee.förhandsvisa(projektId, subId) };
+    }
+    if ((sub === "aterstallning" || sub === "angra") && subId === undefined && method === "POST") {
+      const mål = text((await readJson(req)).mål);
+      const uppdatering = await serialize(() =>
+        sub === "angra" ? apogee.ångra(projektId, mål, vem) : apogee.återställHit(projektId, mål, vem),
+      );
       return { status: 200, body: { uppdatering } };
     }
     throw notFound();
@@ -264,7 +296,11 @@ const DOMAIN_STATUS: Record<DomainError["code"], number> = {
   ogiltig: 400,
   "finns-redan": 409,
   signatur: 403,
+  krock: 409,
 };
+
+/** Sub-resources of a Projekt served by `historikDel`. */
+const HISTORIK_DELAR = new Set(["historik", "historikvy", "aterstallning", "angra"]);
 
 /**
  * The Signatur of a write: the signing Person's id, sent in the

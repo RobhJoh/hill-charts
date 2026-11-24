@@ -33,12 +33,15 @@ export type ScopeValues = {
   ägare: PersonId;
 };
 
+/** One Scope's values before and after an Uppdatering (null = does not exist). */
+export type Ändring = { scopeId: ScopeId; före: ScopeValues | null; efter: ScopeValues | null };
+
 /** One recorded edit to a Projekt's Hill chart or its dates (see spec #31). */
 export type Uppdatering = {
   id: UppdateringId;
   typ: string;
   vem: PersonId | null; // Signatur; null only for legacy edits
   tid: string; // ISO timestamp
-  mål?: UppdateringId;
-  ändringar: { scopeId: ScopeId; före: ScopeValues | null; efter: ScopeValues | null }[];
+  mål?: UppdateringId; // target of an Återställning or Ångra
+  ändringar: Ändring[];
 };

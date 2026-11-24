@@ -127,6 +127,20 @@ describe("removing a Person (handover)", () => {
   });
 });
 
+describe("an inaktiv Ägare brought back", () => {
+  it("Ångra of a handover is allowed and shows the Scope's Ägare as inaktiv until a new one is picked", async () => {
+    const { apogee, anna, bo, projekt, scope } = await setup();
+    const s = await scope("Prislista", bo, 30);
+    const [överlämning] = await apogee.removePerson(bo, anna, anna);
+
+    await apogee.ångra(projekt, överlämning!.id, anna);
+
+    expect((await apogee.getProjekt(projekt)).scopes[0]!.ägare).toEqual({ id: bo, namn: "Bo", aktiv: false });
+    await apogee.changeScopeÄgare(projekt, s, anna, anna);
+    expect((await apogee.getProjekt(projekt)).scopes[0]!.ägare).toMatchObject({ id: anna, aktiv: true });
+  });
+});
+
 describe("reactivating a Person", () => {
   it("makes them active again; handed-over Scopes stay with their new Ägare", async () => {
     const { apogee, anna, bo, projekt, scope, ägare } = await setup();

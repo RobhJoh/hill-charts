@@ -8,7 +8,9 @@ export type DomainErrorCode =
   /** A Person's name is taken by an inaktiv Person: offer Återaktivera instead. */
   | "finns-inaktiv"
   /** The write's Signatur is missing, unknown or inaktiv. */
-  | "signatur";
+  | "signatur"
+  /** Ångra would overwrite newer work: a field it reverts has changed since. */
+  | "krock";
 
 /** A command or query was rejected by a domain rule. */
 export class DomainError extends Error {

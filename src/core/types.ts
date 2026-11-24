@@ -56,6 +56,9 @@ export type ScopeValues = {
   ägare: PersonId;
 };
 
+/** One Scope's values before and after an Uppdatering (null = does not exist). */
+export type Ändring = { scopeId: ScopeId; före: ScopeValues | null; efter: ScopeValues | null };
+
 /**
  * Projekt-level fields recorded in the Historik, as for Scopes. Only
  * marked-Avslutat so far; dates and Milstolpar join later.
@@ -71,8 +74,8 @@ export type Uppdatering = {
   typ: string;
   vem: PersonId | null; // Signatur; null only for legacy edits
   tid: string; // ISO timestamp
-  mål?: UppdateringId;
-  ändringar: { scopeId: ScopeId; före: ScopeValues | null; efter: ScopeValues | null }[];
+  mål?: UppdateringId; // target of an Återställning or Ångra
+  ändringar: Ändring[];
   /** Changed Projekt-level fields: only those changed, before and after. */
   projekt?: { före: Partial<ProjektFält>; efter: Partial<ProjektFält> };
 };

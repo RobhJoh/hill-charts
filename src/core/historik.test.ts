@@ -270,6 +270,52 @@ describe("Projekt-level Uppdateringar (Avslutat)", () => {
   });
 });
 
+describe("Visa with dates and Milstolpar", () => {
+  it("shows the dates and Milstolpar at that point and which of them differ from now", async () => {
+    const { apogee, anna, projekt } = await setup();
+    const datum = await apogee.setDatum({ projekt }, { startdatum: "2026-11-02", slutdatum: "2026-12-14" }, anna);
+    const { id: demo } = await apogee.addMilstolpe({ projekt }, { namn: "Demo", datum: "2026-12-01" }, anna);
+    const { id: test, uppdatering: tillagd } = await apogee.addMilstolpe(
+      { projekt },
+      { namn: "Test", datum: "2026-12-05" },
+      anna,
+    );
+
+    // Nothing has changed since: same as now.
+    expect(await apogee.förhandsvisa(projekt, tillagd!.id)).toMatchObject({
+      sammaSomNu: true,
+      fältSkiljer: [],
+      milstolparSkiljer: [],
+    });
+
+    await apogee.setDatum({ projekt }, { startdatum: "2026-11-02", slutdatum: "2026-12-21" }, anna);
+    await apogee.changeMilstolpe({ projekt }, demo, { datum: "2026-12-02" }, anna);
+    const vy = await apogee.förhandsvisa(projekt, datum!.id);
+
+    expect(vy.tidsplan).toEqual({ startdatum: "2026-11-02", slutdatum: "2026-12-14", milstolpar: [] });
+    expect(vy.skiljer).toEqual([]);
+    expect(vy.sammaSomNu).toBe(false);
+    expect([...vy.fältSkiljer].sort()).toEqual(["milstolpar", "slutdatum"]);
+    expect([...vy.milstolparSkiljer].sort()).toEqual([demo, test].sort());
+
+    const senare = await apogee.förhandsvisa(projekt, tillagd!.id);
+    expect(senare.tidsplan.milstolpar.map((m) => [m.namn, m.datum])).toEqual([
+      ["Demo", "2026-12-01"],
+      ["Test", "2026-12-05"],
+    ]);
+    expect(senare.milstolparSkiljer).toEqual([demo]);
+  });
+
+  it("a date-only change since makes Visa differ, so Återställ hit has something to do", async () => {
+    const { apogee, anna, projekt } = await setup();
+    const sista = (await apogee.historik(projekt)).at(-1)!;
+    await apogee.setDatum({ projekt }, { startdatum: "2026-11-02", slutdatum: "2026-12-14" }, anna);
+    expect(await apogee.förhandsvisa(projekt, sista.id)).toMatchObject({ skiljer: [], sammaSomNu: false });
+    expect(await apogee.återställHit(projekt, sista.id, anna)).not.toBeNull();
+    expect((await apogee.getProjekt(projekt)).tidsplan.slutdatum).toBeNull();
+  });
+});
+
 describe("Återställning and Ångra rules", () => {
   it("restoring to where the chart already is writes nothing", async () => {
     const { apogee, anna, projekt } = await setup();

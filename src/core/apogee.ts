@@ -133,7 +133,17 @@ export type ScopeVy = {
  * Visa in the Historik: the chart and status at a point, and the Scopes that
  * differ from now (incl. added/removed since).
  */
-export type Förhandsvisning = DiagramVy & { skiljer: ScopeId[] };
+export type Förhandsvisning = DiagramVy &
+  TidVy & {
+    /** Scopes that differ from now (incl. added/removed since). */
+    skiljer: ScopeId[];
+    /** Projekt-level fields (Avslutat mark, dates, Milstolpar) that differ from now. */
+    fältSkiljer: (keyof ProjektFält)[];
+    /** Milstolpar added, removed, renamed or moved since. */
+    milstolparSkiljer: MilstolpeId[];
+    /** Chart, Avslutat mark, dates and Milstolpar all as now: Återställ hit would change nothing. */
+    sammaSomNu: boolean;
+  };
 
 export type PersonVy = { id: PersonId; namn: string; aktiv: boolean };
 
@@ -994,7 +1004,23 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
       const skiljer = [...new Set([...Object.keys(då), ...Object.keys(nu)])].filter(
         (id) => !lika(då[id] ?? null, nu[id] ?? null),
       );
-      return { ...diagramVy(logg.slice(0, index + 1), personer, !!p.borttagen), skiljer };
+      const fältDå = projektFält(logg.slice(0, index + 1));
+      const fältNu = projektFält(logg);
+      const fältSkiljer = (Object.keys(fältNu) as (keyof ProjektFält)[]).filter((k) => !fältLika(fältDå[k], fältNu[k]));
+      const milstolpeDå = new Map(fältDå.milstolpar.map((m) => [m.id, m]));
+      const milstolpeNu = new Map(fältNu.milstolpar.map((m) => [m.id, m]));
+      const milstolparSkiljer = [...new Set([...milstolpeDå.keys(), ...milstolpeNu.keys()])].filter(
+        (id) => !fältLika(milstolpeDå.get(id) ?? null, milstolpeNu.get(id) ?? null),
+      );
+      const diagram = diagramVy(logg.slice(0, index + 1), personer, !!p.borttagen);
+      return {
+        ...diagram,
+        ...projektTidVy(logg.slice(0, index + 1), diagram.avslutat),
+        skiljer,
+        fältSkiljer,
+        milstolparSkiljer,
+        sammaSomNu: skiljer.length === 0 && fältSkiljer.length === 0,
+      };
     },
 
     /**

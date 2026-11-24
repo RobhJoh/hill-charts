@@ -7,6 +7,7 @@
   import Tidsplan from "../components/Tidsplan.svelte";
   import Toast from "../components/Toast.svelte";
   import { beskrivRad, UTAN_NAMN, visaTid } from "../lib/historik.js";
+  import { visaDatum } from "../lib/datum.js";
   import NamnForm from "../components/NamnForm.svelte";
   import ScopeIndex from "../components/ScopeIndex.svelte";
   import TaBort from "../components/TaBort.svelte";
@@ -292,19 +293,39 @@
 
       {#if visning}
         {@const namn = (pid: string) => personer.find((p) => p.id === pid)?.namn ?? "Okänd"}
-        {@const avslutatSkiljer = visning.vy.markeradAvslutat !== projekt.markeradAvslutat}
-        {@const samma = visning.vy.skiljer.length === 0 && !avslutatSkiljer}
+        {@const vy = visning.vy}
+        {@const avslutatSkiljer = vy.fältSkiljer.includes("avslutat")}
+        {@const datumSkiljer = vy.fältSkiljer.includes("startdatum") || vy.fältSkiljer.includes("slutdatum")}
+        {@const samma = vy.sammaSomNu}
         <div class="visning" role="status">
           <span>
             Visar läget efter: <strong>{visning.rad.vem?.namn ?? UTAN_NAMN}</strong>
             {beskrivRad(visning.rad, namn)} · {visaTid(visning.rad.tid)}.
             {#if samma}Samma som nu.{/if}
-            {#if visning.vy.skiljer.length > 0}
-              {visning.vy.skiljer.length} Scopes skiljer sig från nu (streckad ring).
+            {#if vy.skiljer.length > 0}
+              {vy.skiljer.length} Scopes skiljer sig från nu (streckad ring).
             {/if}
             {#if avslutatSkiljer}
-              Projektet var {visning.vy.markeradAvslutat ? "markerat Avslutat" : "inte markerat Avslutat"} då.
+              Projektet var {vy.markeradAvslutat ? "markerat Avslutat" : "inte markerat Avslutat"} då.
             {/if}
+            {#if datumSkiljer}Datumen skiljer sig från nu.{/if}
+            {#if vy.milstolparSkiljer.length > 0}
+              {vy.milstolparSkiljer.length}
+              {vy.milstolparSkiljer.length === 1 ? "Milstolpe skiljer" : "Milstolpar skiljer"} sig från nu.
+            {/if}
+          </span>
+          <span class="då">
+            <span class:skiljer={datumSkiljer}>
+              {#if vy.tidsplan.startdatum || vy.tidsplan.slutdatum}
+                {vy.tidsplan.startdatum ? visaDatum(vy.tidsplan.startdatum) : "…"} –
+                {vy.tidsplan.slutdatum ? visaDatum(vy.tidsplan.slutdatum) : "…"}
+              {:else}
+                Inga datum
+              {/if}
+            </span>
+            {#each vy.tidsplan.milstolpar as m (m.id)}
+              <span class:skiljer={vy.milstolparSkiljer.includes(m.id)}>◆ {m.namn} {visaDatum(m.datum)}</span>
+            {/each}
           </span>
           <button class="pr" disabled={samma} onclick={() => återställ(visning!.rad.id)}>
             Återställ hit
@@ -455,8 +476,21 @@
     border: 1px dashed var(--orbit);
     background: var(--sel);
   }
-  .visning span {
+  .visning > span {
     flex: 1 1 280px;
+  }
+  .visning .då {
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    font-size: 13px;
+    color: var(--dim);
+  }
+  .visning .skiljer {
+    color: var(--tx);
+    outline: 1px dashed var(--orbit);
+    outline-offset: 2px;
   }
   .chart {
     margin-top: 20px;

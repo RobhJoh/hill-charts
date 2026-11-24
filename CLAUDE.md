@@ -4,6 +4,8 @@
 
 Issues live in this repo's GitHub Issues, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
+When implementing a spec's tickets, assign each issue when work starts and comment + close it as soon as it merges into the integration branch.
+
 ### Triage labels
 
 Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.

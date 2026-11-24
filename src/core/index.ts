@@ -1,10 +1,12 @@
 export { createApogee, PROJEKT_TYP, SCOPE_TYP } from "./apogee.js";
 export { diagramEfter, lika, nuvarande, senastFlyttad, tillämpa, SCOPE_FÄLT } from "./diagram.js";
 export type { Diagram } from "./diagram.js";
-export type { Apogee, ApogeeDeps, DiagramVy, Översikt, FunktionsområdeVy, ProjektRad, ProjektVy, PersonVy, ScopeVy } from "./apogee.js";
+export type { Apogee, ApogeeDeps, Mål, TidVy, DiagramVy, Översikt, FunktionsområdeVy, ProjektRad, ProjektVy, PersonVy, ScopeVy } from "./apogee.js";
 export { DomainError } from "./errors.js";
 export type { DomainErrorCode } from "./errors.js";
 export type { Storage } from "./storage.js";
 export type * from "./types.js";
 export { randomId } from "./ids.js";
 export type { UppdateringLyssnare } from "./live.js";
+export { dagarMellan, idagFrån, plusDagar } from "./datum.js";
+export type { DatumInput, Nedräkning, NästaMilstolpe } from "./datum.js";

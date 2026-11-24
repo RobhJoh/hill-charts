@@ -3,7 +3,10 @@
 import type { ProjektFält, Uppdatering } from "./types.js";
 
 /** Projekt-level fields before any Uppdatering. */
-export const PROJEKT_START: ProjektFält = { avslutat: false };
+export const PROJEKT_START: ProjektFält = { avslutat: false, startdatum: null, slutdatum: null, milstolpar: [] };
+
+/** Equality of two Projekt-level field values (deep, for Milstolpar). */
+export const fältLika = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 /** The current Projekt-level fields: the fold of the Historik's `projekt` changes. */
 export function projektFält(logg: readonly Uppdatering[]): ProjektFält {

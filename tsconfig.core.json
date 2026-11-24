@@ -1,0 +1,11 @@
+{
+  // The core uses web standards only (ADR 0001). Checking it without Node's
+  // types makes any `node:` import or Node global a type error.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
+    "types": []
+  },
+  "include": ["src/core/**/*.ts"],
+  "exclude": ["src/core/**/*.test.ts"]
+}

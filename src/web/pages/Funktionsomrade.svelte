@@ -1,0 +1,93 @@
+<script lang="ts">
+  import type { FunktionsområdeVy } from "../../core/index.js";
+  import NamnForm from "../components/NamnForm.svelte";
+  import ProjektCells from "../components/ProjektCells.svelte";
+  import { api, ApiError } from "../lib/api.js";
+  import { funktionsområdeHref, projektHref } from "../lib/links.js";
+  import { router } from "../lib/router.svelte.js";
+  import Saknas from "./Saknas.svelte";
+
+  let { id }: { id: string } = $props();
+
+  let fo = $state<FunktionsområdeVy | undefined>();
+  let saknas = $state(false);
+  let loadError = $state("");
+  let läge = $state<"visa" | "byt namn" | "nytt projekt">("visa");
+
+  async function load() {
+    try {
+      fo = await api.getFunktionsområde(id);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) saknas = true;
+      else loadError = e instanceof Error ? e.message : "Kunde inte läsa in";
+    }
+  }
+  load();
+
+  async function bytNamn(namn: string) {
+    await api.renameFunktionsområde(id, namn);
+    await load();
+    läge = "visa";
+    if (fo) router.navigate(funktionsområdeHref(fo), { replace: true });
+  }
+
+  async function skapaProjekt(namn: string) {
+    const p = await api.createProjekt(id, namn);
+    router.navigate(projektHref(p));
+  }
+</script>
+
+<svelte:head><title>{fo ? `${fo.namn} · Apogee` : "Apogee"}</title></svelte:head>
+
+{#if saknas}
+  <Saknas />
+{:else}
+  <div class="page">
+    <div class="crumbs"><a href="/">Alla Funktionsområden</a></div>
+    {#if loadError}
+      <p class="error">{loadError}</p>
+    {:else if fo}
+      {#if läge === "byt namn"}
+        <NamnForm
+          label="Nytt namn på Funktionsområdet"
+          value={fo.namn}
+          submitLabel="Spara"
+          onsubmit={bytNamn}
+          oncancel={() => (läge = "visa")}
+        />
+      {:else}
+        <div class="pagehead">
+          <div>
+            <div class="titlerow">
+              <h1>{fo.namn}</h1>
+              <button class="quiet" onclick={() => (läge = "byt namn")}>Byt namn</button>
+            </div>
+            <div class="meta">{fo.projekt.length} Projekt</div>
+          </div>
+          {#if läge === "visa"}
+            <button class="pr" onclick={() => (läge = "nytt projekt")}>Nytt Projekt</button>
+          {/if}
+        </div>
+      {/if}
+
+      {#if läge === "nytt projekt"}
+        <NamnForm
+          label="Namn på Projektet"
+          submitLabel="Skapa"
+          onsubmit={skapaProjekt}
+          oncancel={() => (läge = "visa")}
+        />
+      {/if}
+
+      <section>
+        <ProjektCells projekt={fo.projekt} />
+      </section>
+    {/if}
+  </div>
+{/if}
+
+<style>
+  section {
+    margin-top: 32px;
+  }
+</style>

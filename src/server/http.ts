@@ -1,0 +1,233 @@
+import { readFile, stat } from "node:fs/promises";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import type { AddressInfo } from "node:net";
+import { extname, join, normalize, sep } from "node:path";
+import { DomainError, type Apogee } from "../core/index.js";
+
+/**
+ * Every response carries these (ADR 0002): stay out of search engines, leak no
+ * referrer, and allow Notion to frame the site. Never send X-Frame-Options.
+ */
+export const SECURITY_HEADERS: Record<string, string> = {
+  "X-Robots-Tag": "noindex, nofollow",
+  "Referrer-Policy": "no-referrer",
+  "Content-Security-Policy":
+    "frame-ancestors 'self' https://www.notion.so https://*.notion.so https://*.notion.site https://*.notion.com https://embed.notion.co",
+};
+
+const MAX_BODY_BYTES = 64 * 1024;
+
+const CONTENT_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".ico": "image/x-icon",
+  ".woff2": "font/woff2",
+  ".txt": "text/plain; charset=utf-8",
+};
+
+export type ServerOptions = {
+  apogee: Apogee;
+  /** Directory holding the built SPA (index.html and assets). */
+  webDir: string;
+  port: number;
+  host?: string;
+};
+
+export type RunningServer = {
+  address: AddressInfo;
+  close(): Promise<void>;
+};
+
+/** Starts the one Apogee process: JSON API plus the SPA. */
+export async function startServer(options: ServerOptions): Promise<RunningServer> {
+  const server = createServer(createHandler(options));
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(options.port, options.host ?? "127.0.0.1", resolve);
+  });
+  let closing: Promise<void> | undefined;
+  return {
+    address: server.address() as AddressInfo,
+    close: () => (closing ??= closeServer(server)),
+  };
+}
+
+function closeServer(server: Server): Promise<void> {
+  return new Promise((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+    server.closeAllConnections();
+  });
+}
+
+class HttpError extends Error {
+  constructor(
+    readonly status: number,
+    readonly fel: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+type Reply = { status: number; body?: unknown };
+
+export function createHandler({ apogee, webDir }: ServerOptions) {
+  const serialize = createWriteQueue();
+
+  async function api(method: string, path: string, req: IncomingMessage): Promise<Reply> {
+    const parts = path.split("/").filter(Boolean).map(decodeURIComponent); // ["api", ...]
+    const [, resource, id, ...rest] = parts;
+    if (rest.length > 0) throw notFound();
+
+    if (method === "GET" && resource === "oversikt" && id === undefined) {
+      return { status: 200, body: await apogee.overview() };
+    }
+    if (resource === "funktionsomraden") {
+      if (method === "GET" && id !== undefined) {
+        return { status: 200, body: await apogee.getFunktionsområde(id) };
+      }
+      if (method === "POST" && id === undefined) {
+        const body = await readJson(req);
+        const fo = await serialize(() => apogee.createFunktionsområde(text(body.namn)));
+        return { status: 201, body: fo };
+      }
+      if (method === "PATCH" && id !== undefined) {
+        const body = await readJson(req);
+        await serialize(() => apogee.renameFunktionsområde(id, text(body.namn)));
+        return { status: 204 };
+      }
+    }
+    if (resource === "projekt") {
+      if (method === "GET" && id !== undefined) {
+        return { status: 200, body: await apogee.getProjekt(id) };
+      }
+      if (method === "POST" && id === undefined) {
+        const body = await readJson(req);
+        const p = await serialize(() =>
+          apogee.createProjekt(text(body.funktionsområdeId), text(body.namn)),
+        );
+        return { status: 201, body: p };
+      }
+      if (method === "PATCH" && id !== undefined) {
+        const body = await readJson(req);
+        await serialize(async () => {
+          if (body.namn !== undefined) await apogee.renameProjekt(id, text(body.namn));
+          if (body.funktionsområdeId !== undefined) {
+            await apogee.moveProjekt(id, text(body.funktionsområdeId));
+          }
+        });
+        return { status: 204 };
+      }
+    }
+    throw notFound();
+  }
+
+  async function web(path: string): Promise<{ file: string; type: string }> {
+    const index = { file: join(webDir, "index.html"), type: CONTENT_TYPES[".html"]! };
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(path);
+    } catch {
+      return index;
+    }
+    const file = normalize(join(webDir, decoded));
+    if (!file.startsWith(normalize(webDir) + sep)) return index;
+    const info = await stat(file).catch(() => undefined);
+    if (!info?.isFile()) return index;
+    return { file, type: CONTENT_TYPES[extname(file)] ?? "application/octet-stream" };
+  }
+
+  return async function handle(req: IncomingMessage, res: ServerResponse) {
+    for (const [name, value] of Object.entries(SECURITY_HEADERS)) res.setHeader(name, value);
+    const method = req.method ?? "GET";
+    const path = new URL(req.url ?? "/", "http://localhost").pathname;
+
+    try {
+      if (path === "/api" || path.startsWith("/api/")) {
+        const reply = await api(method, path, req);
+        sendJson(res, reply.status, reply.body);
+        return;
+      }
+      if (method !== "GET" && method !== "HEAD") throw new HttpError(405, "metod", "Metoden stöds inte");
+      const { file, type } = await web(path);
+      const content = await readFile(file);
+      res.writeHead(200, { "Content-Type": type, "Content-Length": content.length });
+      res.end(method === "HEAD" ? undefined : content);
+    } catch (error) {
+      const { status, body } = errorReply(error);
+      if (status === 500) console.error(error);
+      if (!res.headersSent) sendJson(res, status, body);
+      else res.end();
+    }
+  };
+}
+
+function errorReply(error: unknown): Reply {
+  if (error instanceof HttpError) {
+    return { status: error.status, body: { fel: error.fel, meddelande: error.message } };
+  }
+  if (error instanceof DomainError) {
+    const status = error.code === "finns-inte" ? 404 : 400;
+    return { status, body: { fel: error.code, meddelande: error.message } };
+  }
+  return { status: 500, body: { fel: "serverfel", meddelande: "Något gick fel" } };
+}
+
+function sendJson(res: ServerResponse, status: number, body: unknown) {
+  if (body === undefined) {
+    res.writeHead(status);
+    res.end();
+    return;
+  }
+  const text = JSON.stringify(body);
+  res.writeHead(status, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+  });
+  res.end(text);
+}
+
+const notFound = () => new HttpError(404, "finns-inte", "Finns inte");
+
+/** A required string field; anything else is a 400. */
+function text(value: unknown): string {
+  if (typeof value !== "string") throw new HttpError(400, "ogiltig", "Ett textfält saknas");
+  return value;
+}
+
+async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += (chunk as Buffer).length;
+    if (size > MAX_BODY_BYTES) throw new HttpError(413, "for-stor", "För stor begäran");
+    chunks.push(chunk as Buffer);
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    throw new HttpError(400, "ogiltig", "Ogiltig JSON");
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new HttpError(400, "ogiltig", "Ogiltig JSON");
+  }
+  return parsed as Record<string, unknown>;
+}
+
+/**
+ * Runs write commands one at a time, in arrival order (ADR 0001: one process
+ * serializes all writes). A failed command does not block the ones after it.
+ */
+function createWriteQueue() {
+  let tail: Promise<unknown> = Promise.resolve();
+  return function serialize<T>(command: () => Promise<T>): Promise<T> {
+    const run = tail.then(command, command);
+    tail = run.catch(() => undefined);
+    return run;
+  };
+}

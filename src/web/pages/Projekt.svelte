@@ -10,6 +10,8 @@
   import NamnForm from "../components/NamnForm.svelte";
   import ScopeIndex from "../components/ScopeIndex.svelte";
   import TaBort from "../components/TaBort.svelte";
+  import Borttaget from "../components/Borttaget.svelte";
+  import KopieraLank from "../components/KopieraLank.svelte";
   import { api, ApiError } from "../lib/api.js";
   import { följProjekt, liveUrl } from "../lib/live.js";
   import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
@@ -33,6 +35,8 @@
   let skrivFel = $state("");
   /** The other Projekt in the same Funktionsområde, as mini charts. */
   let grannar = $state<ProjektRad[]>([]);
+  /** Whether the Funktionsområde is Borttaget too (then its Borttagna list is on the start page). */
+  let foBorttaget = $state(false);
 
   let laddning = 0;
   /** Reloads the Projekt and its Hill chart (after a write, and on live sync). */
@@ -43,8 +47,16 @@
       // Live sync can reload in quick succession: only the latest answer counts.
       if (denna !== laddning) return;
       projekt = svar;
+      // Canonical URL in the address bar (the server redirects; client-side links may be stale).
+      const href = projektHref(svar);
+      if (router.route.sida === "projekt" && location.pathname !== href) {
+        router.navigate(href + location.search + location.hash, { replace: true });
+      }
       const fo = await api.getFunktionsområde(svar.funktionsområde.id).catch(() => undefined);
-      if (denna === laddning && fo) grannar = fo.projekt.filter((p) => p.id !== id);
+      if (denna === laddning && fo) {
+        grannar = fo.projekt.filter((p) => p.id !== id);
+        foBorttaget = !!fo.borttagen;
+      }
     } catch (e) {
       if (denna !== laddning) return;
       if (e instanceof ApiError && e.status === 404) saknas = true;
@@ -175,13 +187,24 @@
   }
 </script>
 
-<svelte:head><title>{projekt ? `${projekt.namn} · Apogee` : "Apogee"}</title></svelte:head>
+<svelte:head>
+  <title>{projekt?.borttagen ? "Projektet är borttaget · Apogee" : projekt ? `${projekt.namn} · Apogee` : "Apogee"}</title>
+</svelte:head>
 
 {#if saknas}
-  <Saknas />
+  <Saknas längre />
 {:else}
   {#if loadError}
     <div class="page"><p class="error">{loadError}</p></div>
+  {:else if projekt?.borttagen}
+    <Borttaget
+      rubrik="Projektet är borttaget"
+      namn={projekt.namn}
+      borttagen={projekt.borttagen}
+      lista={foBorttaget
+        ? { href: "/", text: "Till Borttagna Funktionsområden" }
+        : { href: funktionsområdeHref(projekt.funktionsområde), text: `Till Borttagna Projekt i ${projekt.funktionsområde.namn}` }}
+    />
   {:else if projekt}
     <div class="projekt">
     <nav class="grannar" aria-label="Andra Projekt i {projekt.funktionsområde.namn}">
@@ -216,21 +239,18 @@
           <h1>{projekt.namn}</h1>
           <button class="quiet" onclick={() => (läge = "byt namn")}>Byt namn</button>
           <button class="quiet" onclick={öppnaFlytta}>Flytta</button>
-          {#if !projekt.borttagen}
-            <TaBort
-              fråga="Ta bort {projekt.namn} med {projekt.scopes.length} {projekt.scopes.length === 1 ? 'Scope' : 'Scopes'}?"
-              ontabort={taBortProjekt}
-            />
-          {/if}
+          <KopieraLank href={projektHref(projekt)} />
+          <TaBort
+            fråga="Ta bort {projekt.namn} med {projekt.scopes.length} {projekt.scopes.length === 1 ? 'Scope' : 'Scopes'}?"
+            ontabort={taBortProjekt}
+          />
           <button class="ny" aria-pressed={historikÖppen} onclick={() => (historikÖppen ? stängHistorik() : (historikÖppen = true))}>
             Historik
           </button>
           <button class="pr" onclick={() => (nyScope = true)}>Ny Scope</button>
         </div>
         <div class="status">
-          {#if projekt.borttagen}
-            <span>Borttaget av {projekt.borttagen.vem.namn}</span>
-          {:else if projekt.markeradAvslutat}
+          {#if projekt.markeradAvslutat}
             <span>Avslutat</span>
             <button class="quiet" onclick={() => växlaAvslutat(false)}>Öppna igen</button>
           {:else}

@@ -3,6 +3,8 @@
 //   PORT              port to listen on (default 3000)
 //   HOST              interface to bind (default 127.0.0.1)
 //   APOGEE_DATA_DIR   where the JSON files live (default ./data)
+//   APOGEE_PUBLIC_URL public origin for link previews, e.g. https://apogeechart.com
+//                     (default: taken from each request's Host header)
 //   APOGEE_WEB_DIR    the built SPA (default: dist/web, found relative to
 //                     the compiled dist/node/server/main.js)
 import { mkdir } from "node:fs/promises";
@@ -25,7 +27,13 @@ const apogee = createApogee({
   now: () => new Date(),
   newId: randomId,
 });
-const server = await startServer({ apogee, webDir, port, host });
+const server = await startServer({
+  apogee,
+  webDir,
+  port,
+  host,
+  ...(process.env.APOGEE_PUBLIC_URL ? { publicUrl: process.env.APOGEE_PUBLIC_URL } : {}),
+});
 console.log(`Apogee på http://${host}:${server.address.port} (data: ${dataDir})`);
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {

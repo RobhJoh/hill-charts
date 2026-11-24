@@ -4,6 +4,7 @@ import type { AddressInfo } from "node:net";
 import { extname, join, normalize, sep } from "node:path";
 import { DomainError, type Apogee, type DatumInput, type Mål } from "../core/index.js";
 import { attachLive } from "./live.js";
+import { medHuvud, sidaFrånPath, slåUpp } from "./sidor.js";
 
 /**
  * Every response carries these (ADR 0002): stay out of search engines, leak no
@@ -17,6 +18,8 @@ export const SECURITY_HEADERS: Record<string, string> = {
 };
 
 const MAX_BODY_BYTES = 64 * 1024;
+
+const ROBOTS_TXT = Buffer.from("User-agent: *\nAllow: /\n");
 
 const CONTENT_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -36,6 +39,11 @@ export type ServerOptions = {
   webDir: string;
   port: number;
   host?: string;
+  /**
+   * The public origin, e.g. "https://apogeechart.com", for absolute URLs in
+   * Open Graph tags. Without it the request's Host (and X-Forwarded-Proto) is used.
+   */
+  publicUrl?: string;
 };
 
 export type RunningServer = {
@@ -80,7 +88,7 @@ class HttpError extends Error {
 
 type Reply = { status: number; body?: unknown };
 
-export function createHandler({ apogee, webDir }: ServerOptions) {
+export function createHandler({ apogee, webDir, publicUrl }: ServerOptions) {
   const serialize = createWriteQueue();
 
   async function api(method: string, path: string, req: IncomingMessage): Promise<Reply> {
@@ -386,6 +394,31 @@ export function createHandler({ apogee, webDir }: ServerOptions) {
         return;
       }
       if (method !== "GET" && method !== "HEAD") throw new HttpError(405, "metod", "Metoden stöds inte");
+      if (path === "/robots.txt") {
+        // No Disallow (ADR 0002): crawlers may fetch pages and then obey X-Robots-Tag.
+        res.writeHead(200, { "Content-Type": CONTENT_TYPES[".txt"]!, "Content-Length": ROBOTS_TXT.length });
+        res.end(method === "HEAD" ? undefined : ROBOTS_TXT);
+        return;
+      }
+      const sida = sidaFrånPath(path);
+      if (sida) {
+        const svar = await slåUpp(apogee, sida.slag, sida.id);
+        if (svar.finns && svar.href !== path) {
+          const search = new URL(req.url ?? "/", "http://localhost").search;
+          res.writeHead(302, { Location: svar.href + search, "Cache-Control": "no-store" });
+          res.end();
+          return;
+        }
+        const index = await readFile(join(webDir, "index.html"), "utf8");
+        const html = Buffer.from(medHuvud(index, svar, publicUrl?.replace(/\/+$/, "") ?? origin(req)));
+        res.writeHead(svar.finns ? 200 : 404, {
+          "Content-Type": CONTENT_TYPES[".html"]!,
+          "Content-Length": html.length,
+          "Cache-Control": "no-store",
+        });
+        res.end(method === "HEAD" ? undefined : html);
+        return;
+      }
       const { file, type } = await web(path);
       const content = await readFile(file);
       res.writeHead(200, { "Content-Type": type, "Content-Length": content.length });
@@ -456,6 +489,13 @@ export const SIGNATUR_HEADER = "apogee-signatur";
 function signaturFrån(req: IncomingMessage): string | null {
   const value = req.headers[SIGNATUR_HEADER];
   return typeof value === "string" && value !== "" ? value : null;
+}
+
+/** The origin the client used, as far as the request (and a proxy) tells. */
+function origin(req: IncomingMessage): string {
+  const forwarded = req.headers["x-forwarded-proto"];
+  const proto = typeof forwarded === "string" && forwarded.split(",")[0]!.trim() === "https" ? "https" : "http";
+  return `${proto}://${req.headers.host ?? "localhost"}`;
 }
 
 const notFound = () => new HttpError(404, "finns-inte", "Finns inte");

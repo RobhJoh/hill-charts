@@ -439,7 +439,8 @@ function errorReply(error: unknown): Reply {
   }
   if (error instanceof DomainError) {
     const status = DOMAIN_STATUS[error.code];
-    return { status, body: { fel: error.code, meddelande: error.message } };
+    const person = error.person ? { person: error.person } : {};
+    return { status, body: { fel: error.code, meddelande: error.message, ...person } };
   }
   return { status: 500, body: { fel: "serverfel", meddelande: "Något gick fel" } };
 }

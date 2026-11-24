@@ -232,7 +232,7 @@ function requireLedigtNamn(personer: Person[], namn: string, utom?: PersonId): v
   const nyckel = namn.toLocaleLowerCase("sv");
   const finns = personer.find((p) => p.id !== utom && p.namn.toLocaleLowerCase("sv") === nyckel);
   if (finns?.aktiv) throw new DomainError("finns-redan", `Det finns redan en Person som heter ${finns.namn}`);
-  if (finns) throw new DomainError("finns-inaktiv", `${finns.namn} finns redan men är inaktiv`);
+  if (finns) throw new DomainError("finns-inaktiv", `${finns.namn} finns redan men är inaktiv`, personVy(finns));
 }
 
 function requirePerson(personer: Person[], id: PersonId): Person {

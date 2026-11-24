@@ -23,6 +23,8 @@ export class ApiError extends Error {
     readonly status: number,
     readonly fel: string,
     message: string,
+    /** On "finns-inaktiv": the inaktiv Person who has the name. */
+    readonly person?: PersonVy,
   ) {
     super(message);
   }
@@ -39,7 +41,9 @@ async function call<T>(method: string, path: string, body?: unknown, vem?: strin
   });
   const text = await res.text();
   const data = text ? JSON.parse(text) : undefined;
-  if (!res.ok) throw new ApiError(res.status, data?.fel ?? "fel", data?.meddelande ?? "Något gick fel");
+  if (!res.ok) {
+    throw new ApiError(res.status, data?.fel ?? "fel", data?.meddelande ?? "Något gick fel", data?.person);
+  }
   return data as T;
 }
 

@@ -97,7 +97,10 @@ describe("Personer and Signatur", () => {
     expect((await api("GET", `/api/projekt/${p}`)).body.scopes[0].ägare.id).toBe(vem);
 
     const igen = await api("POST", "/api/personer", { namn: "bosse" });
-    expect(igen).toMatchObject({ status: 409, body: { fel: "finns-inaktiv" } });
+    expect(igen).toMatchObject({
+      status: 409,
+      body: { fel: "finns-inaktiv", person: { id: bo, namn: "Bosse", aktiv: false } },
+    });
     const åter = await api("POST", `/api/personer/${bo}/ateraktivera`);
     expect(åter).toMatchObject({ status: 200, body: { id: bo, namn: "Bosse", aktiv: true } });
 

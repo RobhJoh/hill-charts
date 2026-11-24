@@ -1,3 +1,5 @@
+import type { PersonVy } from "./apogee.js";
+
 export type DomainErrorCode =
   /** The referenced Funktionsområde or Projekt does not exist. */
   | "finns-inte"
@@ -17,6 +19,8 @@ export class DomainError extends Error {
   constructor(
     readonly code: DomainErrorCode,
     message: string,
+    /** On "finns-inaktiv": the inaktiv Person who has the name (to offer Återaktivera). */
+    readonly person?: PersonVy,
   ) {
     super(message);
     this.name = "DomainError";

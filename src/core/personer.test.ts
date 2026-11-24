@@ -178,8 +178,9 @@ describe("reactivating a Person", () => {
   it("adding a name an inaktiv Person has is refused so that Återaktivera can be offered instead", async () => {
     const { apogee, anna, bo } = await setup();
     await apogee.removePerson(bo, anna, anna);
-    await expect(apogee.createPerson("bo", anna)).rejects.toMatchObject({ code: "finns-inaktiv" });
-    await expect(apogee.renamePerson(anna, "BO", anna)).rejects.toMatchObject({ code: "finns-inaktiv" });
+    const inaktiv = { id: bo, namn: "Bo", aktiv: false };
+    await expect(apogee.createPerson("bo", anna)).rejects.toMatchObject({ code: "finns-inaktiv", person: inaktiv });
+    await expect(apogee.renamePerson(anna, "BO", anna)).rejects.toMatchObject({ code: "finns-inaktiv", person: inaktiv });
     expect(await apogee.listPersoner()).toHaveLength(2);
   });
 });

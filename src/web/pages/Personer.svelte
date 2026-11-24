@@ -62,10 +62,7 @@
       namn = "";
       await load();
     } catch (e) {
-      if (e instanceof ApiError && e.fel === "finns-inaktiv") {
-        const nyckel = namn.trim().toLocaleLowerCase("sv");
-        inaktivTräff = (await laddaPersoner()).find((p) => !p.aktiv && p.namn.toLocaleLowerCase("sv") === nyckel);
-      }
+      if (e instanceof ApiError && e.fel === "finns-inaktiv") inaktivTräff = e.person;
       if (!inaktivTräff) error = meddelande(e);
     } finally {
       busy = false;

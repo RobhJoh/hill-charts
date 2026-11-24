@@ -64,6 +64,11 @@ export const beskrivAlla = (rad: HistorikRad<PersonVy>, namn: Namn): string[] =>
 export function beskrivRad(rad: HistorikRad<PersonVy>, namn: Namn): string {
   if (rad.typ === "återställning") return "återställde diagrammet";
   if (rad.typ === "ångra") return "ångrade en Uppdatering";
+  const p = rad.projekt;
+  if (p?.efter.startdatum && p.efter.slutdatum && rad.ändringar.length === 0) {
+    const verb = p.före.startdatum && p.före.slutdatum ? "flyttade" : "satte";
+    return `${verb} datumen till ${visaDatum(p.efter.startdatum)} – ${visaDatum(p.efter.slutdatum)}`;
+  }
   const alla = beskrivAlla(rad, namn);
   return alla.length === 1 ? alla[0]! : `${alla.length} ändringar`;
 }

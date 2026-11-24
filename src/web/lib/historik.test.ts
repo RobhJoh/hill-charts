@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { beskrivProjekt } from "./historik.js";
+import type { HistorikRad, PersonVy } from "../../core/index.js";
+import { beskrivProjekt, beskrivRad } from "./historik.js";
 
 describe("Historik row text for Projekt-level changes", () => {
   it("tells date changes in plain Swedish", () => {
@@ -15,6 +16,21 @@ describe("Historik row text for Projekt-level changes", () => {
     expect(beskrivProjekt({ före: { startdatum: "2026-11-02" }, efter: { startdatum: null } })).toEqual([
       "tog bort Startdatum",
     ]);
+  });
+
+  it("titles a row changing both dates as one change", () => {
+    const rad = {
+      id: "u1",
+      typ: "datum",
+      vem: null,
+      tid: "2026-11-24T10:00:00Z",
+      ändringar: [],
+      projekt: {
+        före: { startdatum: "2026-11-02", slutdatum: "2026-12-28" },
+        efter: { startdatum: "2026-11-09", slutdatum: "2027-01-04" },
+      },
+    } as unknown as HistorikRad<PersonVy>;
+    expect(beskrivRad(rad, () => "")).toBe("flyttade datumen till 9 nov. 2026 – 4 jan. 2027");
   });
 
   it("tells which Milstolpe was added, changed or removed", () => {

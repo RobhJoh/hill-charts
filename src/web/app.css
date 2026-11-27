@@ -1,6 +1,7 @@
 /* Stjärnatlas tokens (see the prototype/stjarnatlas branch): `natt` is the
    default, `dag` overrides it under [data-theme="dag"] (set by tema.svelte.ts).
-   Red only for selection, stuck and the primary action. Scope colours come
+   The orange-red accent (--red) only for selection, stuck and the primary
+   action; --red-on is text on it (dark in natt: white fails 4.5:1). Scope colours come
    from the Läge ramp in lib/hill.ts, never from here. */
 :root {
   --bg: #081026;
@@ -12,11 +13,12 @@
   --mid: #aab6d4;
   --dim: #8f9cbd;
   --orbit: #7f92c2;
-  --red: #e0503a;
-  --redtx: #ff7a66;
+  --red: #f0602e;
+  --red-on: #081026;
+  --redtx: #ff8a5c;
   --sel: #13224a;
   --star: #dfe6f5;
-  --btn: #3a4d80;
+  --btn: #4f63a0;
   --halo: #0d1836;
   --chart-ground: radial-gradient(ellipse at 50% 60%, #11204a 0%, var(--chart) 55%, var(--bg) 100%);
   color-scheme: dark;
@@ -31,12 +33,13 @@
   --tx: #0f1a3a;
   --mid: #4a5878;
   --dim: #5d6a88;
-  --orbit: #8a9ac0;
-  --red: #c8402b;
-  --redtx: #b8381f;
+  --orbit: #6f80aa;
+  --red: #c44a1c;
+  --red-on: #ffffff;
+  --redtx: #b0401a;
   --sel: #e6ecf8;
   --star: #9aa8c7;
-  --btn: #b9c4dc;
+  --btn: #7d8cab;
   --halo: #ffffff;
   --chart-ground: var(--chart);
   color-scheme: light;
@@ -58,7 +61,7 @@ body {
 }
 ::selection {
   background: var(--red);
-  color: #fff;
+  color: var(--red-on);
 }
 a {
   color: inherit;
@@ -82,7 +85,7 @@ button:hover {
 button.pr {
   background: var(--red);
   border-color: var(--red);
-  color: #fff;
+  color: var(--red-on);
 }
 button.quiet {
   border-color: transparent;

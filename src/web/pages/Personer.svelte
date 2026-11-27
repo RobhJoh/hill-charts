@@ -179,8 +179,8 @@
         type="button"
         class="quiet toggle"
         class:on={visaInaktiva}
-        aria-pressed={visaInaktiva}
-        onclick={() => (visaInaktiva = !visaInaktiva)}>Visa inaktiva ({inaktiva.length})</button
+        onclick={() => (visaInaktiva = !visaInaktiva)}
+        >{visaInaktiva ? "Dölj" : "Visa"} inaktiva ({inaktiva.length})</button
       >
     {/if}
     {#if radError}<p class="error" role="alert">{radError}</p>{/if}
@@ -296,9 +296,10 @@
   .toggle {
     margin-top: 20px;
   }
+  /* On: the accent underline of the header's active page, not just a border. */
   .toggle.on {
-    border-color: var(--btn);
     color: var(--tx);
+    box-shadow: inset 0 -2px 0 var(--red);
   }
   ul,
   ol {

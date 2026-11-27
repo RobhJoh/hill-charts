@@ -172,7 +172,7 @@
                       >
                     </span>
                     <button class="länk" aria-pressed={s.id === valt} onclick={() => (valt = s.id === valt ? null : s.id)}
-                      >{s.namn}</button
+                      >{#if s.id === valt}<span class="vm" aria-hidden="true">✦</span>{/if}{s.namn}</button
                     >
                     <b>{s.läge}</b>
                     {#if s.stilla}<span class="stilla" title="Ingen rörelse på {s.stillaDagar} dagar">{s.stillaDagar} d</span>{/if}
@@ -283,9 +283,18 @@
     padding: 3px 0 3px 22px;
     font-size: 15px;
   }
+  /* Selected row: --sel ground and an accent edge, the same accent as its ring on the map. */
+  li.valt {
+    background: var(--sel);
+    box-shadow: inset 2px 0 0 var(--red);
+  }
   li.valt .länk {
     color: var(--tx);
-    text-decoration: underline;
+  }
+  .vm {
+    color: var(--redtx);
+    font-weight: 600;
+    margin-right: 0.3em;
   }
   li b {
     margin-left: auto;

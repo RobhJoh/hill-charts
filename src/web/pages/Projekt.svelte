@@ -251,7 +251,7 @@
             <button aria-pressed={historikÖppen} onclick={() => (historikÖppen ? stängHistorik() : (historikÖppen = true))}>
               Historik
             </button>
-            <button class="pr" onclick={() => (nyScope = true)}>Ny Scope</button>
+            <button class="pr" aria-pressed={nyScope} aria-controls="ny-scope" onclick={() => (nyScope = !nyScope)}>Ny Scope</button>
           </div>
         </div>
         <div class="status">

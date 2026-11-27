@@ -9,6 +9,7 @@
   import MiniHill from "./MiniHill.svelte";
   import Nedrakning from "./Nedrakning.svelte";
   import StillaAntal from "./StillaAntal.svelte";
+  import { antal } from "../lib/ord.js";
 
   let {
     projekt,
@@ -29,7 +30,7 @@
         <MiniHill scopes={p.scopes} tema={tema.nu} width={stor ? 270 : 180} height={stor ? 75 : 50} />
         <b>{p.namn}</b>
         <span class="meta">
-          {p.scopes.length} Scopes{#if p.stilla > 0}{" · "}<StillaAntal antal={p.stilla} />{/if}
+          {antal(p.scopes.length, "Scope", "Scopes")}{#if p.stilla > 0}{" · "}<StillaAntal antal={p.stilla} />{/if}
         </span>
         <Nedrakning nedräkning={p.nedräkning} nästaMilstolpe={p.nästaMilstolpe} liten />
       </a>

@@ -202,7 +202,7 @@
                 {#if rad}
                   <span class="last">
                     <span class="meta">
-                      {rad.räkning.scopes} Scopes i {rad.räkning.projekt} Projekt{#if rad.räkning.stilla}
+                      {antal(rad.räkning.scopes, "Scope", "Scopes")} i {rad.räkning.projekt} Projekt{#if rad.räkning.stilla}
                         · <StillaAntal antal={rad.räkning.stilla} />{/if}
                     </span>
                     <MiniHill scopes={rad.lägen} tema={tema.nu} width={180} height={40} topp />

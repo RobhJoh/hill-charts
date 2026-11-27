@@ -384,16 +384,18 @@
   .historik li {
     font-size: 14px;
   }
-  /* Removals and renames stand out among the additions (story 44). */
+  /* Removals and renames stand out among the additions (story 44, #68): a
+     discreet neutral marker, not the accent, which keeps to its three uses. */
   .historik li.markt {
-    box-shadow: inset 2px 0 0 var(--red);
+    box-shadow: inset 2px 0 0 var(--mid);
     padding-left: 10px;
   }
   .historik .vad {
     color: var(--mid);
   }
   .historik .markt .vad {
-    color: var(--redtx);
+    color: var(--tx);
+    font-weight: 600;
   }
   /* Phone (Q17 b): every button and name link gets a 44 px tap target through
      padding, not larger text, and Byt namn sits well apart from Ta bort. */

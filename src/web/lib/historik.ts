@@ -1,6 +1,14 @@
 // Plain-Swedish text for Historik rows (what happened), used by HistorikPanel.
-import { UPPDATERING_TYP, type HistorikRad, type Milstolpe, type PersonVy, type Ändring } from "../../core/index.js";
+import {
+  UPPDATERING_TYP,
+  type Förhandsvisning,
+  type HistorikRad,
+  type Milstolpe,
+  type PersonVy,
+  type Ändring,
+} from "../../core/index.js";
 import { visaDatum } from "./datum.js";
+import { antal } from "./ord.js";
 
 /** Shown for legacy edits without a Signatur. */
 export const UTAN_NAMN = "Någon utan namn";
@@ -86,3 +94,24 @@ const tidFormat = new Intl.DateTimeFormat("sv-SE", {
 });
 
 export const visaTid = (iso: string) => tidFormat.format(new Date(iso));
+
+/** The Visa banner's sentences on how the previewed view differs from now. */
+export function skillnaderMotNu(
+  vy: Pick<Förhandsvisning, "skiljer" | "fältSkiljer" | "milstolparSkiljer" | "sammaSomNu" | "markeradAvslutat">,
+): string[] {
+  const delar: string[] = [];
+  if (vy.sammaSomNu) delar.push("Samma som nu.");
+  if (vy.skiljer.length > 0) {
+    delar.push(`${antal(vy.skiljer.length, "Scope", "Scopes")} skiljer sig från nu (streckad ring).`);
+  }
+  if (vy.fältSkiljer.includes("avslutat")) {
+    delar.push(`Projektet var ${vy.markeradAvslutat ? "markerat Avslutat" : "inte markerat Avslutat"} då.`);
+  }
+  if (vy.fältSkiljer.includes("startdatum") || vy.fältSkiljer.includes("slutdatum")) {
+    delar.push("Datumen skiljer sig från nu.");
+  }
+  if (vy.milstolparSkiljer.length > 0) {
+    delar.push(`${antal(vy.milstolparSkiljer.length, "Milstolpe", "Milstolpar")} skiljer sig från nu.`);
+  }
+  return delar;
+}

@@ -90,6 +90,12 @@ button.pr {
   border-color: var(--red);
   color: var(--red-on);
 }
+/* Pressed (e.g. Historik while its panel is open): visible, but without the
+   accent, which keeps to selection, stilla and the primary action (Q1 c). */
+button[aria-pressed="true"] {
+  border-color: var(--mid);
+  background: var(--sel);
+}
 button.quiet {
   border-color: transparent;
   color: var(--dim);

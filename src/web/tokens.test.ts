@@ -35,9 +35,12 @@ describe("tokens", () => {
     expect(avstängd).toMatch(/opacity:\s*1;/);
   });
 
-  it("a pressed primary button drops its fill while what it opened is open", () => {
-    const tryckt = regel(läs("./app.css"), 'button.pr[aria-pressed="true"]');
+  it("a pressed button, primary or not, is a neutral --mid outline on --sel, defined once (Q1 c)", () => {
+    const css = läs("./app.css");
+    const tryckt = regel(css, 'button.pr[aria-pressed="true"]');
+    expect(tryckt).toMatch(/border-color:\s*var\(--mid\);/);
     expect(tryckt).toMatch(/background:\s*var\(--sel\);/);
     expect(tryckt).toMatch(/color:\s*var\(--tx\);/);
+    expect(css.match(/\[aria-pressed="true"\]\s*\{/g)).toHaveLength(1);
   });
 });

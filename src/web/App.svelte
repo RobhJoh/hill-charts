@@ -372,6 +372,7 @@
   .rad.person {
     padding-left: 28px;
   }
+  /* A menu row has no outline to press: the chosen Signatur reads in --tx, bold. */
   .rad.person[aria-pressed="true"] {
     color: var(--tx);
     font-weight: 600;
@@ -395,8 +396,8 @@
   .segment button + button {
     margin-left: -1px;
   }
+  /* The global pressed rule gives the outline and --sel; only the text, dimmed here, needs lifting. */
   .segment button[aria-pressed="true"] {
-    background: var(--sel);
     color: var(--tx);
   }
 </style>

@@ -202,7 +202,7 @@ Scopets färg räknas fram ur Läge och lagras aldrig. Varm uppför, guld vid kr
 - Förklaringsstapeln (`rampGradient`) samplas ur `lägeFärg` var 5:e Läge, eftersom CSS annars blandar i sRGB.
 
 ### Named Rules
-**Tre-användningsregeln.** Accenten betyder val, stilla eller primär handling. Inget annat. Fokusring, aktiv sida och tryckt läge räknas som val; Över tid räknas som stilla (något kräver uppmärksamhet). Den används inte för dekor, länkar, rubriker eller för att få en sällsynt handling att synas (Nytt Funktionsområde är en vanlig konturknapp). Beslut Q1 c.
+**Tre-användningsregeln.** Accenten betyder val, stilla eller primär handling. Inget annat. Fokusring och aktiv sida räknas som val (tryckt läge använder inte accenten, se Buttons); Över tid räknas som stilla (något kräver uppmärksamhet). Den används inte för dekor, länkar, rubriker eller för att få en sällsynt handling att synas (Nytt Funktionsområde är en vanlig konturknapp). Beslut Q1 c.
 
 **Form-före-färg-regeln.** Accenten och rampens uppförsfärger ligger nära varandra. Vald och stilla skiljs därför från stjärnorna med form: ✦ och heldragen ring för vald, streckad ring med mörk halo för stilla. Lägg aldrig till ett nytt tillstånd som bara skiljer sig i kulör.
 
@@ -279,7 +279,7 @@ Komponenterna är återhållsamma och exakta: tunna konturer, ingen fyllnad utom
 - **Primär (`.pr`):** Fylld i accent. Natt: `#f0602e` med text `#081026`. Dag: `#c44a1c` med vit text. Högst en per vy. "Nytt Projekt" på Funktionsområdet, "Ny Scope" på Projektet, "Öppna igen" på ett Avslutat Projekt.
 - **Tyst (`.quiet`):** Ingen kontur, `--dim`, padding 4px 8px; hover visar `--line`-kontur och `--tx`.
 - **Avstängd:** Primär visas som kontur, inte halvgenomskinlig accent.
-- **Tryckt (`aria-pressed="true"`):** Accentkontur och svag accentbakgrund, till exempel Historik när panelen är öppen och Ny Scope medan formuläret är öppet.
+- **Tryckt (`aria-pressed="true"`):** Neutral `--mid`-kontur på `--sel`-bakgrund, text i `--tx`, ingen accent (Q1 c). Till exempel Historik när panelen är öppen och Ny Scope medan formuläret är öppet (primärknappen tappar då sin fyllning). En regel i `app.css`; menyrader utan kontur (vald Signatur i menyn) visar tryckt med fet `--tx`-text.
 - **Mer:** Sällsynta handlingar (Byt namn, Flytta, Kopiera länk, Bädda in, Markera Avslutat, Ta bort) ligger bakom en "Mer"-knapp vid rubriken. På Funktionsområdet står bara "Nytt Projekt" och "Mer" framme (Q18 b).
 - **Fokus:** `outline: 2px solid` accent, `outline-offset: 2px`, på knappar, länkar, fält och stjärnor.
 

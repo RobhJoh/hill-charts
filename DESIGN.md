@@ -196,9 +196,10 @@ Tokens bor i `src/web/app.css` som CSS-variabler (`--bg`, `--tx`, `--red` osv.).
 - **Halo** (`--halo`): Kontur runt etiketttext (paint-order stroke) och mörk halo bakom stilla-ringen.
 
 ### Läge-rampen
-Scopets färg räknas fram ur Läge och lagras aldrig. Varm uppför, guld vid krönet, blå nedför. Målbild (uppgift #49): interpolera i **OKLCH**, inte RGB.
-- **Natt:** 0 `#ff7a4d` → 25 `#ffb36b` → 50 `#ffe7a8` (i dag `#fff1c9`) → 75 `#a9c8ff` (i dag `#cfe0ff`) → 100 `#6f9fff` (i dag `#8fb8ff`). Vitt bara precis vid toppen.
-- **Dag:** 0 `#d9481f` → 25 `#e08a1e` → 50 `#b8860b` (i dag `#c9a21a`) → 62 `#6f86c8` (nytt stopp) → 75 `#5a86d6` → 100 `#2f5fc4`. Varje heltal 0–100 minst 3:1 mot `#ffffff`.
+Scopets färg räknas fram ur Läge och lagras aldrig. Varm uppför, guld vid krönet, blå nedför. Interpoleras i **OKLCH** (`lägeFärg` i `hill.ts`, färgmatte i `src/web/lib/farg.ts`). Mellan krönets guld och nedförsblått (nästan motsatta kulörer) tonar kromat ut tidigt och kommer tillbaka i den kalla kulören, så övergången går via skiffer i stället för oliv, grått eller rosa. Läge 0 lutar mot bärnsten så att det hålls isär från den orangeröda accenten. Uppgift #49.
+- **Natt:** 0 `#ff9550` → 25 `#ffb86b` → 50 `#ffe7a8` → 62 `#bdd0ff` → 75 `#a9c8ff` → 100 `#6f9fff`. Vitt bara precis efter toppen (ca 52–57).
+- **Dag:** 0 `#c4580a` → 25 `#bc7208` → 50 `#b8860b` → 62 `#6f86c8` → 75 `#5a86d6` → 100 `#2f5fc4`. Varje heltal 0–100 minst 3:1 mot `#ffffff` (testat i `hill.test.ts`).
+- Förklaringsstapeln (`rampGradient`) samplas ur `lägeFärg` var 5:e Läge, eftersom CSS annars blandar i sRGB.
 
 ### Named Rules
 **Tre-användningsregeln.** Accenten betyder val, stilla eller primär handling. Inget annat. Fokusring, aktiv sida och tryckt läge räknas som val; Över tid räknas som stilla (något kräver uppmärksamhet). Den används inte för dekor, länkar, rubriker eller för att få en sällsynt handling att synas (Nytt Funktionsområde är en vanlig konturknapp). Beslut Q1 c.

@@ -2,6 +2,8 @@
 // prototype/stjarnatlas branch). Pure functions, shared by the Projekt chart,
 // mini charts and, later, the embed and the Stjärnkarta.
 
+import { frånOklch, tillOklch } from "./farg.js";
+
 export type Tema = "natt" | "dag";
 
 /** Height of the hill (0–1) at a Läge (0–100): a single smooth crest at 50. */
@@ -48,46 +50,69 @@ export const punkt = (läge: number, ruta: Ruta = RUTA): [number, number] => [
 export const lägeFrånX = (x: number, ruta: Ruta = RUTA) =>
   Math.round(Math.min(100, Math.max(0, ((x - ruta.x0) / ruta.w) * 100)));
 
-/** Colour stops of the spectral ramp: warm uphill, pale gold crest, blue-white downhill. */
+/**
+ * Colour stops of the spectral ramp: warm uphill, gold crest, blue downhill.
+ * Läge 0 leans amber so it stays apart from the orange-red accent; the stop
+ * at 62 takes the colour from the crest straight into a cool, clean blue.
+ */
 export const RAMP: Record<Tema, readonly (readonly [number, string])[]> = {
   natt: [
-    [0, "#ff7a4d"],
-    [25, "#ffb36b"],
-    [50, "#fff1c9"],
-    [75, "#cfe0ff"],
-    [100, "#8fb8ff"],
+    [0, "#ff9550"],
+    [25, "#ffb86b"],
+    [50, "#ffe7a8"],
+    [62, "#bdd0ff"],
+    [75, "#a9c8ff"],
+    [100, "#6f9fff"],
   ],
   dag: [
-    [0, "#d9481f"],
-    [25, "#e08a1e"],
-    [50, "#c9a21a"],
+    [0, "#c4580a"],
+    [25, "#bc7208"],
+    [50, "#b8860b"],
+    [62, "#6f86c8"],
     [75, "#5a86d6"],
     [100, "#2f5fc4"],
   ],
 };
 
-const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+/** Where, between a warm and a cool stop, the colour passes through neutral. */
+const VÄNDPUNKT = 0.25;
 
-/** A Scope's colour, derived from its Läge (never stored): piecewise-linear RGB between stops. */
+/**
+ * Interpolates two colours in OKLCH. Neighbouring hues turn along the shorter
+ * way; nearly opposite hues (warm crest to cool downhill) would turn through
+ * pink or olive, so the chroma fades out early instead, the hue switches at
+ * neutral, and the colour comes back in the cool hue (via slate, not grey).
+ */
+function blanda(a: string, b: string, t: number): string {
+  const [la, ca, ha] = tillOklch(a);
+  const [lb, cb, hb] = tillOklch(b);
+  const l = la + (lb - la) * t;
+  const dh = ((hb - ha + 540) % 360) - 180;
+  if (Math.abs(dh) > 90) {
+    return t < VÄNDPUNKT
+      ? frånOklch([l, ca * (1 - t / VÄNDPUNKT), ha])
+      : frånOklch([l, (cb * (t - VÄNDPUNKT)) / (1 - VÄNDPUNKT), hb]);
+  }
+  return frånOklch([l, ca + (cb - ca) * t, (ha + dh * t + 360) % 360]);
+}
+
+/** A Scope's colour, derived from its Läge (never stored): piecewise OKLCH between stops. */
 export function lägeFärg(läge: number, tema: Tema): string {
   const stops = RAMP[tema];
   const l = Math.min(100, Math.max(0, läge));
   for (let i = 0; i < stops.length - 1; i++) {
     const [a, ca] = stops[i]!;
     const [b, cb] = stops[i + 1]!;
-    if (l >= a && l <= b) {
-      const t = (l - a) / (b - a);
-      const A = rgb(ca);
-      const B = rgb(cb);
-      return "#" + A.map((v, k) => Math.round(v + (B[k]! - v) * t).toString(16).padStart(2, "0")).join("");
-    }
+    if (l === a) return ca;
+    if (l === b) return cb;
+    if (l > a && l < b) return blanda(ca, cb, (l - a) / (b - a));
   }
   return stops[stops.length - 1]![1];
 }
 
-/** CSS gradient for the legend bar. */
+/** CSS gradient for the legend bar, sampled from the ramp (CSS would blend in sRGB). */
 export const rampGradient = (tema: Tema) =>
-  `linear-gradient(90deg, ${RAMP[tema].map(([l, c]) => `${c} ${l}%`).join(", ")})`;
+  `linear-gradient(90deg, ${Array.from({ length: 21 }, (_, i) => `${lägeFärg(i * 5, tema)} ${i * 5}%`).join(", ")})`;
 
 /** Star radius by days since its Läge last changed: recent moves shine bigger. */
 export function radie(dagar: number): number {

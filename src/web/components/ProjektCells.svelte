@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Pågående Projekt as mini sky charts: name, Scope count and a red stuck
+  // Pågående Projekt as mini sky charts: name, Scope count and a red Stilla
   // count. Avslutade Projekt follow in a compact list with a light-blue ✦ and
   // the day they were Avslutade, without a mini chart (Q4 c, Q11 a).
   import type { ProjektRad } from "../../core/index.js";

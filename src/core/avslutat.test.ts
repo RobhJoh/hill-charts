@@ -128,8 +128,8 @@ describe("Avslutat and Pågående", () => {
 
 const DAG = 86_400_000;
 
-describe("stuck Scopes", () => {
-  it("a Scope is stuck once strictly more than 14 days (14 × 24 h) pass without a Läge change", async () => {
+describe("Stilla Scopes", () => {
+  it("a Scope is Stilla once strictly more than 14 days (14 × 24 h) pass without a Läge change", async () => {
     const { apogee, projekt, senare, scope } = await setup();
     await scope("Prislista", 30);
     const stilla = async () => {
@@ -155,7 +155,7 @@ describe("stuck Scopes", () => {
     expect((await apogee.getProjekt(projekt)).scopes[0]).toMatchObject({ stilla: false, stillaDagar: 0 });
   });
 
-  it("a Scope at Läge 100, or in an Avslutat Projekt, is never stuck", async () => {
+  it("a Scope at Läge 100, or in an Avslutat Projekt, is never Stilla", async () => {
     const { apogee, anna, projekt, senare, scope } = await setup();
     await scope("Prislista", 100);
     await scope("Kvitton", 50);
@@ -170,7 +170,7 @@ describe("stuck Scopes", () => {
 });
 
 describe("the overview", () => {
-  it("shows each Projekt as a mini chart with its status and stuck count, and the count per Funktionsområde", async () => {
+  it("shows each Projekt as a mini chart with its status and Stilla count, and the count per Funktionsområde", async () => {
     const { apogee, anna, fo, projekt, senare, scope } = await setup();
     const klar = (await apogee.createProjekt(fo, "Bokslut", anna)).id;
     await scope("Prislista", 70);

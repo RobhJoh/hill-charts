@@ -394,7 +394,7 @@
         <circle class="stillahalo" cx={x} cy={y} r="12.5" />
         <circle class="stilla" cx={x} cy={y} r="12.5" />
       {:else if noter.get(s.id)}
-        <!-- Stuck: dashed red ring and a leader to the note, turned away from the frame's edges. -->
+        <!-- Stilla: dashed red ring and a leader to the note, turned away from the frame's edges. -->
         {@const not = noter.get(s.id)!}
         <circle class="stillahalo" cx={x} cy={y} r="14" />
         <circle class="stilla" cx={x} cy={y} r="14" />
@@ -528,7 +528,7 @@
     font-weight: 600;
     fill: var(--redtx);
   }
-  /* Stuck: a dashed accent ring on a dark halo, so it reads apart from the
+  /* Stilla: a dashed accent ring on a dark halo, so it reads apart from the
      orange uphill stars by form, not only hue. */
   .stillahalo {
     fill: none;

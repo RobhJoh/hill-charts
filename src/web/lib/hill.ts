@@ -150,7 +150,7 @@ export function glimtVidSpar(från: number, till: number, puls: boolean): "krön
   return höjdpunkt(från, till) ?? (puls ? "puls" : null);
 }
 
-/** Whole days since a time: the core's rule, so star size and "stuck" agree. */
+/** Whole days since a time: the core's rule, so star size and "Stilla" agree. */
 export { dagarSedan } from "../../core/index.js";
 
 // ---------- labels ----------

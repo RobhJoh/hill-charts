@@ -16,7 +16,7 @@
 
   let personer = $state<PersonVy[] | undefined>();
   let historik = $state<PersonHändelse[]>([]);
-  /** Load per Person (Scopes, Projekt, stuck, Läge dots), by id. */
+  /** Load per Person (Scopes, Projekt, Stilla, Läge dots), by id. */
   let last = $state<Record<string, PersonRad>>({});
   let loadError = $state("");
   let namn = $state("");

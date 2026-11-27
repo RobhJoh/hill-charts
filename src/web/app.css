@@ -1,6 +1,6 @@
 /* Stjärnatlas tokens (see the prototype/stjarnatlas branch): `natt` is the
    default, `dag` overrides it under [data-theme="dag"] (set by tema.svelte.ts).
-   The orange-red accent (--red) only for selection, stuck and the primary
+   The orange-red accent (--red) only for selection, Stilla and the primary
    action; --red-on is text on it (dark in natt: white fails 4.5:1). Scope colours come
    from the Läge ramp in lib/hill.ts, never from here. */
 :root {

@@ -70,7 +70,7 @@ describe("Stjärnkarta", () => {
     expect(await karta(anna)).toEqual([]);
   });
 
-  it("counts Scopes, Projekt and stuck Scopes over Pågående Projekt, and Avslutade Projekt apart", async () => {
+  it("counts Scopes, Projekt and Stilla Scopes over Pågående Projekt, and Avslutade Projekt apart", async () => {
     const { apogee, anna, bo, kassan, moms, fo, senare, scope } = await setup();
     await scope(kassan, "Prislista", anna, 40);
     await scope(kassan, "Kvitton", anna, 60);

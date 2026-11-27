@@ -1,6 +1,6 @@
 <script lang="ts">
   // The small sky chart shown for a Projekt in lists: the orbit with a dot per
-  // Scope in its Läge colour. Stuck Scopes are drawn dimmer with a red ring.
+  // Scope in its Läge colour. Stilla Scopes are drawn dimmer with a red ring.
   import { hillY, lägeFärg, type Tema } from "../lib/hill.js";
   import { stapelnivåer } from "../lib/minihill.js";
 

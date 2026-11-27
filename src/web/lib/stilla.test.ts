@@ -6,6 +6,7 @@ const rad = (namn: string, extra: Partial<ProjektRad> = {}): ProjektRad => ({
   id: namn.toLowerCase(),
   namn,
   avslutat: false,
+  avslutad: null,
   pågående: true,
   nedräkning: null,
   nästaMilstolpe: null,

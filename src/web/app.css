@@ -20,6 +20,8 @@
   --star: #dfe6f5;
   --btn: #4f63a0;
   --halo: #0d1836;
+  /* Light blue: only the ✦ before an Avslutat Projekt in lists (DESIGN.md Klar-regeln). */
+  --klar: #8fc7ff;
   --chart-ground: radial-gradient(ellipse at 50% 60%, #11204a 0%, var(--chart) 55%, var(--bg) 100%);
   color-scheme: dark;
 }
@@ -41,6 +43,7 @@
   --star: #9aa8c7;
   --btn: #7d8cab;
   --halo: #ffffff;
+  --klar: #2f6fb8;
   --chart-ground: var(--chart);
   color-scheme: light;
 }

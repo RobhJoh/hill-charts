@@ -1,8 +1,10 @@
 <script lang="ts">
   import { felText } from "../lib/fel.js";
   // The Historik panel: a Projekt's Uppdateringar newest first (consecutive
-  // drags merged into one "N drag" row), each with Visa, Återställ hit and
-  // (on single rows) Ångra bara denna. Reads the rows itself; writes and the
+  // drags merged into one "N drag" row), each with Visa and (on single rows)
+  // Ångra bara denna, shown on hover, focus or the chosen row (tap on a phone).
+  // Återställ hit is only in the parent's Visa banner (Q7 a), so the chart is
+  // always seen before it is restored. Reads the rows itself; writes and the
   // Visa preview are the parent's callbacks, so the parent can sign, reload
   // and show the preview on its chart.
   import type { HistorikRad, PersonVy } from "../../core/index.js";
@@ -16,7 +18,6 @@
     version,
     visad = null,
     onvisa,
-    onåterställ,
     onångra,
     onstäng,
   }: {
@@ -27,7 +28,6 @@
     /** The Uppdatering being previewed with Visa, if any. */
     visad?: string | null;
     onvisa: (rad: HistorikRad<PersonVy> | null) => void;
-    onåterställ: (uppdateringId: string) => Promise<unknown>;
     onångra: (uppdateringId: string) => Promise<unknown>;
     onstäng: () => void;
   } = $props();
@@ -37,6 +37,8 @@
   let fel = $state("");
   let felRad = $state<string | null>(null);
   let upptagen = $state(false);
+  /** The row whose actions are shown after a click or tap on it. */
+  let vald = $state<string | null>(null);
 
   $effect(() => {
     void version;
@@ -68,7 +70,7 @@
 <section class="historik" aria-label="Historik">
   <div class="topp">
     <h2>Historik</h2>
-    <button class="quiet" onclick={onstäng}>Stäng</button>
+    <button class="quiet" onclick={onstäng}>← Scopes</button>
   </div>
 
   {#if laddar}
@@ -81,15 +83,21 @@
   <ol>
     {#each rader as rad (rad.id)}
       {@const alla = beskrivAlla(rad, namn)}
-      <li class:visad={rad.id === visad} class:bort={rad.bortåterställd}>
-        <p class="vad">
-          <strong>{rad.vem?.namn ?? UTAN_NAMN}</strong>
-          {beskrivRad(rad, namn)}
-          {#if rad.antal > 1}<span class="tag">{rad.antal} drag</span>{/if}
-          {#if rad.bortåterställd}<span class="tag">bortåterställd</span>{/if}
-          {#if rad.ångrad}<span class="tag">ångrad</span>{/if}
-        </p>
-        <p class="meta"><time datetime={rad.tid}>{visaTid(rad.tid)}</time></p>
+      <li class:visad={rad.id === visad} class:vald={rad.id === vald} class:bort={rad.bortåterställd}>
+        <button
+          class="rad"
+          aria-expanded={rad.id === vald || rad.id === visad}
+          onclick={() => (vald = vald === rad.id ? null : rad.id)}
+        >
+          <span class="vad">
+            <strong>{rad.vem?.namn ?? UTAN_NAMN}</strong>
+            {beskrivRad(rad, namn)}
+            {#if rad.antal > 1}<span class="tag">{rad.antal} drag</span>{/if}
+            {#if rad.bortåterställd}<span class="tag">bortåterställd</span>{/if}
+            {#if rad.ångrad}<span class="tag">ångrad</span>{/if}
+          </span>
+          <span class="meta"><time datetime={rad.tid}>{visaTid(rad.tid)}</time></span>
+        </button>
         {#if alla.length > 1}
           <details>
             <summary>{alla.length} ändringar</summary>
@@ -106,9 +114,6 @@
           {:else}
             <button class="quiet" onclick={() => onvisa(rad)}>Visa</button>
           {/if}
-          <button class="quiet" disabled={upptagen} onclick={() => kör(rad.id, () => onåterställ(rad.id))}>
-            Återställ hit
-          </button>
           {#if rad.kanÅngras}
             <button class="quiet" disabled={upptagen} onclick={() => kör(rad.id, () => onångra(rad.id))}>
               Ångra bara denna
@@ -148,11 +153,22 @@
   ol > li.bort .vad {
     color: var(--mid);
   }
+  /* The row itself is the control that shows its actions (a tap on a phone). */
+  .rad {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: none;
+    text-align: left;
+    font-weight: 400;
+    font-size: 15px;
+  }
   .vad {
-    margin: 0;
+    display: block;
     line-height: 1.4;
   }
   .meta {
+    display: block;
     margin: 2px 0 0;
   }
   .tag {
@@ -173,10 +189,37 @@
     margin: 4px 0 0;
     padding-left: 18px;
   }
+  /* Actions only on hover, focus or the chosen row (Q7 a): no wall of buttons. */
   .knappar {
-    display: flex;
+    display: none;
     flex-wrap: wrap;
     gap: 6px;
     margin-top: 8px;
+  }
+  ol > li:focus-within .knappar,
+  ol > li.vald .knappar,
+  ol > li.visad .knappar {
+    display: flex;
+  }
+  /* With a mouse the actions sit over the row's lower right corner, so rows
+     don't jump as the pointer moves down the list. */
+  @media (hover: hover) {
+    ol > li {
+      position: relative;
+    }
+    ol > li:hover .knappar {
+      display: flex;
+    }
+    .knappar {
+      position: absolute;
+      right: 0;
+      bottom: 8px;
+      margin: 0;
+      background: var(--panel);
+    }
+    ol > li.visad .knappar {
+      right: 10px;
+      background: var(--sel);
+    }
   }
 </style>

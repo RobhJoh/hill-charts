@@ -1,15 +1,52 @@
 import { describe, expect, it } from "vitest";
+import { tillOklch, kontrast } from "./farg.js";
 import { kompaktRuta, lägeFärg, placeraEtiketter, punkt, lägeFrånX, type Etikett } from "./hill.js";
 
 describe("colour from Läge", () => {
-  it("follows the Stjärnatlas ramp for each theme", () => {
-    expect(lägeFärg(0, "natt")).toBe("#ff7a4d");
-    expect(lägeFärg(25, "natt")).toBe("#ffb36b");
-    expect(lägeFärg(12.5, "natt")).toBe("#ff975c");
-    expect(lägeFärg(100, "natt")).toBe("#8fb8ff");
-    expect(lägeFärg(0, "dag")).toBe("#d9481f");
-    expect(lägeFärg(50, "dag")).toBe("#c9a21a");
+  const heltal = Array.from({ length: 101 }, (_, i) => i);
+  const kall = (hex: string) => {
+    const [, , h] = tillOklch(hex);
+    return h >= 230 && h <= 290;
+  };
+
+  it("hits the ramp's stops in each theme", () => {
+    expect(lägeFärg(50, "natt")).toBe("#ffe7a8");
+    expect(lägeFärg(75, "natt")).toBe("#a9c8ff");
+    expect(lägeFärg(100, "natt")).toBe("#6f9fff");
+    expect(lägeFärg(50, "dag")).toBe("#b8860b");
+    expect(lägeFärg(62, "dag")).toBe("#6f86c8");
+    expect(lägeFärg(75, "dag")).toBe("#5a86d6");
     expect(lägeFärg(100, "dag")).toBe("#2f5fc4");
+  });
+
+  it("clamps Läge outside 0–100", () => {
+    expect(lägeFärg(-5, "dag")).toBe(lägeFärg(0, "dag"));
+    expect(lägeFärg(120, "natt")).toBe(lägeFärg(100, "natt"));
+  });
+
+  it("keeps every whole Läge in dag at least 3:1 against white", () => {
+    for (const l of heltal) expect(kontrast(lägeFärg(l, "dag"), "#ffffff"), `Läge ${l}`).toBeGreaterThanOrEqual(3);
+  });
+
+  it("keeps dag's mid colours clean: amber up to the crest, then cool slate, never olive or grey", () => {
+    for (const l of heltal.filter((l) => l <= 50)) expect(tillOklch(lägeFärg(l, "dag"))[1], `Läge ${l}`).toBeGreaterThan(0.12);
+    // Interpolating in RGB made 55 #b39c40 (olive) and 65 about #86918b (grey).
+    for (const l of heltal.filter((l) => l >= 55)) expect(kall(lägeFärg(l, "dag")), `Läge ${l}`).toBe(true);
+    for (const l of heltal.filter((l) => l >= 60)) expect(tillOklch(lägeFärg(l, "dag"))[1], `Läge ${l}`).toBeGreaterThan(0.07);
+  });
+
+  it("keeps natt's downhill blue, so white only shows just past the crest", () => {
+    // RGB from #fff1c9 to #cfe0ff made everything between about 45 and 85 near white.
+    for (const l of heltal.filter((l) => l >= 56)) expect(kall(lägeFärg(l, "natt")), `Läge ${l}`).toBe(true);
+    for (const l of heltal.filter((l) => l >= 60)) expect(tillOklch(lägeFärg(l, "natt"))[1], `Läge ${l}`).toBeGreaterThan(0.05);
+    for (const l of heltal.filter((l) => l <= 50)) expect(tillOklch(lägeFärg(l, "natt"))[1], `Läge ${l}`).toBeGreaterThan(0.08);
+  });
+
+  it("starts uphill toward amber, apart from the orange-red accent", () => {
+    // The accent (#48) is about #f0602e at natt and #c44a1c at dag.
+    for (const [tema, accent] of [["natt", "#f0602e"], ["dag", "#c44a1c"]] as const) {
+      expect(tillOklch(lägeFärg(0, tema))[2] - tillOklch(accent)[2], tema).toBeGreaterThan(8);
+    }
   });
 });
 

@@ -1,12 +1,15 @@
 <script lang="ts">
   // Shown for unknown routes ("Finns inte") and for ids that are Raderade or
-  // never existed ("Finns inte längre", as the server's 404 page title says).
+  // never existed. The server cannot tell those two apart, so a known kind of
+  // page (`vad`, e.g. "Projektet") gets a text true in both cases (#62);
+  // otherwise `längre` says "Finns inte längre".
   // An empty sky: the hill with no stars, and one clear way back.
   import MiniHill from "../components/MiniHill.svelte";
   import { tema } from "../lib/tema.svelte.js";
 
-  let { längre = false }: { längre?: boolean } = $props();
-  const rubrik = $derived(längre ? "Finns inte längre" : "Finns inte");
+  let { längre = false, vad }: { längre?: boolean; vad?: string } = $props();
+  const rubrik = $derived(vad ? `Hittar inte ${vad}` : längre ? "Finns inte längre" : "Finns inte");
+  const text = $derived(vad ? `Länken kan vara felskriven, eller så har ${vad} raderats.` : "Här finns inga stjärnor.");
 </script>
 
 <svelte:head><title>{rubrik} · Apogee</title></svelte:head>
@@ -14,7 +17,7 @@
 <div class="page">
   <div class="kulle"><MiniHill tema={tema.nu} width={220} height={60} /></div>
   <h1>{rubrik}</h1>
-  <p class="meta">Här finns inga stjärnor.</p>
+  <p class="meta">{text}</p>
   <p><a class="knapp" href="/">Till alla Funktionsområden</a></p>
 </div>
 

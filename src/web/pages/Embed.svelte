@@ -122,9 +122,13 @@
     </div>
   {:else if projekt?.borttagen}
     <div class="besked">
+      <!-- The Apogee mark (#62): where the message comes from, in a frame that is otherwise empty. -->
+      <svg class="märke" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+        <path d="M11 1 L12.6 9.4 L21 11 L12.6 12.6 L11 21 L9.4 12.6 L1 11 L9.4 9.4Z" fill="var(--red)" />
+      </svg>
       <p><strong>Det här Projektet är borttaget.</strong></p>
       <p class="meta">{projekt.namn} togs bort av {projekt.borttagen.vem.namn}.</p>
-      <p><a href={länk} target="_blank" rel="noopener">Öppna i Apogee ↗</a></p>
+      <p><a href={länk} target="_blank" rel="noopener">Återställ i Apogee ↗</a></p>
     </div>
   {:else if projekt}
     <header>
@@ -487,6 +491,10 @@
   }
   .besked p + p {
     margin-top: 6px;
+  }
+  .märke {
+    display: block;
+    margin: 0 auto 10px;
   }
   .meta {
     color: var(--dim);

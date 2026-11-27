@@ -142,6 +142,14 @@ export function höjdpunkt(från: number, till: number): "krön" | "mål" | null
   return null;
 }
 
+/**
+ * The glint after a saved drop: a high point as above, or, on a chart that
+ * confirms every save (the Stjärnkarta), a plain short pulse.
+ */
+export function glimtVidSpar(från: number, till: number, puls: boolean): "krön" | "mål" | "puls" | null {
+  return höjdpunkt(från, till) ?? (puls ? "puls" : null);
+}
+
 /** Whole days since a time: the core's rule, so star size and "stuck" agree. */
 export { dagarSedan } from "../../core/index.js";
 

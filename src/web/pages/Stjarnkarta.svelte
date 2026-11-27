@@ -1,10 +1,10 @@
 <script lang="ts">
   import { felText } from "../lib/fel.js";
   // A Person's Stjärnkarta: every Scope they own, as stars on one sky. Each
-  // star carries its Projekt's letter from the key beside the chart. Dragging
-  // a star is an Uppdatering in that Scope's own Projekt, with a toast
-  // offering Ångra. Avslutade Projekt sit behind a toggle, dimmed; Borttagna
-  // are never shown (the core leaves them out).
+  // star carries its Projekt's letter from the key beside the chart (when there
+  // is more than one Projekt). Dragging a star is an Uppdatering in that
+  // Scope's own Projekt: the star pulses once saved, and a toast offers Ångra.
+  // Only Pågående Projekt are shown (Q12 a); Borttagna never reach the page.
   import type { ScopeVy, StjärnkartaProjekt, StjärnkartaVy } from "../../core/index.js";
   import HillChart from "../components/HillChart.svelte";
   import Nedrakning from "../components/Nedrakning.svelte";
@@ -18,6 +18,7 @@
   import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
   import { tema } from "../lib/tema.svelte.js";
   import { STILLA_FÖRKLARING, stillaI } from "../lib/stilla.js";
+  import { kartansProjekt } from "../lib/stjarnkarta.js";
   import Saknas from "./Saknas.svelte";
 
   let { id }: { id: string } = $props();
@@ -28,7 +29,6 @@
   let inaktiv = $state<string | null>(null);
   let loadError = $state("");
   let skrivFel = $state("");
-  let medAvslutade = $state(false);
   let valt = $state<string | null>(null);
   /** The last drag, which the toast's Ångra undoes. */
   let flytt = $state<{ text: string; projektId: string; uppdateringId: string } | null>(null);
@@ -52,18 +52,16 @@
   });
   load();
 
-  /** Letters follow the key's order over all Projekt, so toggling Avslutade never reletters. */
-  const bokstav = (i: number) => String.fromCharCode(65 + (i % 26)) + (i >= 26 ? String(Math.floor(i / 26)) : "");
-  const nycklar = $derived((karta?.projekt ?? []).map((p, i) => ({ p, glyf: bokstav(i) })));
-  const visade = $derived(nycklar.filter(({ p }) => medAvslutade || !p.avslutat));
+  const visade = $derived(kartansProjekt(karta?.projekt ?? []));
   const scopes = $derived(visade.flatMap(({ p }) => p.scopes));
-  const märken = $derived(Object.fromEntries(visade.flatMap(({ p, glyf }) => p.scopes.map((s) => [s.id, glyf]))));
-  const dimmade = $derived(visade.filter(({ p }) => p.avslutat).flatMap(({ p }) => p.scopes.map((s) => s.id)));
+  const märken = $derived(
+    Object.fromEntries(visade.flatMap(({ p, glyf }) => (glyf ? p.scopes.map((s) => [s.id, glyf]) : []))),
+  );
   const projektFör = (scopeId: string): StjärnkartaProjekt | undefined =>
-    karta?.projekt.find((p) => p.scopes.some((s) => s.id === scopeId));
+    visade.find(({ p }) => p.scopes.some((s) => s.id === scopeId))?.p;
 
   // Live sync: follow every Projekt on the sky; any write there reloads the map.
-  const följda = $derived((karta?.projekt ?? []).map((p) => p.id).join(","));
+  const följda = $derived(visade.map(({ p }) => p.id).join(","));
   $effect(() => följLive(följda ? följda.split(",") : [], () => void load()));
 
   async function flytta(scopeId: string, läge: number) {
@@ -129,20 +127,12 @@
       {#if r.avslutade}<div><b>{r.avslutade}</b><span>{böj(r.avslutade, "avslutat Projekt", "avslutade Projekt")}</span></div>{/if}
     </div>
 
-    <div class="filt">
-      <span class="cap">Visar</span>
-      <button class="quiet" class:on={!medAvslutade} aria-pressed={!medAvslutade} onclick={() => (medAvslutade = false)}
-        >Pågående Projekt</button
-      >
-      {#if r.avslutade}
-        <button class="quiet" class:on={medAvslutade} aria-pressed={medAvslutade} onclick={() => (medAvslutade = true)}
-          >Med avslutade ({r.avslutade})</button
-        >
-      {/if}
-    </div>
-
-    {#if karta.projekt.length === 0}
-      <p class="empty">{karta.person.namn} äger inga Scopes ännu.</p>
+    {#if visade.length === 0}
+      <p class="empty">
+        {karta.projekt.length
+          ? `${karta.person.namn} äger inga Scopes i pågående Projekt.`
+          : `${karta.person.namn} äger inga Scopes ännu.`}
+      </p>
     {:else}
       <div class="skywrap">
         <div class="sky">
@@ -152,7 +142,7 @@
             tema={tema.nu}
             {valt}
             {märken}
-            {dimmade}
+            pulsVidSpar
             onvälj={(s) => (valt = s)}
             onflytta={flytta}
           />
@@ -161,11 +151,13 @@
         </div>
         <aside class="key" aria-label="Projekt">
           {#each visade as { p, glyf } (p.id)}
-            <section class:avslutat={p.avslutat}>
+            <section>
               <div class="pk">
-                <span class="glyph">{glyf}</span>
+                {#if glyf}<span class="glyph" aria-hidden="true">{glyf}</span>{/if}
                 <a href={projektHref(p)}>{p.namn}</a>
-                <span class="cd"><Nedrakning nedräkning={p.nedräkning} nästaMilstolpe={p.nästaMilstolpe} liten /></span>
+              </div>
+              <div class="cd" class:indrag={!!glyf}>
+                <Nedrakning nedräkning={p.nedräkning} nästaMilstolpe={p.nästaMilstolpe} liten />
               </div>
               <ul>
                 {#each p.scopes as s (s.id)}
@@ -202,7 +194,7 @@
   </div>
   {#if flytt}
     {#key flytt.uppdateringId}
-      <Toast text={flytt.text} åtgärd="Ångra" ms={7000} onåtgärd={ångra} onstäng={() => (flytt = null)} />
+      <Toast text={flytt.text} åtgärd="Ångra" kvittens="Ångrat" ms={7000} onåtgärd={ångra} onstäng={() => (flytt = null)} />
     {/key}
   {/if}
 {/if}
@@ -232,18 +224,6 @@
   .summa .röd b {
     color: var(--redtx);
   }
-  .filt {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin: 16px 0;
-  }
-  .filt .on {
-    border-color: var(--btn);
-    background: var(--sel);
-    color: var(--tx);
-  }
   .skywrap {
     display: grid;
     grid-template-columns: 1fr 330px;
@@ -266,25 +246,32 @@
   section + section {
     margin-top: 18px;
   }
-  section.avslutat {
-    opacity: 0.6;
-  }
   .pk {
     display: flex;
     align-items: baseline;
-    gap: 6px;
+    gap: 8px;
   }
   .pk a {
     font-weight: 600;
   }
-  .pk .cd {
-    margin-left: auto;
+  /* The countdown is a meta row under the name, so the name keeps the full width. */
+  .cd {
+    margin-top: 2px;
   }
+  .cd.indrag {
+    padding-left: 30px;
+  }
+  /* The Projekt letter as a small boxed label, the name's size, matching the letter on the map. */
   .glyph {
-    font: 700 11px Barlow, system-ui, sans-serif;
-    color: var(--dim);
-    width: 16px;
     flex: none;
+    min-width: 22px;
+    padding: 0 4px;
+    box-sizing: border-box;
+    border: 1px solid var(--mid);
+    border-radius: 3px;
+    font: 600 15px/20px Barlow, system-ui, sans-serif;
+    text-align: center;
+    color: var(--tx);
   }
   ul {
     list-style: none;
@@ -372,16 +359,13 @@
     }
   }
   /* Phone (Q17 b): the key is where the thumb picks a Scope, so each row's
-     button and the filter buttons get a 44 px tap target through padding. */
+     button gets a 44 px tap target through padding. */
   @media (max-width: 600px) {
     li {
       padding-block: 0;
     }
     .länk {
       flex: 1 1 auto;
-      min-height: 44px;
-    }
-    .filt button {
       min-height: 44px;
     }
   }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { felText } from "../lib/fel.js";
   import type { Förhandsvisning, HistorikRad, Översikt, PersonVy, ProjektRad, ProjektVy } from "../../core/index.js";
   import HillChart from "../components/HillChart.svelte";
@@ -7,7 +8,7 @@
   import Nedrakning from "../components/Nedrakning.svelte";
   import Tidsplan from "../components/Tidsplan.svelte";
   import Toast from "../components/Toast.svelte";
-  import { beskrivRad, UTAN_NAMN, visaTid } from "../lib/historik.js";
+  import { beskrivRad, skillnaderMotNu, UTAN_NAMN, visaTid } from "../lib/historik.js";
   import { visaDatum } from "../lib/datum.js";
   import NamnForm from "../components/NamnForm.svelte";
   import ScopeIndex from "../components/ScopeIndex.svelte";
@@ -24,6 +25,7 @@
   import StillaAntal from "../components/StillaAntal.svelte";
   import { grannar as ordnaGrannar } from "../lib/grannar.js";
   import Saknas from "./Saknas.svelte";
+  import { avslutatText } from "../lib/avslutat.js";
 
   let { id }: { id: string } = $props();
 
@@ -42,6 +44,8 @@
   let grannar = $state<ProjektRad[]>([]);
   /** Whether the Funktionsområde is Borttaget too (then its Borttagna list is on the start page). */
   let foBorttaget = $state(false);
+  /** Marked Avslutat (Q8 b): read-only, stars dimmed and still, until Öppna igen. */
+  const stängt = $derived(projekt?.markeradAvslutat ?? false);
 
   /** Reloads the Projekt and its Hill chart (after a write, and on live sync). */
   const load = senasteLaddning(() => api.getProjekt(id), {
@@ -93,19 +97,32 @@
     }
   }
 
-  // --- Historik (#35): panel, Visa preview, Återställ hit, Ångra, removal toast ---
+  // --- Historik (#35): panel, Visa preview, Återställ hit, Ångra, Ångra toast ---
   let historikÖppen = $state(false);
   let visning = $state<{ rad: HistorikRad<PersonVy>; vy: Förhandsvisning } | null>(null);
-  /** The removal the "Scope borttagen · Ångra" toast would undo. */
-  let borttagning = $state<string | null>(null);
+  /** The Uppdatering the toast's Ångra would undo, e.g. "Scope borttagen · Ångra". */
+  let ångraToast = $state<{ text: string; mål: string } | null>(null);
+  let visningRuta = $state<HTMLElement | undefined>();
 
   async function visa(rad: HistorikRad<PersonVy> | null) {
     visning = rad ? { rad, vy: await api.förhandsvisa(id, rad.id) } : null;
+    // The banner and chart may be off screen (a phone, or a long page): bring them in.
+    if (visning) {
+      await tick();
+      visningRuta?.scrollIntoView({ block: "nearest" });
+    }
   }
 
+  /** Återställ hit, only from the Visa banner (Q7 a); then "Diagrammet återställt · Ångra". */
   async function återställ(uppdateringId: string) {
-    await redigera((vem) => api.återställHit(id, uppdateringId, vem));
-    visning = null;
+    skrivFel = "";
+    try {
+      const { uppdatering } = await redigera((vem) => api.återställHit(id, uppdateringId, vem));
+      visning = null;
+      if (uppdatering) ångraToast = { text: "Diagrammet återställt", mål: uppdatering.id };
+    } catch (e) {
+      if (!(e instanceof Avbruten)) skrivFel = felText(e, "Kunde inte återställa");
+    }
   }
 
   async function ångra(uppdateringId: string) {
@@ -115,7 +132,13 @@
 
   async function taBort(scopeId: string) {
     const { uppdatering } = await redigera((vem) => api.removeScope(id, scopeId, vem));
-    borttagning = uppdatering.id;
+    ångraToast = { text: "Scope borttagen", mål: uppdatering.id };
+  }
+
+  /** Ta bort a Milstolpe at once, like a Scope, with "Milstolpe borttagen · Ångra". */
+  async function taBortMilstolpe(milstolpeId: string) {
+    const { uppdatering } = await redigera((vem) => api.removeMilstolpe(tidMål, milstolpeId, vem));
+    if (uppdatering) ångraToast = { text: "Milstolpe borttagen", mål: uppdatering.id };
   }
 
   function stängHistorik() {
@@ -137,6 +160,12 @@
     } catch (e) {
       if (!(e instanceof Avbruten)) skrivFel = felText(e, "Kunde inte spara");
     }
+  }
+
+  /** Återställ a Borttaget Projekt from its own page (same command as in the Borttagna list). */
+  async function återställProjekt() {
+    await signatur.signera((vem) => api.återställProjekt(id, vem));
+    await load();
   }
 
   /** Ta bort: hides the Projekt; it is listed under Borttagna Projekt on its Funktionsområde page. */
@@ -182,7 +211,7 @@
 </svelte:head>
 
 {#if saknas}
-  <Saknas längre />
+  <Saknas vad="Projektet" />
 {:else}
   {#if loadError}
     <div class="page"><p class="error">{loadError}</p></div>
@@ -191,6 +220,7 @@
       rubrik="Projektet är borttaget"
       namn={projekt.namn}
       borttagen={projekt.borttagen}
+      onåterställ={foBorttaget ? undefined : återställProjekt}
       lista={foBorttaget
         ? { href: "/", text: "Till Borttagna Funktionsområden" }
         : { href: funktionsområdeHref(projekt.funktionsområde), text: `Till Borttagna Projekt i ${projekt.funktionsområde.namn}` }}
@@ -238,7 +268,7 @@
         />
       {:else}
         <div class="titlerow">
-          <h1>{projekt.namn}</h1>
+          <h1>{#if stängt}<span class="klar titelmärke" aria-hidden="true">✦</span>{/if}{projekt.namn}</h1>
           <div class="verktyg">
             <button class="quiet" onclick={() => (läge = "byt namn")}>Byt namn</button>
             <button class="quiet" onclick={öppnaFlytta}>Flytta</button>
@@ -253,27 +283,48 @@
             <button aria-pressed={historikÖppen} onclick={() => (historikÖppen ? stängHistorik() : (historikÖppen = true))}>
               Historik
             </button>
-            <button class="pr" onclick={() => (nyScope = true)}>Ny Scope</button>
+            {#if stängt}
+              <button class="pr" onclick={() => växlaAvslutat(false)}>Öppna igen</button>
+            {:else}
+              <button
+                class="pr"
+                aria-pressed={nyScope}
+                aria-controls="ny-scope"
+                disabled={!!visning}
+                onclick={() => (nyScope = !nyScope)}>Ny Scope</button
+              >
+            {/if}
           </div>
         </div>
         <div class="status">
-          {#if projekt.markeradAvslutat}
-            <span>Avslutat</span>
-            <button class="quiet" onclick={() => växlaAvslutat(false)}>Öppna igen</button>
+          <span class:avslut={stängt}>{avslutatText(projekt)}</span>
+          {#if stängt}
+            <span class="lås">
+              <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                <rect x="3" y="7" width="10" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.4" />
+                <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.4" />
+              </svg>
+              Skrivskyddat tills det öppnas igen
+            </span>
           {:else}
-            {#if projekt.avslutat}<span>Avslutat · alla Scopes på Läge 100</span>{:else}<span>Pågående</span>{/if}
             <button class="quiet" onclick={() => växlaAvslutat(true)}>Markera Avslutat</button>
           {/if}
         </div>
-        <div class="tid">
-          <Nedrakning nedräkning={projekt.nedräkning} nästaMilstolpe={projekt.nästaMilstolpe} />
+        <!-- Under Visa the banner is the only time shown (now's dates are dimmed and inert). -->
+        <div class="tid" class:dämpad={!!visning} inert={!!visning}>
+          <!-- Avslutat is said once, in the status line above: no countdown "Avslutat" here. -->
+          <Nedrakning
+            nedräkning={projekt.nedräkning?.läge === "avslutat" ? null : projekt.nedräkning}
+            nästaMilstolpe={projekt.nästaMilstolpe}
+          />
           <Tidsplan
             tidsplan={projekt.tidsplan}
             varningar={projekt.datumVarningar}
+            skrivskyddad={stängt}
             onsätt={(input) => redigera((vem) => api.setDatum(tidMål, input, vem))}
             onlägg={(m) => redigera((vem) => api.addMilstolpe(tidMål, m, vem))}
             onändra={(mid, ä) => redigera((vem) => api.changeMilstolpe(tidMål, mid, ä, vem))}
-            ontabort={(mid) => redigera((vem) => api.removeMilstolpe(tidMål, mid, vem))}
+            ontabort={taBortMilstolpe}
           />
         </div>
       {/if}
@@ -298,25 +349,13 @@
       {#if visning}
         {@const namn = (pid: string) => personer.find((p) => p.id === pid)?.namn ?? "Okänd"}
         {@const vy = visning.vy}
-        {@const avslutatSkiljer = vy.fältSkiljer.includes("avslutat")}
         {@const datumSkiljer = vy.fältSkiljer.includes("startdatum") || vy.fältSkiljer.includes("slutdatum")}
         {@const samma = vy.sammaSomNu}
-        <div class="visning" role="status">
+        <div class="visning" role="status" bind:this={visningRuta}>
           <span>
             Visar läget efter: <strong>{visning.rad.vem?.namn ?? UTAN_NAMN}</strong>
             {beskrivRad(visning.rad, namn)} · {visaTid(visning.rad.tid)}.
-            {#if samma}Samma som nu.{/if}
-            {#if vy.skiljer.length > 0}
-              {vy.skiljer.length} Scopes skiljer sig från nu (streckad ring).
-            {/if}
-            {#if avslutatSkiljer}
-              Projektet var {vy.markeradAvslutat ? "markerat Avslutat" : "inte markerat Avslutat"} då.
-            {/if}
-            {#if datumSkiljer}Datumen skiljer sig från nu.{/if}
-            {#if vy.milstolparSkiljer.length > 0}
-              {vy.milstolparSkiljer.length}
-              {vy.milstolparSkiljer.length === 1 ? "Milstolpe skiljer" : "Milstolpar skiljer"} sig från nu.
-            {/if}
+            {skillnaderMotNu(vy).join(" ")}
           </span>
           <span class="då">
             <span class:skiljer={datumSkiljer}>
@@ -347,20 +386,24 @@
             tema={tema.nu}
             {valt}
             onvälj={(s) => (valt = s)}
-            onflytta={flyttaScope}
+            onflytta={stängt ? undefined : flyttaScope}
+            dimmade={stängt ? projekt.scopes.map((s) => s.id) : []}
           />
         </div>
-        <!-- Right under the chart (Q19 a); the arrow keys only where there is a keyboard-like pointer. -->
-        <p class="dra">
-          Dra en stjärna längs banan för att ändra dess Läge.<span class="tangenter">
-            Markera och använd piltangenterna (Shift = 10 steg).</span
-          >
-        </p>
+        {#if !stängt}
+          <!-- Right under the chart (Q19 a); the arrow keys only where there is a keyboard-like pointer. -->
+          <p class="dra">
+            Dra en stjärna längs banan för att ändra dess Läge.<span class="tangenter">
+              Markera och använd piltangenterna (Shift = 10 steg).</span
+            >
+          </p>
+        {/if}
       {/if}
       {#if skrivFel}<p class="error" role="alert">{skrivFel}</p>{/if}
     </div>
 
     <aside>
+      <div class="sido">
       {#if historikÖppen}
         <HistorikPanel
           projektId={id}
@@ -368,7 +411,6 @@
           version={projekt}
           visad={visning?.rad.id ?? null}
           onvisa={visa}
-          onåterställ={återställ}
           onångra={ångra}
           onstäng={stängHistorik}
         />
@@ -379,6 +421,7 @@
         tema={tema.nu}
         {valt}
         bind:nyScope
+        skrivskyddad={stängt}
         onvälj={(s) => (valt = s)}
         onlägg={läggTill}
         onbytnamn={(scopeId, namn) => redigera((vem) => api.changeScope(id, scopeId, { namn }, vem))}
@@ -386,11 +429,14 @@
         ontabort={taBort}
       />
       {/if}
+      </div>
     </aside>
     </div>
-    {#if borttagning}
-      {@const mål = borttagning}
-      <Toast text="Scope borttagen" åtgärd="Ångra" onåtgärd={() => ångra(mål)} onstäng={() => (borttagning = null)} />
+    {#if ångraToast}
+      {@const { text, mål } = ångraToast}
+      {#key mål}
+        <Toast {text} åtgärd="Ångra" onåtgärd={() => ångra(mål)} onstäng={() => (ångraToast = null)} />
+      {/key}
     {/if}
   {/if}
 {/if}
@@ -446,6 +492,9 @@
   .klar {
     color: var(--klar);
   }
+  .titelmärke {
+    margin-right: 0.25em;
+  }
   .gstatus {
     display: block;
     font-size: 13px;
@@ -466,10 +515,22 @@
   .status {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 10px;
     margin-top: 6px;
     color: var(--dim);
     font-size: 14px;
+  }
+  /* The quiet ending of an Avslutat Projekt: said once, in full contrast. */
+  .status .avslut {
+    color: var(--tx);
+    font-weight: 600;
+  }
+  .lås {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 6px;
   }
   .tid {
     margin-top: 16px;
@@ -481,6 +542,14 @@
   aside {
     background: var(--panel);
     border-left: 1px solid var(--line);
+  }
+  /* Sticky under the site header with its own scroll, so the chart and the
+     Visa banner stay in view beside a Historik row far down the list. */
+  .sido {
+    position: sticky;
+    top: 56px;
+    max-height: calc(100vh - 56px);
+    overflow: auto;
     padding: 28px 22px;
   }
   /* The title on its own line; the quiet tools wrap as a group; Historik and
@@ -516,6 +585,8 @@
     padding: 10px 14px;
     border: 1px dashed var(--orbit);
     background: var(--sel);
+    /* Scrolled into view on Visa: clear of the sticky site header. */
+    scroll-margin-top: 72px;
   }
   .visning > span {
     flex: 1 1 280px;
@@ -528,10 +599,17 @@
     font-size: 13px;
     color: var(--dim);
   }
+  /* What differs from now: bold with a small dot, not a dashed frame (it read as a button). */
   .visning .skiljer {
     color: var(--tx);
-    outline: 1px dashed var(--orbit);
-    outline-offset: 2px;
+    font-weight: 600;
+  }
+  .visning .skiljer::before {
+    content: "•";
+    margin-right: 4px;
+  }
+  .tid.dämpad {
+    opacity: 0.4;
   }
   .chart {
     margin-top: 20px;
@@ -604,6 +682,11 @@
     aside {
       border-left: none;
       border-top: 1px solid var(--line);
+    }
+    .sido {
+      position: static;
+      max-height: none;
+      overflow: visible;
       padding: 20px 16px 32px;
     }
   }

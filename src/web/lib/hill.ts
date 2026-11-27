@@ -157,6 +157,8 @@ export type Etikett = {
   ruta: { x: number; y: number; b: number; h: number };
   /** A leader line from the star to a label moved away from it. */
   ledare?: { x1: number; y1: number; x2: number; y2: number };
+  /** No free spot was left: the label overlaps something (a very crowded chart). */
+  krock?: true;
 };
 
 /**
@@ -320,7 +322,34 @@ export function placeraEtiketter(
     });
     // Nowhere free (a very crowded chart): the first spot inside the chart, overlapping.
     const vald = etikett(fri ?? iDiagrammet[0] ?? [...grundläge(s.läge, x, y), false]);
+    if (!fri) vald.krock = true;
     placerade.push(vald);
   }
   return placerade;
+}
+
+/**
+ * The wide embed's labels (Q3 b): every label that fits without a collision,
+ * the rest left out rather than overlapped. Scopes in `alltid` (the selected
+ * or pointed-at one) come first and always get theirs. Every star's core
+ * stays an obstacle, labelled or not.
+ */
+export function etiketterSomFår(
+  stjärnor: { id: string; läge: number; text: string }[],
+  box: Ruta = RUTA,
+  hinder: readonly Hinder[] = [],
+  alltid: readonly string[] = [],
+): Etikett[] {
+  const kärnor: Hinder[] = stjärnor.map((s) => {
+    const [x, y] = punkt(s.läge, box);
+    return { ruta: { x: x - 7, y: y - 7, b: 14, h: 14 } };
+  });
+  const allaHinder = [...hinder, ...kärnor];
+  const ordning = [...stjärnor.filter((s) => alltid.includes(s.id)), ...stjärnor.filter((s) => !alltid.includes(s.id))];
+  const med: typeof stjärnor = [];
+  for (const s of ordning) {
+    const sista = placeraEtiketter([...med, s], box, allaHinder).at(-1)!;
+    if (!sista.krock || alltid.includes(s.id)) med.push(s);
+  }
+  return placeraEtiketter(med, box, allaHinder);
 }

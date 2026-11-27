@@ -9,12 +9,14 @@
   // Escape cancels. Each commit is one call to `onflytta`.
   //
   // `kompakt` is the Notion embed's hill (#43): it fills its box in real
-  // pixels (13px type at any size), with no starfield, grid or axis.
+  // pixels (13px type at any size), with no starfield, grid or scale; the
+  // halves' names stand under the baseline when the box is over 150 px high.
   import type { ScopeVy } from "../../core/index.js";
   import {
     RUTA,
     dagarSedan,
     etikettText,
+    etiketterSomFår,
     höjdpunkt,
     kompaktRuta,
     lägeFrånX,
@@ -23,6 +25,7 @@
     punkt,
     radie,
     stillaNot,
+    type Etikett,
     type Hinder,
     type Ruta,
     type Tema,
@@ -33,6 +36,7 @@
     scopes,
     tema,
     valt = null,
+    pekad = null,
     markerade = [],
     nu = new Date(),
     etiketter = true,
@@ -40,6 +44,7 @@
     märken = {},
     dimmade = [],
     onvälj,
+    onpeka,
     onflytta,
   }: {
     /** The Projekt's name, for the chart's accessible label. */
@@ -48,12 +53,17 @@
     tema: Tema;
     /** The selected Scope's id (solid accent ring and ✦ before its label). */
     valt?: string | null;
+    /** The Scope pointed at in a list beside the chart (the embed): a thin ring and its label. */
+    pekad?: string | null;
     /** Scopes to highlight with a dashed ring (Historik's Visa: they differ from now). */
     markerade?: string[];
     /** "Now", for star size by days since moved. */
     nu?: Date;
-    /** Draw star labels: all, none, or only the selected star's ("valt", the embed beside its list). */
-    etiketter?: boolean | "valt";
+    /**
+     * Draw star labels: all, none, only the selected star's ("valt"), or all
+     * that fit without a collision ("plats", the wide embed beside its list).
+     */
+    etiketter?: boolean | "valt" | "plats";
     /** The embed's compact hill, filling its box. */
     kompakt?: boolean;
     /** A short mark before a Scope's label, by Scope id (the Stjärnkarta's Projekt letter). */
@@ -61,6 +71,8 @@
     /** Scopes drawn dimmed (the Stjärnkarta's Avslutade Projekt). */
     dimmade?: string[];
     onvälj?: (id: string | null) => void;
+    /** A star is pointed at (hover), or no longer (null). */
+    onpeka?: (id: string | null) => void;
     /** Commit a new Läge. Leave out for a read-only chart. Rejecting snaps the star back. */
     onflytta?: (id: string, läge: number) => Promise<unknown> | void;
   } = $props();
@@ -129,17 +141,20 @@
     const hinder: Hinder[] = [...noter.values()].flatMap((n) => n.hinder);
     // The selected star's label gets first pick, then left to right.
     const ordning = [...stjärnor]
-      .filter((t) => etiketter !== "valt" || t.s.id === valt)
+      .filter((t) => etiketter !== "valt" || t.s.id === valt || t.s.id === pekad)
       .sort((a, b) => Number(b.s.id === valt) - Number(a.s.id === valt) || a.läge - b.läge);
-    const lista = placeraEtiketter(
-      ordning.map((t) => ({
-        id: t.s.id,
-        läge: t.läge,
-        text: `${etikettText({ namn: t.s.namn, läge: t.läge, märke: märken[t.s.id], vald: t.s.id === valt })}${stillaTillägg(t.s)}`,
-      })),
-      ruta,
-      hinder,
-    );
+    const texter = ordning.map((t) => ({
+      id: t.s.id,
+      läge: t.läge,
+      text: `${etikettText({ namn: t.s.namn, läge: t.läge, märke: märken[t.s.id], vald: t.s.id === valt })}${stillaTillägg(t.s)}`,
+    }));
+    let lista: Etikett[];
+    if (etiketter === "plats") {
+      // Pointing at a Scope only moves labels when its own would be left out.
+      const valda = valt ? [valt] : [];
+      lista = etiketterSomFår(texter, ruta, hinder, valda);
+      if (pekad && !lista.some((e) => e.id === pekad)) lista = etiketterSomFår(texter, ruta, hinder, [...valda, pekad]);
+    } else lista = placeraEtiketter(texter, ruta, hinder);
     return new Map(lista.map((e) => [e.id, e]));
   });
 
@@ -280,9 +295,13 @@
     {/each}
   {/if}
   <path d={orbit} fill="none" stroke="var(--orbit)" stroke-width={kompakt ? 1.3 : 1.4} />
+  <!-- The hill's halves (Q14 a): figuring out uphill, making it happen downhill. -->
   {#if !kompakt}
-    <text class="gt" x={X0} y={BASE + 50}>← Uppför · lista ut</text>
-    <text class="gt" x={X0 + W} y={BASE + 50} text-anchor="end">Nedför · genomföra →</text>
+    <text class="gt" x={X0} y={BASE + 50}>← Utforskar</text>
+    <text class="gt" x={X0 + W} y={BASE + 50} text-anchor="end">Genomför →</text>
+  {:else if ruta.höjd > 150}
+    <text class="halva" x={ruta.x0} y={ruta.bas + 15}>← Utforskar</text>
+    <text class="halva" x={ruta.x0 + ruta.w} y={ruta.bas + 15} text-anchor="end">Genomför →</text>
   {/if}
 
   {#each stjärnor as { s, läge, x, y, r, färg } (s.id)}
@@ -302,6 +321,8 @@
       onpointermove={(ev) => pointermove(ev, s)}
       onpointerup={(ev) => pointerup(ev, s)}
       onpointercancel={() => pointercancel(s)}
+      onpointerenter={() => onpeka?.(s.id)}
+      onpointerleave={() => onpeka?.(null)}
       onkeydown={(ev) => keydown(ev, s)}
       onfocus={() => onvälj?.(s.id)}
       onblur={() => blur(s)}
@@ -313,7 +334,10 @@
       <circle cx={x} cy={y} r={Math.max(r, 16)} fill="transparent" />
       <circle cx={x} cy={y} {r} fill={färg} />
       {#if s.id === valt}
-        <circle class="ring" cx={x} cy={y} r={kompakt ? 13 : 20} />
+        <!-- Around a Stilla star's dashed ring it stands well outside, so the two read as two. -->
+        <circle class="ring" cx={x} cy={y} r={kompakt ? (s.stilla ? 18 : 13) : 20} />
+      {:else if s.id === pekad}
+        <circle class="pekring" cx={x} cy={y} r={kompakt && s.stilla ? 18 : 13} />
       {/if}
       {#if markerade.includes(s.id)}
         <circle class="markerad" cx={x} cy={y} r="25" />
@@ -404,6 +428,16 @@
   .scope:focus-visible circle:nth-child(3) {
     stroke: var(--red);
     stroke-width: 2;
+  }
+  /* Pointed at from the list: ink, not the accent, which means selected and Stilla. */
+  .pekring {
+    fill: none;
+    stroke: var(--tx);
+    stroke-width: 1.5;
+  }
+  .halva {
+    font: 500 12px Barlow, system-ui, sans-serif;
+    fill: var(--dim);
   }
   .markerad {
     fill: none;

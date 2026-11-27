@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { tillOklch, kontrast } from "./farg.js";
 import {
   etikettText,
+  etiketterSomFår,
   höjdpunkt,
   kompaktRuta,
   lägeFärg,
@@ -260,6 +261,40 @@ describe("label placement", () => {
     const [stor] = placeraEtiketter([{ id: "a", läge: 70, text: "Prislista 70" }]);
     const [liten] = placeraEtiketter([{ id: "a", läge: 70, text: "Prislista 70" }], ruta);
     expect(liten!.ruta.b).toBeLessThan(stor!.ruta.b);
+  });
+});
+
+describe("labels that fit (the wide embed, Q3 b)", () => {
+  const överlappar = (a: Etikett, b: Etikett) =>
+    a.ruta.x < b.ruta.x + b.ruta.b && b.ruta.x < a.ruta.x + a.ruta.b && a.ruta.y < b.ruta.y + b.ruta.h && b.ruta.y < a.ruta.y + a.ruta.h;
+  const fem = [
+    { id: "felmeddelanden", läge: 10, text: "Felmeddelanden 10" },
+    { id: "sessionshantering", läge: 30, text: "Sessionshantering 30" },
+    { id: "losenord", läge: 55, text: "Lösenordsåterställning 55" },
+    { id: "tillganglighet", läge: 71, text: "Tillgänglighetsgranskning 71" },
+    { id: "bankid", läge: 85, text: "BankID-flöde 85" },
+  ];
+
+  it("shows all five of today's Scopes beside the list, even 220 px high", () => {
+    // 720 px wide embed with a 230 px list leaves 490 px for the hill.
+    const etiketter = etiketterSomFår(fem, kompaktRuta(490, 220));
+    expect(etiketter.map((e) => e.id).sort()).toEqual(fem.map((s) => s.id).sort());
+  });
+
+  it("leaves out the labels that would collide, instead of overlapping them", () => {
+    const trängsel = Array.from({ length: 12 }, (_, i) => ({ id: `s${i}`, läge: 20 + 2 * i, text: `Scope nummer ${i}` }));
+    const etiketter = etiketterSomFår(trängsel, kompaktRuta(300, 160));
+    expect(etiketter.length).toBeGreaterThan(0);
+    expect(etiketter.length).toBeLessThan(trängsel.length);
+    for (const a of etiketter) for (const b of etiketter) if (a !== b) expect(överlappar(a, b), `${a.id} / ${b.id}`).toBe(false);
+  });
+
+  it("always shows the selected or pointed-at Scope's label, even when crowded", () => {
+    const trängsel = Array.from({ length: 12 }, (_, i) => ({ id: `s${i}`, läge: 20 + 2 * i, text: `Scope nummer ${i}` }));
+    const utan = etiketterSomFår(trängsel, kompaktRuta(300, 160)).map((e) => e.id);
+    const saknas = trängsel.map((s) => s.id).find((id) => !utan.includes(id))!;
+    const med = etiketterSomFår(trängsel, kompaktRuta(300, 160), [], [saknas]).map((e) => e.id);
+    expect(med).toContain(saknas);
   });
 });
 

@@ -195,7 +195,6 @@
     <div class="bar" style:background={rampGradient(tema)}></div>
     <div class="ticks"><span>0 uppför</span><span>50 krön</span><span>100 klar</span></div>
   </div>
-  <p class="meta">Dra en stjärna längs banan för att ändra dess Läge, eller markera den och använd piltangenterna.</p>
 </section>
 
 <style>

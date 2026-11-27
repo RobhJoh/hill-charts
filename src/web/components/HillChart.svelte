@@ -23,6 +23,9 @@
     punkt,
     radie,
     stillaNot,
+    TELEFON_BREDD,
+    TELEFON_TRÄFF,
+    telefonDiagram,
     type Hinder,
     type Ruta,
     type Tema,
@@ -65,12 +68,46 @@
     onflytta?: (id: string, läge: number) => Promise<unknown> | void;
   } = $props();
 
-  const { x0: X0, w: W, bas: BASE, topp: TOPP } = RUTA;
-
-  /** The compact hill's box, measured. */
+  /** The compact hill's box, measured; the big chart's width, to tell a phone. */
   let boxBredd = $state(0);
   let boxHöjd = $state(0);
-  const ruta: Ruta = $derived(kompakt ? kompaktRuta(Math.max(boxBredd, 120), Math.max(boxHöjd, 80)) : RUTA);
+
+  /** Läge shown while a star is dragged, being keyed, or its write is pending. */
+  let pågående = $state<Record<string, number>>({});
+  const visatLäge = (s: ScopeVy) => pågående[s.id] ?? s.läge;
+
+  /**
+   * On a phone the big chart draws in real pixels (Q9 a): 13px labels, all of
+   * them, stacked with leaders and the box grown to fit (Q17 b), and 44px hit
+   * areas. Its Stilla stars end their label in "· 26 d" like the embed's.
+   */
+  const telefon = $derived(!kompakt && boxBredd > 0 && boxBredd < TELEFON_BREDD);
+
+  /** The compact chart has no room for the note, so a Stilla star's label ends in "· 26 d". */
+  const stillaTillägg = (s: ScopeVy) =>
+    (kompakt || telefon) && s.stilla && pågående[s.id] === undefined ? ` · ${s.stillaDagar} d` : "";
+
+  /** The labelled stars and their texts: the selected star's label gets first pick, then left to right. */
+  const etikettStjärnor = $derived(
+    !etiketter
+      ? []
+      : scopes
+          .filter((s) => etiketter !== "valt" || s.id === valt)
+          .map((s) => ({ s, läge: visatLäge(s) }))
+          .sort((a, b) => Number(b.s.id === valt) - Number(a.s.id === valt) || a.läge - b.läge)
+          .map(({ s, läge }) => ({
+            id: s.id,
+            läge,
+            text: `${etikettText({ namn: s.namn, läge, märke: märken[s.id], vald: s.id === valt })}${stillaTillägg(s)}`,
+          })),
+  );
+
+  const telefonen = $derived(telefon ? telefonDiagram(boxBredd, etikettStjärnor) : null);
+
+  const ruta: Ruta = $derived(
+    kompakt ? kompaktRuta(Math.max(boxBredd, 120), Math.max(boxHöjd, 80)) : (telefonen?.ruta ?? RUTA),
+  );
+  const { x0: X0, w: W, bas: BASE, topp: TOPP } = $derived(ruta);
 
   const orbit = $derived(
     Array.from({ length: 201 }, (_, j) => {
@@ -92,12 +129,8 @@
     }));
   })();
 
-  /** Läge shown while a star is dragged, being keyed, or its write is pending. */
-  let pågående = $state<Record<string, number>>({});
   let draget: { id: string; pekare: number } | null = null;
   let svg: SVGSVGElement | undefined = $state();
-
-  const visatLäge = (s: ScopeVy) => pågående[s.id] ?? s.läge;
 
   const stjärnor = $derived(
     scopes.map((s) => {
@@ -108,14 +141,10 @@
     }),
   );
 
-  /** The compact chart has no room for the note, so a Stilla star's label ends in "· 26 d". */
-  const stillaTillägg = (s: ScopeVy) =>
-    kompakt && s.stilla && pågående[s.id] === undefined ? ` · ${s.stillaDagar} d` : "";
-
   /** The big chart's "Ingen rörelse på N dagar" notes, by Scope id (hidden while a star moves). */
   const noter = $derived(
     new Map(
-      kompakt
+      kompakt || telefon
         ? []
         : stjärnor
             .filter((t) => t.s.stilla && pågående[t.s.id] === undefined)
@@ -127,19 +156,7 @@
     if (!etiketter) return new Map();
     // Labels keep clear of the Stilla notes and their leaders.
     const hinder: Hinder[] = [...noter.values()].flatMap((n) => n.hinder);
-    // The selected star's label gets first pick, then left to right.
-    const ordning = [...stjärnor]
-      .filter((t) => etiketter !== "valt" || t.s.id === valt)
-      .sort((a, b) => Number(b.s.id === valt) - Number(a.s.id === valt) || a.läge - b.läge);
-    const lista = placeraEtiketter(
-      ordning.map((t) => ({
-        id: t.s.id,
-        läge: t.läge,
-        text: `${etikettText({ namn: t.s.namn, läge: t.läge, märke: märken[t.s.id], vald: t.s.id === valt })}${stillaTillägg(t.s)}`,
-      })),
-      ruta,
-      hinder,
-    );
+    const lista = telefonen?.etiketter ?? placeraEtiketter(etikettStjärnor, ruta, hinder);
     return new Map(lista.map((e) => [e.id, e]));
   });
 
@@ -251,7 +268,7 @@
   }
 </script>
 
-<div class="box" class:kompakt bind:clientWidth={boxBredd} bind:clientHeight={boxHöjd}>
+<div class="box" class:kompakt class:telefon bind:clientWidth={boxBredd} bind:clientHeight={boxHöjd}>
 <svg
   bind:this={svg}
   viewBox="0 0 {ruta.bredd} {ruta.höjd}"
@@ -265,7 +282,7 @@
     <line x1={kx} y1={ruta.topp} x2={kx} y2={ruta.bas} stroke="var(--grid)" stroke-dasharray="2 3" />
   {:else}
     {#each himmel as h, i (i)}
-      <circle cx={h.cx} cy={h.cy} r={h.r} opacity={h.o} fill="var(--star)" />
+      <circle cx={(h.cx * ruta.bredd) / RUTA.bredd} cy={(h.cy * ruta.höjd) / RUTA.höjd} r={h.r} opacity={h.o} fill="var(--star)" />
     {/each}
     {#each Array.from({ length: 11 }, (_, i) => X0 + (W * i) / 10) as x (x)}
       <line x1={x} y1={TOPP} x2={x} y2={BASE} stroke="var(--grid)" />
@@ -310,15 +327,15 @@
         <title>{s.namn} · {s.ägare.namn} · Läge {läge}{s.stilla ? ` · stilla i ${s.stillaDagar} dagar` : ""}</title>
       {/if}
       <circle cx={x} cy={y} r={r * (kompakt ? 2.4 : 2.6)} fill={färg} opacity=".13" />
-      <circle cx={x} cy={y} r={Math.max(r, 16)} fill="transparent" />
+      <circle cx={x} cy={y} r={Math.max(r, telefon ? TELEFON_TRÄFF : 16)} fill="transparent" />
       <circle cx={x} cy={y} {r} fill={färg} />
       {#if s.id === valt}
-        <circle class="ring" cx={x} cy={y} r={kompakt ? 13 : 20} />
+        <circle class="ring" cx={x} cy={y} r={kompakt ? 13 : telefon ? 15 : 20} />
       {/if}
       {#if markerade.includes(s.id)}
-        <circle class="markerad" cx={x} cy={y} r="25" />
+        <circle class="markerad" cx={x} cy={y} r={telefon ? 19 : 25} />
       {/if}
-      {#if kompakt && s.stilla && pågående[s.id] === undefined}
+      {#if (kompakt || telefon) && s.stilla && pågående[s.id] === undefined}
         <circle class="stillahalo" cx={x} cy={y} r="12.5" />
         <circle class="stilla" cx={x} cy={y} r="12.5" />
       {:else if noter.get(s.id)}
@@ -333,7 +350,7 @@
         {#key glimt.n}
           <circle class="glimt" cx={x} cy={y} r={r * (kompakt ? 2.4 : 2.6)} fill={färg} />
           {#if glimt.sort === "mål"}
-            <circle class="målring" cx={x} cy={y} r={kompakt ? 13 : 20} stroke={färg} />
+            <circle class="målring" cx={x} cy={y} r={kompakt ? 13 : telefon ? 15 : 20} stroke={färg} />
           {/if}
         {/key}
       {/if}
@@ -372,7 +389,8 @@
     inset: 0;
     height: 100%;
   }
-  .kompakt .sn {
+  .kompakt .sn,
+  .telefon .sn {
     font-size: 13px;
     stroke-width: 4px;
   }

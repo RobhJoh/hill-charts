@@ -9,6 +9,7 @@ import {
   punkt,
   lägeFrånX,
   stillaNot,
+  telefonDiagram,
   type Etikett,
   type Hinder,
 } from "./hill.js";
@@ -313,5 +314,56 @@ describe("a drop's high point", () => {
     expect(höjdpunkt(60, 40)).toBeNull();
     expect(höjdpunkt(100, 100)).toBeNull();
     expect(höjdpunkt(50, 70)).toBeNull();
+  });
+});
+
+describe("the chart on a phone (Q9 a, Q17 b)", () => {
+  // The crowded Projekt from the design review, on a 390 px phone (358 px inside the page's margins).
+  const ny = [
+    { id: "tillg", läge: 45, text: "Tillgänglighetsgranskning 45" },
+    { id: "lösen", läge: 55, text: "Lösenordsåterställning 55" },
+    { id: "kort", läge: 95, text: "Kortbetalning 95" },
+    { id: "kvitto", läge: 100, text: "Kvitton 100" },
+    { id: "start", läge: 0, text: "Inloggningssida 0" },
+    { id: "sess", läge: 3, text: "Sessionshantering 3 · 21 d" },
+  ];
+  type Box = { x: number; y: number; b: number; h: number };
+  const krockar = (a: Box, b: Box) => a.x < b.x + b.b && b.x < a.x + a.b && a.y < b.y + b.h && b.y < a.y + a.h;
+
+  it("draws in real pixels at the measured width, with room under the baseline for the axis", () => {
+    const { ruta } = telefonDiagram(358, ny);
+    expect(ruta.bredd).toBe(358);
+    expect(ruta.x0).toBeGreaterThanOrEqual(12);
+    expect(ruta.x0 + ruta.w).toBeLessThanOrEqual(358 - 12);
+    expect(ruta.höjd - ruta.bas).toBeGreaterThanOrEqual(48);
+  });
+
+  it("shows every label, clear of each other and of the stars, inside the box", () => {
+    const { ruta, etiketter } = telefonDiagram(358, ny);
+    expect(etiketter.map((e) => e.id).sort()).toEqual(ny.map((s) => s.id).sort());
+    const kärnor = ny.map((s) => {
+      const [x, y] = punkt(s.läge, ruta);
+      return { id: s.id, x: x - 7, y: y - 7, b: 14, h: 14 };
+    });
+    for (const a of etiketter) {
+      for (const b of etiketter) if (a !== b) expect(krockar(a.ruta, b.ruta), `${a.id} / ${b.id}`).toBe(false);
+      for (const k of kärnor) if (k.id !== a.id) expect(krockar(a.ruta, k), `${a.id} on ${k.id}`).toBe(false);
+      expect(a.ruta.x, a.id).toBeGreaterThanOrEqual(0);
+      expect(a.ruta.x + a.ruta.b, a.id).toBeLessThanOrEqual(358);
+      expect(a.ruta.y, a.id).toBeGreaterThanOrEqual(0);
+      expect(a.ruta.y + a.ruta.h, a.id).toBeLessThanOrEqual(ruta.bas);
+      // Beside or stacked above its star, never hung down into the hill.
+      const [, y] = punkt(ny.find((s) => s.id === a.id)!.läge, ruta);
+      expect(a.ruta.y, a.id).toBeLessThan(y);
+    }
+  });
+
+  it("grows taller only as far as crowded labels need (about 1.5 × with six Scopes)", () => {
+    const ensam = telefonDiagram(358, [{ id: "a", läge: 70, text: "Prislista 70" }]).ruta;
+    const trång = telefonDiagram(358, ny).ruta;
+    expect(trång.höjd).toBeGreaterThan(ensam.höjd);
+    expect(trång.höjd).toBeLessThanOrEqual(ensam.höjd * 1.7);
+    // The hill itself keeps its size: the extra room is above it.
+    expect(trång.ht).toBe(ensam.ht);
   });
 });

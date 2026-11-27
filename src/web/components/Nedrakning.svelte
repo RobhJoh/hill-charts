@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The countdown ("22 dagar kvar av 6 veckor") with its Appetit bar, and the
+  // The countdown ("22 dagar kvar") with its Appetit bar, and the
   // next Milstolpe beside it. Red when Över tid. Renders nothing without dates.
   import type { Nedräkning, NästaMilstolpe } from "../../core/index.js";
 

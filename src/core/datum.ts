@@ -95,15 +95,17 @@ export const ärÖverTid = (slutdatum: Datum | null, avslutat: boolean, idag: Da
   slutdatum !== null && idag > slutdatum && !avslutat;
 
 const dagar = (n: number) => (n === 1 ? "1 dag" : `${n} dagar`);
-const veckorEllerDagar = (n: number) =>
-  n % 7 === 0 ? (n === 7 ? "1 vecka" : `${n / 7} veckor`) : dagar(n);
 
 /** The countdown shown above a Hill chart and on each Projekt in lists. */
 export type Nedräkning = {
   läge: "startar" | "pågår" | "över tid" | "avslutat";
-  /** E.g. "Startar om 5 dagar", "22 dagar kvar av 6 veckor", "Över tid · 4 dagar", "Avslutat". */
+  /**
+   * E.g. "Startar om 5 dagar", "22 dagar kvar", "Över tid · 4 dagar", "Avslutat".
+   * Always in days: the bar carries the share of the Appetit, and the Appetit itself
+   * is shown with the dates.
+   */
   text: string;
-  /** Share of the Appetit used, 0–1; null when there is no bar (no Appetit, or Avslutat). */
+  /** Share of the Appetit used, 0–1; null when there is no bar (no Appetit, not started, or Avslutat). */
   andel: number | null;
 };
 
@@ -119,7 +121,7 @@ export function nedräkning(
   if (avslutat) return { läge: "avslutat", text: "Avslutat", andel: null };
   if (!slutdatum) return null;
   if (startdatum && idag < startdatum) {
-    return { läge: "startar", text: `Startar om ${dagar(dagarMellan(idag, startdatum))}`, andel: 0 };
+    return { läge: "startar", text: `Startar om ${dagar(dagarMellan(idag, startdatum))}`, andel: null };
   }
   const kvar = dagarMellan(idag, slutdatum);
   if (kvar < 0) return { läge: "över tid", text: `Över tid · ${dagar(-kvar)}`, andel: 1 };
@@ -127,7 +129,7 @@ export function nedräkning(
   const appetit = dagarMellan(startdatum, slutdatum);
   return {
     läge: "pågår",
-    text: `${dagar(kvar)} kvar av ${veckorEllerDagar(appetit)}`,
+    text: `${dagar(kvar)} kvar`,
     andel: appetit === 0 ? 1 : (appetit - kvar) / appetit,
   };
 }

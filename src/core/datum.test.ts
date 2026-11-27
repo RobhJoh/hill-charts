@@ -105,7 +105,7 @@ describe("entering dates", () => {
 });
 
 describe("the countdown, in calendar days", () => {
-  it("goes Startar om → N dagar kvar av X veckor → Över tid → Avslutat", async () => {
+  it("goes Startar om → N dagar kvar → Över tid → Avslutat; no bar before the start", async () => {
     const { apogee, anna, projekt, idag } = await setup();
     await apogee.addScope(projekt, { namn: "Prislista", ägare: anna }, anna);
     await apogee.setDatum({ projekt }, { startdatum: "2026-11-02", slutdatum: "2026-12-14" }, anna);
@@ -115,15 +115,15 @@ describe("the countdown, in calendar days", () => {
     };
 
     idag("2026-10-28");
-    expect(await vy()).toEqual({ läge: "startar", text: "Startar om 5 dagar", andel: 0, överTid: false });
+    expect(await vy()).toEqual({ läge: "startar", text: "Startar om 5 dagar", andel: null, överTid: false });
     idag("2026-11-01");
     expect(await vy()).toMatchObject({ text: "Startar om 1 dag" });
     idag("2026-11-02");
-    expect(await vy()).toEqual({ läge: "pågår", text: "42 dagar kvar av 6 veckor", andel: 0, överTid: false });
+    expect(await vy()).toEqual({ läge: "pågår", text: "42 dagar kvar", andel: 0, överTid: false });
     idag("2026-11-22");
-    expect(await vy()).toEqual({ läge: "pågår", text: "22 dagar kvar av 6 veckor", andel: 20 / 42, överTid: false });
+    expect(await vy()).toEqual({ läge: "pågår", text: "22 dagar kvar", andel: 20 / 42, överTid: false });
     idag("2026-12-14");
-    expect(await vy()).toEqual({ läge: "pågår", text: "0 dagar kvar av 6 veckor", andel: 1, överTid: false });
+    expect(await vy()).toEqual({ läge: "pågår", text: "0 dagar kvar", andel: 1, överTid: false });
     idag("2026-12-18");
     expect(await vy()).toEqual({ läge: "över tid", text: "Över tid · 4 dagar", andel: 1, överTid: true });
 
@@ -139,13 +139,13 @@ describe("the countdown, in calendar days", () => {
     expect((await apogee.getProjekt(projekt)).nedräkning?.text).toBe("1 dag kvar");
   });
 
-  it("an Appetit that is not whole weeks is told in days; one week in the singular", async () => {
+  it("tells only the days left, in days, whatever the Appetit (the bar carries the share)", async () => {
     const { apogee, anna, projekt } = await setup();
     await apogee.addScope(projekt, { namn: "Prislista", ägare: anna }, anna);
     await apogee.setDatum({ projekt }, { startdatum: "2026-11-24", slutdatum: "2026-12-04" }, anna);
-    expect((await apogee.getProjekt(projekt)).nedräkning?.text).toBe("10 dagar kvar av 10 dagar");
+    expect((await apogee.getProjekt(projekt)).nedräkning?.text).toBe("10 dagar kvar");
     await apogee.setDatum({ projekt }, { startdatum: "2026-11-24", veckor: 1 }, anna);
-    expect((await apogee.getProjekt(projekt)).nedräkning?.text).toBe("7 dagar kvar av 1 vecka");
+    expect((await apogee.getProjekt(projekt)).nedräkning?.text).toBe("7 dagar kvar");
   });
 
   it("each Projekt in lists carries its countdown and Över tid", async () => {
@@ -266,7 +266,7 @@ describe("Funktionsområde dates", () => {
     expect(m.uppdatering).toBeNull();
     expect(await apogee.getFunktionsområde(fo)).toMatchObject({
       tidsplan: { startdatum: "2026-11-02", slutdatum: "2026-12-28", milstolpar: [{ id: m.id, namn: "Release" }] },
-      nedräkning: { läge: "pågår", text: "34 dagar kvar av 8 veckor" },
+      nedräkning: { läge: "pågår", text: "34 dagar kvar" },
       nästaMilstolpe: { text: "Release om 26 dagar" },
       överTid: false,
     });

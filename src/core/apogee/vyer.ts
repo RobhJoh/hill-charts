@@ -63,10 +63,16 @@ export type BorttagenVy = { vem: PersonVy; tid: string };
 /** A row in "Borttagna Projekt". */
 export type BorttagetProjekt = { id: ProjektId; namn: string; borttagen: BorttagenVy };
 export type Översikt = FunktionsområdeVy[];
+/**
+ * Utan funktionsområde: the shown Projekt that belong to no Funktionsområde.
+ * Not a Funktionsområde: no dates, status or Över tid of its own.
+ */
+export type UtanFunktionsområdeVy = { projekt: ProjektRad[] };
 export type ProjektVy = {
   id: ProjektId;
   namn: string;
-  funktionsområde: { id: FunktionsområdeId; namn: string };
+  /** Its Funktionsområde; null when it has none (Utan funktionsområde). */
+  funktionsområde: { id: FunktionsområdeId; namn: string } | null;
   /** Who took it away and when (on its own or with its Funktionsområde); null while shown. */
   borttagen: BorttagenVy | null;
   /** Quiet warnings such as "slutar efter Funktionsområdet"; never block saving. */
@@ -186,10 +192,10 @@ export function tidVy(tidsplan: Tidsplan, avslutat: boolean, idag: Datum): TidVy
   };
 }
 
-/** A Projekt's dates, Milstolpar and countdown from its Historik. */
-export function projektTidVy(logg: Uppdatering[], avslutat: boolean, idag: Datum): TidVy {
-  const { startdatum, slutdatum, milstolpar } = projektFält(logg);
-  return tidVy({ startdatum, slutdatum, milstolpar }, avslutat, idag);
+/** A Projekt's dates (kept on the Projekt), Milstolpar (from its Historik) and countdown. */
+export function projektTidVy(p: Projekt, logg: Uppdatering[], avslutat: boolean, idag: Datum): TidVy {
+  const { milstolpar } = projektFält(logg);
+  return tidVy({ startdatum: p.startdatum ?? null, slutdatum: p.slutdatum ?? null, milstolpar }, avslutat, idag);
 }
 
 /** A Projekt's Hill chart and status from its Historik, against `nu`. */

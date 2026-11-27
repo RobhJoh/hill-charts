@@ -101,6 +101,34 @@ export function storageContract(name: string, makeFixture: () => Promise<Storage
       ]);
     });
 
+    it("keeps a Projekt's Startdatum and Slutdatum, set or cleared, across a reopen", async () => {
+      const fixture = await makeFixture();
+      const daterat: Projekt = { ...projekt("p1", "Sökindex"), startdatum: "2026-11-02", slutdatum: "2026-12-14" };
+      const baraSlut: Projekt = { ...projekt("p2", "Betaltjänst"), startdatum: null, slutdatum: "2026-12-21" };
+      await fixture.storage.saveProjekt(daterat);
+      await fixture.storage.saveProjekt(baraSlut);
+      (await fixture.storage.getProjekt("p1"))!.slutdatum = "2027-01-01";
+
+      for (const s of [fixture.storage, fixture.reopen()]) {
+        expect(await s.getProjekt("p1")).toEqual(daterat);
+        expect(await s.getProjekt("p2")).toEqual(baraSlut);
+      }
+      await fixture.storage.saveProjekt({ ...daterat, startdatum: null, slutdatum: null });
+      expect(await fixture.reopen().getProjekt("p1")).toMatchObject({ startdatum: null, slutdatum: null });
+    });
+
+    it("keeps a Projekt without a Funktionsområde, also across a reopen", async () => {
+      const fixture = await makeFixture();
+      const utan: Projekt = { id: "p1", namn: "Sökindex", skapad: "2026-11-24T10:00:00.000Z" };
+      await fixture.storage.saveProjekt(utan);
+      await fixture.storage.saveProjekt(projekt("p2", "Betaltjänst"));
+      await fixture.storage.saveProjekt({ ...projekt("p2", "Betaltjänst"), funktionsområdeId: undefined });
+      for (const s of [fixture.storage, fixture.reopen()]) {
+        expect(await s.getProjekt("p1")).toEqual(utan);
+        expect((await s.getProjekt("p2"))?.funktionsområdeId).toBeUndefined();
+      }
+    });
+
     it("keeps each Projekt's Historik separate and in append order", async () => {
       const { storage } = await makeFixture();
       await storage.saveProjekt(projekt("p1", "Sökindex"));

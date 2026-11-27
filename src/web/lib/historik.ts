@@ -27,19 +27,10 @@ export function beskrivÄndring({ före, efter }: Ändring, namn: Namn): string 
   return delar.join(", ");
 }
 
-/** A Projekt-level change, e.g. "satte Slutdatum 14 dec.". */
+/** A Projekt-level change, e.g. "lade till Milstolpen Demo 1 dec.". */
 export function beskrivProjekt(projekt: HistorikRad<PersonVy>["projekt"]): string[] {
   if (!projekt) return [];
   const delar: string[] = [];
-  for (const fält of ["startdatum", "slutdatum"] as const) {
-    if (!(fält in projekt.efter)) continue;
-    const före = projekt.före[fält] ?? null;
-    const efter = projekt.efter[fält] ?? null;
-    const namn = fält === "startdatum" ? "Startdatum" : "Slutdatum";
-    if (efter === null) delar.push(`tog bort ${namn}`);
-    else if (före === null) delar.push(`satte ${namn} ${visaDatum(efter)}`);
-    else delar.push(`flyttade ${namn} ${visaDatum(före)} → ${visaDatum(efter)}`);
-  }
   if (projekt.efter.milstolpar) delar.push(...beskrivMilstolpar(projekt.före.milstolpar ?? [], projekt.efter.milstolpar));
   return delar;
 }
@@ -70,11 +61,6 @@ export const beskrivAlla = (rad: HistorikRad<PersonVy>, namn: Namn): string[] =>
 export function beskrivRad(rad: HistorikRad<PersonVy>, namn: Namn): string {
   if (rad.typ === UPPDATERING_TYP.återställning) return "återställde diagrammet";
   if (rad.typ === UPPDATERING_TYP.ångra) return "ångrade en Uppdatering";
-  const p = rad.projekt;
-  if (p?.efter.startdatum && p.efter.slutdatum && rad.ändringar.length === 0) {
-    const verb = p.före.startdatum && p.före.slutdatum ? "flyttade" : "satte";
-    return `${verb} datumen till ${visaDatum(p.efter.startdatum)} – ${visaDatum(p.efter.slutdatum)}`;
-  }
   if (rad.typ === UPPDATERING_TYP.överlämning && rad.ändringar[0]?.före && rad.ändringar[0].efter) {
     const { före, efter } = rad.ändringar[0];
     const n = rad.ändringar.length;
@@ -101,9 +87,6 @@ export function skillnaderMotNu(
   if (vy.sammaSomNu) delar.push("Samma som nu.");
   if (vy.skiljer.length > 0) {
     delar.push(`${antal(vy.skiljer.length, "Scope", "Scopes")} skiljer sig från nu (streckad ring).`);
-  }
-  if (vy.fältSkiljer.includes("startdatum") || vy.fältSkiljer.includes("slutdatum")) {
-    delar.push("Datumen skiljer sig från nu.");
   }
   if (vy.milstolparSkiljer.length > 0) {
     delar.push(`${antal(vy.milstolparSkiljer.length, "Milstolpe", "Milstolpar")} skiljer sig från nu.`);

@@ -15,6 +15,7 @@ import {
   type FunktionsområdeVy,
   type ProjektRad,
   type ProjektVy,
+  type UtanFunktionsområdeVy,
   type Översikt,
 } from "./vyer.js";
 
@@ -24,7 +25,7 @@ export function struktur(k: Kärna) {
   async function projektRad(p: Projekt, personer: Person[]): Promise<ProjektRad> {
     const logg = await storage.readHistorik(p.id);
     const { scopes, status, avslutat } = k.diagramVy(logg, personer);
-    const { nedräkning, nästaMilstolpe, överTid } = k.projektTidVy(logg, avslutat);
+    const { nedräkning, nästaMilstolpe, överTid } = k.projektTidVy(p, logg, avslutat);
     return {
       id: p.id,
       namn: p.namn,
@@ -131,8 +132,8 @@ export function struktur(k: Kärna) {
       await signatur(vem);
       const { borttagen, ...p } = await requireProjekt(id);
       if (!borttagen) throw new DomainError("ogiltig", `${p.namn} är inte borttaget`);
-      const fo = await requireFunktionsområde(p.funktionsområdeId);
-      if (fo.borttagen) {
+      const fo = p.funktionsområdeId === undefined ? null : await requireFunktionsområde(p.funktionsområdeId);
+      if (fo?.borttagen) {
         throw new DomainError("ogiltig", `${fo.namn} är borttaget; återställ Funktionsområdet först`);
       }
       if (borttagen.medFunktionsområde) {
@@ -233,6 +234,17 @@ export function struktur(k: Kärna) {
     },
 
     /**
+     * The Utan funktionsområde group on the start page, after the
+     * Funktionsområden; null when no shown Projekt lacks a Funktionsområde.
+     */
+    async utanFunktionsområde(): Promise<UtanFunktionsområdeVy | null> {
+      const [allProjekt, personer] = await Promise.all([storage.listProjekt(), storage.listPersoner()]);
+      const utan = allProjekt.filter((p) => p.funktionsområdeId === undefined && !p.borttagen).sort(efterNamn);
+      if (utan.length === 0) return null;
+      return { projekt: await Promise.all(utan.map((p) => projektRad(p, personer))) };
+    },
+
+    /**
      * "Borttagna Funktionsområden", newest first: each with the Projekt that
      * went with it (`projekt`) and those taken away on their own before.
      */
@@ -256,16 +268,16 @@ export function struktur(k: Kärna) {
 
     async getProjekt(id: ProjektId): Promise<ProjektVy> {
       const p = await requireProjekt(id);
-      const fo = await requireFunktionsområde(p.funktionsområdeId);
+      const fo = p.funktionsområdeId === undefined ? null : await requireFunktionsområde(p.funktionsområdeId);
       const [logg, personer] = await Promise.all([storage.readHistorik(id), storage.listPersoner()]);
       const diagram = k.diagramVy(logg, personer);
-      const tid = k.projektTidVy(logg, diagram.avslutat);
+      const tid = k.projektTidVy(p, logg, diagram.avslutat);
       return {
         id: p.id,
         namn: p.namn,
-        funktionsområde: { id: fo.id, namn: fo.namn },
+        funktionsområde: fo && { id: fo.id, namn: fo.namn },
         borttagen: p.borttagen ? borttagenVy(personer, p.borttagen) : null,
-        datumVarningar: datumVarningar(tid.tidsplan, fo.tidsplan ?? TOM_TIDSPLAN),
+        datumVarningar: datumVarningar(tid.tidsplan, fo?.tidsplan ?? TOM_TIDSPLAN),
         avslutad: avslutadTid(logg),
         ...diagram,
         ...tid,

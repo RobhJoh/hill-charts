@@ -230,6 +230,18 @@ describe("JSON API", () => {
   });
 });
 
+describe("Utan funktionsområde", () => {
+  it("lists Projekt with no Funktionsområde, or null when there are none", async () => {
+    const storage = createMemoryStorage();
+    const { api } = await start(storage);
+    expect((await api("GET", "/api/utan-funktionsomrade")).body).toBeNull();
+    await storage.saveProjekt({ id: "p1", namn: "Sökindex", skapad: "2026-11-01T10:00:00.000Z" });
+    const svar = await api("GET", "/api/utan-funktionsomrade");
+    expect(svar.status).toBe(200);
+    expect(svar.body).toMatchObject({ projekt: [{ id: "p1", namn: "Sökindex" }] });
+  });
+});
+
 describe("Scopes", () => {
   async function medProjekt() {
     const s = await start();
@@ -551,14 +563,14 @@ describe("the SPA", () => {
 });
 
 describe("dates and Milstolpar", () => {
-  it("are set on a Projekt (as Uppdateringar) and a Funktionsområde (without)", async () => {
+  it("are set on a Projekt and a Funktionsområde; only a Projekt's Milstolpar are Uppdateringar", async () => {
     const { api, apiAs } = await start();
     const fo = (await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" })).body.id;
     const p = (await api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Kassan" })).body.id;
 
     const datum = await api("PUT", `/api/projekt/${p}/datum`, { startdatum: "2026-11-02", veckor: 6 });
     expect(datum.status).toBe(200);
-    expect(datum.body.uppdatering).toMatchObject({ typ: "datum", projekt: { efter: { slutdatum: "2026-12-14" } } });
+    expect(datum.body).toEqual({ uppdatering: null });
     const m = await api("POST", `/api/projekt/${p}/milstolpar`, { namn: "Beta", datum: "2026-12-01" });
     expect(m.status).toBe(201);
     const ändrad = await api("PATCH", `/api/projekt/${p}/milstolpar/${m.body.id}`, { namn: "Betaversion" });

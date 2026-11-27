@@ -21,24 +21,17 @@ async function setup() {
 }
 
 describe("Projekt dates and Appetit", () => {
-  it("a Projekt gets a Startdatum and Slutdatum as an Uppdatering in its Historik", async () => {
+  it("a Projekt's Startdatum and Slutdatum are kept on the Projekt, with no Uppdatering", async () => {
     const { apogee, anna, projekt } = await setup();
     const u = await apogee.setDatum({ projekt }, { startdatum: "2026-11-02", slutdatum: "2026-12-14" }, anna);
-    expect(u).toMatchObject({
-      typ: "datum",
-      vem: anna,
-      ändringar: [],
-      projekt: {
-        före: { startdatum: null, slutdatum: null },
-        efter: { startdatum: "2026-11-02", slutdatum: "2026-12-14" },
-      },
-    });
+    expect(u).toBeNull();
     expect((await apogee.getProjekt(projekt)).tidsplan).toEqual({
       startdatum: "2026-11-02",
       slutdatum: "2026-12-14",
       milstolpar: [],
     });
-    expect((await apogee.historik(projekt)).map((h) => h.typ)).toEqual(["datum"]);
+    expect(await apogee.historik(projekt)).toEqual([]);
+    expect(await apogee.historikVy(projekt)).toEqual([]);
   });
 });
 
@@ -55,20 +48,11 @@ describe("entering dates", () => {
   it("moving the Startdatum moves the Slutdatum too, keeping the Appetit", async () => {
     const { apogee, anna, projekt } = await setup();
     await apogee.setDatum({ projekt }, { startdatum: "2026-11-02", slutdatum: "2026-12-14" }, anna);
-    const u = await apogee.setDatum({ projekt }, { startdatum: "2026-11-30", behållAppetit: true }, anna);
-    expect(u?.projekt).toEqual({
-      före: { startdatum: "2026-11-02", slutdatum: "2026-12-14" },
-      efter: { startdatum: "2026-11-30", slutdatum: "2027-01-11" },
+    await apogee.setDatum({ projekt }, { startdatum: "2026-11-30", behållAppetit: true }, anna);
+    expect((await apogee.getProjekt(projekt)).tidsplan).toMatchObject({
+      startdatum: "2026-11-30",
+      slutdatum: "2027-01-11",
     });
-  });
-
-  it("only the dates that change are recorded; no change writes nothing", async () => {
-    const { apogee, anna, projekt } = await setup();
-    await apogee.setDatum({ projekt }, { startdatum: "2026-11-02", slutdatum: "2026-12-14" }, anna);
-    const u = await apogee.setDatum({ projekt }, { startdatum: "2026-11-02", slutdatum: "2026-12-21" }, anna);
-    expect(u?.projekt).toEqual({ före: { slutdatum: "2026-12-14" }, efter: { slutdatum: "2026-12-21" } });
-    expect(await apogee.setDatum({ projekt }, { startdatum: "2026-11-02", slutdatum: "2026-12-21" }, anna)).toBeNull();
-    expect((await apogee.historik(projekt)).length).toBe(2);
   });
 
   it("dates can be cleared, and a Slutdatum may stand alone", async () => {
@@ -220,29 +204,35 @@ describe("Milstolpar", () => {
   });
 });
 
-describe("Historik covers dates and Milstolpar", () => {
-  it("Ångra undoes a date change; Återställning brings back earlier Milstolpar", async () => {
+describe("Historik covers Milstolpar, never a Projekt's dates", () => {
+  it("Ångra and Återställning bring back earlier Milstolpar but never change the dates", async () => {
     const { apogee, anna, projekt } = await setup();
-    const första = await apogee.setDatum({ projekt }, { startdatum: "2026-11-02", slutdatum: "2026-12-14" }, anna);
+    const första = await apogee.addMilstolpe({ projekt }, { namn: "Alfa", datum: "2026-11-20" }, anna);
+    await apogee.setDatum({ projekt }, { startdatum: "2026-11-02", slutdatum: "2026-12-14" }, anna);
     const m = await apogee.addMilstolpe({ projekt }, { namn: "Beta", datum: "2026-12-01" }, anna);
-    const flytt = await apogee.setDatum({ projekt }, { startdatum: "2026-11-09", behållAppetit: true }, anna);
+    await apogee.setDatum({ projekt }, { startdatum: "2026-11-09", behållAppetit: true }, anna);
 
-    await apogee.ångra(projekt, flytt!.id, anna);
+    await apogee.ångra(projekt, m.uppdatering!.id, anna);
     expect((await apogee.getProjekt(projekt)).tidsplan).toEqual({
-      startdatum: "2026-11-02",
-      slutdatum: "2026-12-14",
-      milstolpar: [{ id: m.id, namn: "Beta", datum: "2026-12-01" }],
+      startdatum: "2026-11-09",
+      slutdatum: "2026-12-21",
+      milstolpar: [{ id: första.id, namn: "Alfa", datum: "2026-11-20" }],
     });
 
-    await apogee.changeMilstolpe({ projekt }, m.id, { namn: "Betaversion" }, anna);
-    // The Milstolpar have changed since it was added: Ångra points to Återställning.
-    await expect(apogee.ångra(projekt, m.uppdatering!.id, anna)).rejects.toMatchObject({ code: "krock" });
-    await apogee.återställHit(projekt, första!.id, anna);
+    await apogee.addMilstolpe({ projekt }, { namn: "Gamma", datum: "2026-12-10" }, anna);
+    await apogee.återställHit(projekt, första.uppdatering!.id, anna);
     expect((await apogee.getProjekt(projekt)).tidsplan).toEqual({
-      startdatum: "2026-11-02",
-      slutdatum: "2026-12-14",
-      milstolpar: [],
+      startdatum: "2026-11-09",
+      slutdatum: "2026-12-21",
+      milstolpar: [{ id: första.id, namn: "Alfa", datum: "2026-11-20" }],
     });
+    expect((await apogee.historikVy(projekt)).map((r) => r.typ)).toEqual([
+      "återställning",
+      "milstolpe",
+      "ångra",
+      "milstolpe",
+      "milstolpe",
+    ]);
   });
 
   it("Ångra of a Milstolpe change that nothing has touched since is not a krock", async () => {
@@ -309,8 +299,7 @@ describe("Projekt dates outside the Funktionsområde's", () => {
     await apogee.setDatum({ funktionsområde: fo }, { startdatum: "2026-11-02", slutdatum: "2026-12-14" }, anna);
     await apogee.setDatum({ projekt }, { startdatum: "2026-11-09", slutdatum: "2026-12-07" }, anna);
     expect((await apogee.getProjekt(projekt)).datumVarningar).toEqual([]);
-    const u = await apogee.setDatum({ projekt }, { startdatum: "2026-10-26", slutdatum: "2026-12-21" }, anna);
-    expect(u).not.toBeNull();
+    await apogee.setDatum({ projekt }, { startdatum: "2026-10-26", slutdatum: "2026-12-21" }, anna);
     expect((await apogee.getProjekt(projekt)).datumVarningar).toEqual([
       "börjar före Funktionsområdet",
       "slutar efter Funktionsområdet",

@@ -41,7 +41,7 @@ export function historik(k: Kärna) {
      */
     async förhandsvisa(projektId: ProjektId, uppdateringId: UppdateringId): Promise<Förhandsvisning> {
       const { logg, index } = await historikMed(projektId, uppdateringId);
-      const personer = await storage.listPersoner();
+      const [personer, p] = await Promise.all([storage.listPersoner(), k.requireProjekt(projektId)]);
       const då = diagramEfter(logg, index);
       const nu = nuvarande(logg);
       const skiljer = [...new Set([...Object.keys(då), ...Object.keys(nu)])].filter(
@@ -59,7 +59,7 @@ export function historik(k: Kärna) {
       const diagram = k.diagramVy(fram, personer);
       return {
         ...diagram,
-        ...k.projektTidVy(fram, diagram.avslutat),
+        ...k.projektTidVy(p, fram, diagram.avslutat),
         skiljer,
         fältSkiljer,
         milstolparSkiljer,

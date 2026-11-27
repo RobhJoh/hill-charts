@@ -73,7 +73,7 @@ export function personer(k: Kärna) {
       synliga.map(async (p) => {
         const logg = await storage.readHistorik(p.id);
         const { scopes, avslutat } = k.diagramVy(logg, personer);
-        const { nedräkning, nästaMilstolpe, överTid } = k.projektTidVy(logg, avslutat);
+        const { nedräkning, nästaMilstolpe, överTid } = k.projektTidVy(p, logg, avslutat);
         return { id: p.id, namn: p.namn, avslutat, nedräkning, nästaMilstolpe, överTid, scopes };
       }),
     );

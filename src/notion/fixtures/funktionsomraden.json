@@ -1,0 +1,88 @@
+{
+  "object": "list",
+  "results": [
+    {
+      "object": "page",
+      "id": "f0000000-0000-4000-8000-00000000000e",
+      "created_time": "2026-09-01T08:00:00.000Z",
+      "last_edited_time": "2026-11-01T09:00:00.000Z",
+      "archived": false,
+      "in_trash": false,
+      "parent": { "type": "data_source_id", "data_source_id": "ds-fo", "database_id": "db-fo" },
+      "url": "https://www.notion.so/Ekonomi-f000000000004000800000000000000e",
+      "public_url": null,
+      "properties": {
+        "Datum": { "id": "dAtM", "type": "date", "date": { "start": "2026-10-01", "end": "2027-03-31", "time_zone": null } },
+        "Status": { "id": "sTat", "type": "status", "status": { "id": "s1", "name": "Pågående", "color": "blue" } },
+        "Funktionsansvarig": {
+          "id": "fAns",
+          "type": "people",
+          "people": [
+            { "object": "user", "id": "u-anna-0001", "name": "Anna Andersson", "avatar_url": null, "type": "person", "person": { "email": "anna@example.com" } }
+          ]
+        },
+        "Projekt": { "id": "rPrj", "type": "relation", "relation": [{ "id": "1a2b3c4d-0000-4000-8000-000000000001" }], "has_more": false },
+        "Namn": {
+          "id": "title",
+          "type": "title",
+          "title": [
+            { "type": "text", "text": { "content": "Ekonomi", "link": null }, "annotations": { "bold": false, "italic": false, "strikethrough": false, "underline": false, "code": false, "color": "default" }, "plain_text": "Ekonomi", "href": null }
+          ]
+        }
+      }
+    },
+    {
+      "object": "page",
+      "id": "f0000000-0000-4000-8000-00000000000p",
+      "created_time": "2026-09-02T08:00:00.000Z",
+      "last_edited_time": "2026-11-02T09:00:00.000Z",
+      "archived": false,
+      "in_trash": false,
+      "parent": { "type": "data_source_id", "data_source_id": "ds-fo", "database_id": "db-fo" },
+      "url": "https://www.notion.so/Plattform-f000000000004000800000000000000p",
+      "public_url": null,
+      "properties": {
+        "Datum": { "id": "dAtM", "type": "date", "date": { "start": "2027-02-26", "end": null, "time_zone": null } },
+        "Status": { "id": "sTat", "type": "status", "status": { "id": "s3", "name": "Planerad", "color": "gray" } },
+        "Funktionsansvarig": { "id": "fAns", "type": "people", "people": [{ "object": "user", "id": "u-utan-namn-0003" }] },
+        "Projekt": { "id": "rPrj", "type": "relation", "relation": [], "has_more": false },
+        "Namn": {
+          "id": "title",
+          "type": "title",
+          "title": [
+            { "type": "text", "text": { "content": "Plattform", "link": null }, "annotations": { "bold": false, "italic": false, "strikethrough": false, "underline": false, "code": false, "color": "default" }, "plain_text": "Plattform", "href": null }
+          ]
+        }
+      }
+    },
+    {
+      "object": "page",
+      "id": "f0000000-0000-4000-8000-00000000000h",
+      "created_time": "2026-09-03T08:00:00.000Z",
+      "last_edited_time": "2026-11-03T09:00:00.000Z",
+      "archived": false,
+      "in_trash": false,
+      "parent": { "type": "data_source_id", "data_source_id": "ds-fo", "database_id": "db-fo" },
+      "url": "https://www.notion.so/HR-f000000000004000800000000000000h",
+      "public_url": null,
+      "properties": {
+        "Datum": { "id": "dAtM", "type": "date", "date": null },
+        "Status": { "id": "sTat", "type": "status", "status": { "id": "s1", "name": "Pågående", "color": "blue" } },
+        "Funktionsansvarig": { "id": "fAns", "type": "people", "people": [] },
+        "Projekt": { "id": "rPrj", "type": "relation", "relation": [], "has_more": false },
+        "Namn": {
+          "id": "title",
+          "type": "title",
+          "title": [
+            { "type": "text", "text": { "content": "HR", "link": null }, "annotations": { "bold": false, "italic": false, "strikethrough": false, "underline": false, "code": false, "color": "default" }, "plain_text": "HR", "href": null }
+          ]
+        }
+      }
+    }
+  ],
+  "next_cursor": null,
+  "has_more": false,
+  "type": "page_or_data_source",
+  "page_or_data_source": {},
+  "request_id": "req-fo-1"
+}

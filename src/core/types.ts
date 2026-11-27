@@ -36,6 +36,10 @@ export type Funktionsområde = {
   /** Its page in Notion, which owns its namn and dates (ADR 0003). */
   notionId?: string;
   notionUrl?: string;
+  /** Notion-status: `Status` exactly as in Notion; drives nothing in Apogee. Missing = none. */
+  notionStatus?: string | null;
+  /** Its Funktionsansvarig, from Notion; absent = none. */
+  funktionsansvarig?: PersonId;
 };
 
 export type Projekt = {
@@ -51,6 +55,10 @@ export type Projekt = {
   /** Its page in Notion, which owns its namn, Funktionsområde and dates (ADR 0003). */
   notionId?: string;
   notionUrl?: string;
+  /** Notion-status: `Status` exactly as in Notion; drives nothing in Apogee. Missing = none. */
+  notionStatus?: string | null;
+  /** Its Projektledare, from Notion; absent = none. */
+  projektledare?: PersonId;
   /** Set while Borttaget: it is missing from Notion. It comes back when it returns. */
   borttagen?: Borttagen;
 };
@@ -61,6 +69,8 @@ export type Person = {
   namn: string;
   aktiv: boolean;
   skapad: string; // ISO timestamp
+  /** The Notion person it is linked to; once set, the link holds whatever either side is named. */
+  notionId?: string;
 };
 
 /** What happened to a Person, as recorded in the Personer-historik. */

@@ -139,6 +139,26 @@ export function storageContract(name: string, makeFixture: () => Promise<Storage
       expect(await s.listFunktionsområden()).toMatchObject([notion]);
     });
 
+    it("keeps the Projektledare, the Funktionsansvarig and a Person's Notion id across a reopen", async () => {
+      const fixture = await makeFixture();
+      const ledd: Projekt = { ...projekt("p1", "Sökindex"), projektledare: "a1" };
+      const ansvarig: Funktionsområde = { ...fo("f1", "Ekonomi"), funktionsansvarig: "a1" };
+      const länkad: Person = { ...person("a1", "Anna"), notionId: "u-anna" };
+      await fixture.storage.saveProjekt(ledd);
+      await fixture.storage.saveProjekt(projekt("p2", "Betaltjänst"));
+      await fixture.storage.saveFunktionsområden([ansvarig, fo("f2", "Plattform")]);
+      await fixture.storage.savePersoner([länkad, person("b1", "Bo")]);
+      (await fixture.storage.getProjekt("p1"))!.projektledare = "b1";
+      (await fixture.storage.listPersoner())[0]!.notionId = "ändrad";
+
+      for (const s of [fixture.storage, fixture.reopen()]) {
+        expect(await s.getProjekt("p1")).toEqual(ledd);
+        expect((await s.getProjekt("p2"))?.projektledare).toBeUndefined();
+        expect(await s.listFunktionsområden()).toEqual([ansvarig, fo("f2", "Plattform")]);
+        expect(await s.listPersoner()).toEqual([länkad, person("b1", "Bo")]);
+      }
+    });
+
     it("keeps each Projekt's Historik separate and in append order", async () => {
       const { storage } = await makeFixture();
       await storage.saveProjekt(projekt("p1", "Sökindex"));

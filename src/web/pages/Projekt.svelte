@@ -19,6 +19,7 @@
   import { följLive, liveMål, senasteLaddning } from "../lib/live.js";
   import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
   import { tema } from "../lib/tema.svelte.js";
+  import type { Flytt } from "../lib/vemremsa.js";
   import { funktionsområdeHref, projektHref } from "../lib/links.js";
   import { router } from "../lib/router.svelte.js";
   import StillaAntal from "../components/StillaAntal.svelte";
@@ -74,9 +75,9 @@
     .catch(() => {});
 
   /** Runs a signed chart edit, then reloads. Errors reach the caller (and are shown). */
-  async function redigera<T>(edit: (vem: string) => Promise<T>): Promise<T> {
+  async function redigera<T>(edit: (vem: string) => Promise<T>, flytt?: Flytt): Promise<T> {
     try {
-      return await signatur.signera(edit);
+      return await signatur.signera(edit, flytt);
     } finally {
       await load();
       personer = await laddaPersoner().catch(() => personer);
@@ -86,7 +87,8 @@
   async function flyttaScope(scopeId: string, läge: number) {
     skrivFel = "";
     try {
-      await redigera((vem) => api.changeScope(id, scopeId, { läge }, vem));
+      const namn = projekt?.scopes.find((s) => s.id === scopeId)?.namn ?? "";
+      await redigera((vem) => api.changeScope(id, scopeId, { läge }, vem), { scopeId, namn, läge });
     } catch (e) {
       if (!(e instanceof Avbruten)) skrivFel = felText(e, "Kunde inte spara");
       throw e;
@@ -348,6 +350,7 @@
             {valt}
             onvälj={(s) => (valt = s)}
             onflytta={flyttaScope}
+            väntar={signatur.hållen?.scopeId}
           />
         </div>
       {/if}

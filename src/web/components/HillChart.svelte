@@ -36,6 +36,8 @@
     kompakt = false,
     märken = {},
     dimmade = [],
+    väntar = null,
+    puls = null,
     onvälj,
     onflytta,
   }: {
@@ -57,6 +59,10 @@
     märken?: Record<string, string>;
     /** Scopes drawn dimmed (the Stjärnkarta's Avslutade Projekt). */
     dimmade?: string[];
+    /** The star whose move is held for a Signatur: dashed ring until it is saved. */
+    väntar?: string | null;
+    /** A star whose glow pulses once (a saved move's receipt). */
+    puls?: string | null;
     onvälj?: (id: string | null) => void;
     /** Commit a new Läge. Leave out for a read-only chart. Rejecting snaps the star back. */
     onflytta?: (id: string, läge: number) => Promise<unknown> | void;
@@ -135,6 +141,8 @@
 
   /** Stars whose drop is being written (or held for a Signatur). */
   const skickas = new Set<string>();
+  /** Stars gliding back after a drop that was not saved. */
+  let glider = $state<Record<string, true>>({});
 
   async function släpp(s: ScopeVy) {
     const läge = pågående[s.id];
@@ -148,7 +156,9 @@
     try {
       await onflytta(s.id, läge);
     } catch {
-      // Not saved (e.g. the Signatur was abandoned): snap back.
+      // Not saved (e.g. the Signatur was abandoned): glide back.
+      glider[s.id] = true;
+      setTimeout(() => delete glider[s.id], 400);
     } finally {
       skickas.delete(s.id);
       delete pågående[s.id];
@@ -262,6 +272,8 @@
       class="scope"
       class:dras={pågående[s.id] !== undefined}
       class:dimmad={dimmade.includes(s.id)}
+      class:glider={glider[s.id]}
+      class:puls={s.id === puls}
       role={onflytta ? "slider" : "img"}
       tabindex={onflytta || onvälj ? 0 : undefined}
       aria-label="{s.namn}, Läge {läge}, Ägare {s.ägare.namn}{s.stilla ? `, ingen rörelse på ${s.stillaDagar} dagar` : ""}"
@@ -279,10 +291,12 @@
       {#if kompakt}
         <title>{s.namn} · {s.ägare.namn} · Läge {läge}{s.stilla ? ` · stilla i ${s.stillaDagar} dagar` : ""}</title>
       {/if}
-      <circle cx={x} cy={y} r={r * (kompakt ? 2.4 : 2.6)} fill={färg} opacity=".13" />
+      <circle class="glöd" cx={x} cy={y} r={r * (kompakt ? 2.4 : 2.6)} fill={färg} opacity=".13" />
       <circle cx={x} cy={y} r={Math.max(r, 16)} fill="transparent" />
       <circle cx={x} cy={y} {r} fill={färg} />
-      {#if s.id === valt}
+      {#if s.id === väntar}
+        <circle class="väntar" cx={x} cy={y} r={kompakt ? 13 : 20} />
+      {:else if s.id === valt}
         <circle class="ring" cx={x} cy={y} r={kompakt ? 13 : 20} />
       {/if}
       {#if markerade.includes(s.id)}
@@ -372,6 +386,37 @@
   .scope:focus-visible circle:nth-child(3) {
     stroke: var(--red);
     stroke-width: 2;
+  }
+  /* Held for a Signatur: the accent ring, dashed until the move is saved. */
+  .väntar {
+    fill: none;
+    stroke: var(--red);
+    stroke-width: 2;
+    stroke-dasharray: 4 3;
+  }
+  .glider circle {
+    transition:
+      cx 0.35s ease-out,
+      cy 0.35s ease-out;
+  }
+  .puls .glöd {
+    animation: puls 0.9s ease-out;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  @keyframes puls {
+    40% {
+      opacity: 0.45;
+      transform: scale(1.5);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .glider circle {
+      transition: none;
+    }
+    .puls .glöd {
+      animation: none;
+    }
   }
   .markerad {
     fill: none;

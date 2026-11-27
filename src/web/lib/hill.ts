@@ -364,8 +364,15 @@ export function etiketterSomFår(
 
 // ---------- the chart on a phone ----------
 
-/** Below this measured width (CSS px) the big chart draws in real pixels instead of scaling its viewBox down. */
-export const TELEFON_BREDD = 600;
+/** The chart's label size in CSS px: DESIGN.md puts no chart text below it. */
+const ETIKETT_PX = 13;
+
+/**
+ * Whether the big chart, at this measured width (CSS px), draws in real
+ * pixels instead of scaling its viewBox down (#59): scaled, its 13px labels
+ * would render below 13 px whenever the box is narrower than the viewBox.
+ */
+export const riktigaPixlar = (bredd: number): boolean => bredd > 0 && (ETIKETT_PX * bredd) / RUTA.bredd < ETIKETT_PX;
 
 /** A star's invisible hit circle on a phone, in CSS px: 44 px across. */
 export const TELEFON_TRÄFF = 22;

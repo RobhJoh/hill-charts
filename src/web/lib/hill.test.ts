@@ -10,6 +10,7 @@ import {
   placeraEtiketter,
   punkt,
   lägeFrånX,
+  riktigaPixlar,
   stillaNot,
   telefonDiagram,
   type Etikett,
@@ -354,6 +355,16 @@ describe("a drop's high point", () => {
 });
 
 describe("the chart on a phone (Q9 a, Q17 b)", () => {
+  it("draws in real pixels whenever the scaled 900-wide chart would shrink its 13px labels", () => {
+    expect(riktigaPixlar(358)).toBe(true);
+    expect(riktigaPixlar(600)).toBe(true);
+    expect(riktigaPixlar(899)).toBe(true);
+    expect(riktigaPixlar(900)).toBe(false);
+    expect(riktigaPixlar(1200)).toBe(false);
+    // Not measured yet: keep the scaled chart.
+    expect(riktigaPixlar(0)).toBe(false);
+  });
+
   // The crowded Projekt from the design review, on a 390 px phone (358 px inside the page's margins).
   const ny = [
     { id: "tillg", läge: 45, text: "Tillgänglighetsgranskning 45" },

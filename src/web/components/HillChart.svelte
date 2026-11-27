@@ -25,9 +25,9 @@
     placeraEtiketter,
     punkt,
     radie,
+    riktigaPixlar,
     stillaNot,
     type Etikett,
-    TELEFON_BREDD,
     TELEFON_TRÄFF,
     telefonDiagram,
     type Hinder,
@@ -99,11 +99,12 @@
   const visatLäge = (s: ScopeVy) => pågående[s.id] ?? s.läge;
 
   /**
-   * On a phone the big chart draws in real pixels (Q9 a): 13px labels, all of
+   * Under 900 px (a phone, or a narrow column) the big chart draws in real
+   * pixels (Q9 a, #59) rather than shrink its viewBox: 13px labels, all of
    * them, stacked with leaders and the box grown to fit (Q17 b), and 44px hit
    * areas. Its Stilla stars end their label in "· 26 d" like the embed's.
    */
-  const telefon = $derived(!kompakt && boxBredd > 0 && boxBredd < TELEFON_BREDD);
+  const telefon = $derived(!kompakt && riktigaPixlar(boxBredd));
 
   /** The compact chart has no room for the note, so a Stilla star's label ends in "· 26 d". */
   const stillaTillägg = (s: ScopeVy) =>

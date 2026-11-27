@@ -22,6 +22,29 @@ export function ärAvslutat(markerad: boolean, lägen: readonly number[]): boole
   return markerad || lägen.every((l) => l === 100);
 }
 
+/**
+ * When the Projekt last became Avslutat: the ISO time of the Uppdatering that
+ * turned it Avslutat (by Läge or by marking). Null while Pågående, and for a
+ * Projekt that is Avslutat without ever having had an Uppdatering.
+ */
+export function avslutadTid(logg: readonly Uppdatering[]): string | null {
+  const lägen = new Map<string, number>();
+  let markerad = false;
+  let tid: string | null = null;
+  let avslutat = ärAvslutat(markerad, []);
+  for (const u of logg) {
+    for (const ä of u.ändringar) {
+      if (ä.efter === null) lägen.delete(ä.scopeId);
+      else lägen.set(ä.scopeId, ä.efter.läge);
+    }
+    if (u.projekt?.efter.avslutat !== undefined) markerad = u.projekt.efter.avslutat;
+    const nu = ärAvslutat(markerad, [...lägen.values()]);
+    if (nu && !avslutat) tid = u.tid;
+    avslutat = nu;
+  }
+  return avslutat ? tid : null;
+}
+
 /** A Scope is stuck once strictly more than this many days (of 24 h) pass without a Läge change. */
 export const STILLA_EFTER_DAGAR = 14;
 

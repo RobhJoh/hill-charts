@@ -2,6 +2,7 @@
   // The small sky chart shown for a Projekt in lists: the orbit with a dot per
   // Scope in its Läge colour. Stuck Scopes are drawn dimmer with a red ring.
   import { hillY, lägeFärg, type Tema } from "../lib/hill.js";
+  import { stapelnivåer } from "../lib/minihill.js";
 
   let {
     scopes = [],
@@ -22,6 +23,14 @@
   const x = (läge: number) => 6 + ((width - 12) * läge) / 100;
   const y = (läge: number) => height - 8 * skala - (height - 18 * skala) * hillY(läge);
 
+  // Dots within 2 Läge of each other stack in a small column, so three
+  // Scopes on Läge 0 show as three dots: upward low on the orbit, downward
+  // near the crest where there is no room above.
+  const STEG = 5;
+  const nivåer = $derived(stapelnivåer(scopes.map((s) => s.läge)));
+  const cy = (läge: number, i: number) =>
+    y(läge) + (hillY(läge) < 0.5 ? -1 : 1) * (nivåer[i] ?? 0) * STEG * skala;
+
   const path = $derived(
     Array.from({ length: 26 }, (_, j) => {
       const läge = j * 4;
@@ -37,8 +46,8 @@
   {/if}
   {#each scopes as s, i (i)}
     {#if s.stilla}
-      <circle cx={x(s.läge)} cy={y(s.läge)} r={4 * skala} fill="none" stroke="var(--red)" stroke-width=".8" stroke-dasharray="2 1.5" />
+      <circle cx={x(s.läge)} cy={cy(s.läge, i)} r={4 * skala} fill="none" stroke="var(--red)" stroke-width=".8" stroke-dasharray="2 1.5" />
     {/if}
-    <circle cx={x(s.läge)} cy={y(s.läge)} r={(s.stilla ? 1.8 : 2.6) * skala} fill={lägeFärg(s.läge, tema)} />
+    <circle cx={x(s.läge)} cy={cy(s.läge, i)} r={(s.stilla ? 1.8 : 2.6) * skala} fill={lägeFärg(s.läge, tema)} />
   {/each}
 </svg>

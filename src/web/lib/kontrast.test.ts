@@ -1,19 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { kontrast, tokens } from "./kontrast.js";
-
-describe("WCAG contrast ratio", () => {
-  it("matches the known extremes and is symmetric", () => {
-    expect(kontrast("#000000", "#ffffff")).toBeCloseTo(21, 5);
-    expect(kontrast("#ffffff", "#ffffff")).toBeCloseTo(1, 5);
-    expect(kontrast("#777777", "#ffffff")).toBeCloseTo(4.48, 2);
-    expect(kontrast("#ffffff", "#777777")).toBeCloseTo(4.48, 2);
-  });
-
-  it("reads three-digit hex", () => {
-    expect(kontrast("#fff", "#000")).toBeCloseTo(21, 5);
-  });
-});
+import { kontrast } from "./farg.js";
+import { tokens } from "./kontrast.js";
 
 describe("app.css tokens (#48: accent and contrast)", () => {
   const css = readFileSync(new URL("../app.css", import.meta.url), "utf8");

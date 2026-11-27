@@ -4,7 +4,12 @@
 /** OKLCH as [lightness 0–1, chroma, hue in degrees 0–360]. */
 export type Oklch = readonly [number, number, number];
 
-const kanaler = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+/** A hex colour (#rrggbb or #rgb) as sRGB channels 0–1. */
+function kanaler(hex: string): number[] {
+  let h = hex.trim().replace(/^#/, "");
+  if (h.length === 3) h = [...h].map((c) => c + c).join("");
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+}
 
 const linjär = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 

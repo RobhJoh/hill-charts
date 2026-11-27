@@ -6,7 +6,12 @@ describe("WCAG contrast", () => {
     expect(kontrast("#000000", "#ffffff")).toBeCloseTo(21, 5);
     expect(kontrast("#ffffff", "#ffffff")).toBeCloseTo(1, 5);
     expect(kontrast("#777777", "#ffffff")).toBeCloseTo(4.48, 2);
+    expect(kontrast("#ffffff", "#777777")).toBeCloseTo(4.48, 2);
     expect(kontrast("#ffffff", "#767676")).toBeCloseTo(4.54, 2);
+  });
+
+  it("reads three-digit hex, as app.css tokens may be written", () => {
+    expect(kontrast("#fff", "#000")).toBeCloseTo(21, 5);
   });
 });
 

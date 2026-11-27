@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { avslutatText, delaProjekt } from "./avslutade.js";
-import { kontrast, tokens } from "./kontrast.js";
+import { kontrast } from "./farg.js";
+import { tokens } from "./kontrast.js";
 
 const rad = (namn: string, avslutat: boolean) => ({ namn, avslutat });
 

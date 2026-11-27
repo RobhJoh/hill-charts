@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { tillOklch, kontrast } from "./farg.js";
+import { glimtVidSpar } from "./hill.js";
 import {
   etikettText,
   etiketterSomFår,
@@ -348,5 +349,19 @@ describe("a drop's high point", () => {
     expect(höjdpunkt(60, 40)).toBeNull();
     expect(höjdpunkt(100, 100)).toBeNull();
     expect(höjdpunkt(50, 70)).toBeNull();
+  });
+});
+
+describe("a saved drop's glint on the Stjärnkarta (#67)", () => {
+  it("pulses every saved drop when the chart asks for it, keeping the high points", () => {
+    expect(glimtVidSpar(20, 40, true)).toBe("puls");
+    expect(glimtVidSpar(60, 40, true)).toBe("puls");
+    expect(glimtVidSpar(40, 60, true)).toBe("krön");
+    expect(glimtVidSpar(70, 100, true)).toBe("mål");
+  });
+
+  it("marks only the high points otherwise", () => {
+    expect(glimtVidSpar(20, 40, false)).toBeNull();
+    expect(glimtVidSpar(40, 60, false)).toBe("krön");
   });
 });

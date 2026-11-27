@@ -13,6 +13,7 @@
     onlägg,
     onändra,
     ontabort,
+    skrivskyddad = false,
   }: {
     tidsplan: Tidsplan;
     /** Quiet warnings, e.g. "slutar efter Funktionsområdet". */
@@ -21,6 +22,8 @@
     onlägg: (m: { namn: string; datum: string }) => Promise<unknown>;
     onändra: (id: string, ändring: { namn: string; datum: string }) => Promise<unknown>;
     ontabort: (id: string) => Promise<unknown>;
+    /** An Avslutat Projekt (Q8 b): dates and Milstolpar shown, not edited, until Öppna igen. */
+    skrivskyddad?: boolean;
   } = $props();
 
   let öppen = $state<"inget" | "datum" | "ny milstolpe" | string>("inget");
@@ -103,8 +106,10 @@
       <span class="dim">Inga datum</span>
     {/if}
     {#each varningar as v (v)}<span class="varning">{v}</span>{/each}
-    <button class="quiet" onclick={öppnaDatum}>{datumKnapp(tidsplan)}</button>
-    <button class="quiet" onclick={() => öppnaMilstolpe()}>Ny Milstolpe</button>
+    {#if !skrivskyddad}
+      <button class="quiet" onclick={öppnaDatum}>{datumKnapp(tidsplan)}</button>
+      <button class="quiet" onclick={() => öppnaMilstolpe()}>Ny Milstolpe</button>
+    {/if}
   </div>
 
   {#if öppen === "datum"}
@@ -148,8 +153,10 @@
           {:else}
             <span>◆ {m.namn}</span>
             <span class="dim">{visaDatum(m.datum)}</span>
-            <button class="quiet" onclick={() => öppnaMilstolpe(m)}>Ändra</button>
-            <button class="quiet" onclick={() => kör(() => ontabort(m.id))}>Ta bort</button>
+            {#if !skrivskyddad}
+              <button class="quiet" onclick={() => öppnaMilstolpe(m)}>Ändra</button>
+              <button class="quiet" onclick={() => kör(() => ontabort(m.id))}>Ta bort</button>
+            {/if}
           {/if}
         </li>
       {/each}

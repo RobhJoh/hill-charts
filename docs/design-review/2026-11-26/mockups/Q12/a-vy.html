@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Q12 a: Sist i sidomenyn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  --bg: #081026; --panel: #0a1430; --chart: #0b1530; --line: #1f3160; --grid: #18284f;
+  --tx: #eef0f5; --mid: #aab6d4; --dim: #8f9cbd; --orbit: #7f92c2; --red: #f0602e; --klar: #8fc7ff; --redtx: #ff7a66;
+  --sel: #13224a; --star: #dfe6f5; --btn: #3a4d80; --halo: #0d1836;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { min-height: 100%; }
+body { background: var(--bg); color: var(--tx); font: 400 15px/1.4 Barlow, system-ui, sans-serif; font-variant-numeric: tabular-nums; overflow-x: hidden; }
+a { color: inherit; }
+button, input, select { font: 500 14px Barlow, system-ui, sans-serif; color: var(--tx); }
+button { background: none; border: 1px solid var(--btn); padding: 8px 14px; border-radius: 2px; cursor: pointer; }
+button.pr { background: var(--red); border-color: var(--red); color: #fff; }
+button.quiet { border-color: transparent; color: var(--dim); padding: 4px 8px; }
+input, select { background: var(--panel); border: 1px solid var(--btn); border-radius: 2px; padding: 8px 10px; }
+h1 { font: 600 36px/1.1 Barlow, system-ui, sans-serif; letter-spacing: -0.01em; }
+.meta { font-size: 14px; color: var(--dim); }
+.cap { font-weight: 600; font-size: 13px; color: var(--dim); }
+.page { max-width: 1240px; margin: 0 auto; padding: 36px 28px 80px; }
+.crumbs { font-size: 14px; color: var(--dim); margin-bottom: 6px; }
+.crumbs a { text-decoration: none; }
+
+.mockcap { font: 500 11px/1 Barlow, system-ui, sans-serif; letter-spacing: .04em; color: var(--dim); opacity: .75; padding: 6px 28px; border-bottom: 1px dashed var(--grid); }
+
+header { height: 56px; display: flex; align-items: center; gap: 32px; padding: 0 28px; border-bottom: 1px solid var(--line); background: var(--bg); }
+.mk { display: flex; align-items: center; gap: 10px; font: 700 22px Barlow, system-ui, sans-serif; text-decoration: none; }
+.right { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+.sig { display: flex; align-items: center; gap: 8px; }
+.sig select { padding: 4px 8px; max-width: 180px; }
+.nav { text-decoration: none; color: var(--mid); padding: 17px 0; }
+.nav[aria-current="page"] { color: var(--tx); box-shadow: inset 0 -2px 0 var(--red); }
+.gear { display: flex; color: var(--dim); padding: 6px; }
+.gear[aria-current="page"] { color: var(--tx); }
+@media (max-width: 900px) {
+  .page { padding: 24px 16px 64px; }
+  h1 { font-size: 28px; }
+  header { padding: 0 16px; }
+  .mockcap { padding: 6px 16px; }
+  .sig .cap { display: none; }
+}
+@media (max-width: 480px) {
+  header { gap: 12px; }
+  .mk { font-size: 19px; gap: 8px; }
+  .right { gap: 8px; }
+  .nav { line-height: 1.15; padding: 10px 0; }
+  .sig select { max-width: 112px; padding: 4px 6px; }
+  .right > button.quiet { padding: 4px 4px; }
+  .gear { padding: 4px; }
+}
+
+.page h1 { margin-bottom: 14px; }
+.summa { display: flex; flex-wrap: wrap; gap: 12px 28px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.summa div { display: flex; flex-direction: column; }
+.summa b { font: 600 22px Barlow, system-ui, sans-serif; }
+.summa span { font-size: 14px; color: var(--dim); }
+.summa .röd b { color: var(--redtx); }
+.filt { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.filt .on { border-color: var(--btn); background: var(--sel); color: var(--tx); }
+.skywrap { margin-top: 20px; display: grid; grid-template-columns: 1fr 330px; border: 1px solid var(--line); }
+.sky { min-width: 0; padding: 8px; }
+.sky svg { display: block; width: 100%; height: auto; }
+.hint { font-size: 14px; color: var(--dim); margin: 4px 12px 8px; }
+.key { background: var(--panel); padding: 16px; border-left: 1px solid var(--line); min-width: 0; }
+section + section { margin-top: 18px; }
+.pk { display: flex; align-items: baseline; gap: 6px; }
+.pk a { font-weight: 600; }
+.pk .cd { margin-left: auto; }
+.glyph { font: 700 11px Barlow, system-ui, sans-serif; color: var(--dim); width: 16px; flex: none; }
+.key ul { list-style: none; padding: 0; margin: 6px 0 0; }
+.key li { display: flex; align-items: center; gap: 6px; padding: 3px 0 3px 22px; font-size: 15px; }
+.key li b { margin-left: auto; font-weight: 600; }
+.dot { display: flex; }
+.stilla { color: var(--redtx); font-size: 13px; }
+.länk { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+/* Nedräkning, liten */
+.ned { display: flex; align-items: center; flex-wrap: wrap; font-size: 13px; gap: 2px 10px; color: var(--dim); }
+.ned .c { display: inline-flex; flex-direction: column; gap: 4px; }
+.ned .över { color: var(--redtx); font-weight: 600; }
+.ned .bar { display: block; height: 3px; background: var(--grid); }
+.ned .fill { display: block; height: 100%; background: var(--mid); }
+.ned .fill.över { background: var(--red); }
+.ned .ms { white-space: nowrap; }
+/* chart */
+.gt { font: 500 13px Barlow, system-ui, sans-serif; fill: var(--dim); }
+.sn { font: 600 15px Barlow, system-ui, sans-serif; fill: var(--tx); paint-order: stroke; stroke: var(--halo); stroke-width: 5px; stroke-linejoin: round; }
+.sm { font-weight: 500; fill: var(--mid); }
+.stillaring { fill: none; stroke: var(--red); stroke-width: 1.1; stroke-dasharray: 3 3; }
+.stillalinje { fill: none; stroke: var(--red); stroke-width: .8; opacity: .8; }
+.stillatext { font: 500 14px Barlow, system-ui, sans-serif; fill: var(--redtx); paint-order: stroke; stroke: var(--halo); stroke-width: 5px; stroke-linejoin: round; }
+.ledare { stroke: var(--dim); stroke-width: .8; opacity: .7; }
+@media (max-width: 900px) {
+  .skywrap { grid-template-columns: 1fr; }
+  .key { border-left: 0; border-top: 1px solid var(--line); }
+}
+
+/* Projektsidans sidomeny (utdrag) */
+.utdrag { margin-top: 48px; }
+.utdrag > .cap { display: block; margin-bottom: 8px; }
+.pframe { display: grid; grid-template-columns: 236px minmax(0, 1fr); border: 1px solid var(--line); }
+.grannar { border-right: 1px solid var(--line); padding: 24px 18px; }
+.grannar h2 { font-weight: 600; font-size: 13px; color: var(--dim); margin-bottom: 10px; }
+.grannar ul { list-style: none; padding: 0; }
+.grannar a { display: block; padding: 8px 6px; text-decoration: none; color: var(--tx); border-bottom: 1px solid var(--line); }
+.grannar a:hover { background: var(--sel); }
+.grannar svg { display: block; }
+.gnamn { display: block; font-weight: 600; font-size: 14px; }
+.gst { display: block; font-size: 13px; color: var(--redtx); }
+.gmeta { display: block; font-size: 13px; color: var(--dim); }
+.gbar { display: block; width: 140px; max-width: 100%; height: 3px; background: var(--grid); margin: 3px 0 4px; }
+.gbar i { display: block; height: 100%; width: 27%; background: var(--mid); }
+.grannar a.avs { display: grid; grid-template-columns: 16px 1fr; column-gap: 6px; align-items: baseline; }
+.grannar .star { color: var(--klar); font-size: 13px; line-height: 1; }
+.phuvud { padding: 24px 28px; min-width: 0; }
+.phuvud h1 { font-size: 30px; margin: 0 0 8px; }
+.verktyg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 14px; color: var(--dim); font-weight: 500; }
+.ptid { margin-top: 14px; }
+.ptid .ned { font-size: 14px; color: var(--mid); gap: 6px 18px; }
+.ptid .ned .c { min-width: 150px; }
+.ptid .ned .bar { height: 4px; }
+.prest { margin-top: 16px; height: 120px; border: 1px dashed var(--grid); display: flex; align-items: center; justify-content: center; color: var(--dim); font-size: 13px; }
+@media (max-width: 900px) {
+  .pframe { grid-template-columns: minmax(0, 1fr); }
+  .grannar { order: 2; border-right: 0; border-top: 1px solid var(--line); padding: 18px 16px; }
+  .phuvud { padding: 18px 16px; }
+  .phuvud h1 { font-size: 26px; }
+}
+</style>
+</head>
+<body>
+<div class="mockcap">Mockup · Q12 a: Stjärnkartan visar bara pågående, utan filterrad · sidomenyn listar Avslutade sist med ljusblå ✦</div>
+<header>
+  <a class="mk" href="/">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M11 1 L12.6 9.4 L21 11 L12.6 12.6 L11 21 L9.4 12.6 L1 11 L9.4 9.4Z" fill="var(--red)"/></svg>
+    Apogee
+  </a>
+  <div class="right">
+    <a class="nav" href="/person/9p2wfr02el-anna-lind" aria-current="page">Mina Scopes</a>
+    <label class="sig"><span class="cap">Signatur</span>
+      <select aria-label="Byt signatur"><option>Anna Lind</option><option>Bo Ek</option><option>Cecilia Holm</option><option>David Berg</option><option>Elin Sjö</option><option>Fredrik Nordin</option><option>Hana Kim</option></select>
+    </label>
+    <button class="quiet tema" title="Dag">Dag</button>
+    <a class="gear" href="/installningar/personer" title="Inställningar" aria-label="Inställningar">
+      <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="6.6"/><path d="M12 2.4v3M12 18.6v3M2.4 12h3M18.6 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M5.2 18.8l2.1-2.1M16.7 7.3l2.1-2.1"/></svg>
+    </a>
+  </div>
+</header>
+<main>
+<div class="page">
+  <div class="crumbs"><a href="/installningar/personer">Personer</a></div>
+  <h1>Anna Lind</h1>
+  <div class="summa">
+    <div><b>2</b><span>Scopes</span></div>
+    <div><b>1</b><span>Projekt</span></div>
+    <div><b>0</b><span>stilla &gt; 14 d</span></div>
+    <div><b>1</b><span>avslutade</span></div>
+  </div>
+  <div class="skywrap">
+    <div class="sky">
+      <svg viewBox="0 0 900 640" role="group" aria-label="Hill chart för Anna Linds Scopes"><circle cx="20" cy="555.6" r="0.8" opacity="0.12" fill="var(--star)"/><circle cx="647.3" cy="338.3" r="0.8" opacity="0.21" fill="var(--star)"/><circle cx="669.4" cy="344" r="1" opacity="0.19" fill="var(--star)"/><circle cx="722.4" cy="175.5" r="0.8" opacity="0.20" fill="var(--star)"/><circle cx="620.3" cy="70.2" r="1" opacity="0.16" fill="var(--star)"/><circle cx="813.3" cy="492.1" r="0.6" opacity="0.17" fill="var(--star)"/><circle cx="813.9" cy="425.6" r="1" opacity="0.18" fill="var(--star)"/><circle cx="804.3" cy="548.7" r="0.8" opacity="0.14" fill="var(--star)"/><circle cx="740" cy="226.1" r="0.6" opacity="0.13" fill="var(--star)"/><circle cx="388.5" cy="205.1" r="1.3" opacity="0.17" fill="var(--star)"/><circle cx="647.2" cy="531.6" r="0.6" opacity="0.13" fill="var(--star)"/><circle cx="502.1" cy="324.9" r="0.8" opacity="0.11" fill="var(--star)"/><circle cx="801.7" cy="70.7" r="0.8" opacity="0.14" fill="var(--star)"/><circle cx="591.4" cy="557.6" r="1" opacity="0.11" fill="var(--star)"/><circle cx="368.8" cy="198.8" r="0.8" opacity="0.15" fill="var(--star)"/><circle cx="306" cy="337.7" r="1" opacity="0.12" fill="var(--star)"/><circle cx="799.6" cy="296.4" r="1.3" opacity="0.19" fill="var(--star)"/><circle cx="565.5" cy="329.1" r="1" opacity="0.20" fill="var(--star)"/><circle cx="828" cy="262.2" r="1" opacity="0.12" fill="var(--star)"/><circle cx="524.7" cy="236.3" r="0.8" opacity="0.15" fill="var(--star)"/><circle cx="703.5" cy="531.4" r="0.6" opacity="0.22" fill="var(--star)"/><circle cx="86.8" cy="267.8" r="0.6" opacity="0.09" fill="var(--star)"/><circle cx="876.7" cy="163.2" r="1" opacity="0.10" fill="var(--star)"/><circle cx="413.1" cy="372" r="0.6" opacity="0.24" fill="var(--star)"/><circle cx="780.7" cy="538.7" r="1.3" opacity="0.23" fill="var(--star)"/><circle cx="674.6" cy="194.2" r="0.6" opacity="0.12" fill="var(--star)"/><circle cx="85.4" cy="40.9" r="1" opacity="0.12" fill="var(--star)"/><circle cx="657.4" cy="314" r="1" opacity="0.12" fill="var(--star)"/><circle cx="778.6" cy="171.7" r="0.8" opacity="0.23" fill="var(--star)"/><circle cx="121.8" cy="314" r="0.6" opacity="0.24" fill="var(--star)"/><circle cx="567.8" cy="556.4" r="0.6" opacity="0.23" fill="var(--star)"/><circle cx="181.8" cy="582.5" r="1" opacity="0.20" fill="var(--star)"/><circle cx="249" cy="164.8" r="0.6" opacity="0.18" fill="var(--star)"/><circle cx="65" cy="470.9" r="1" opacity="0.20" fill="var(--star)"/><circle cx="448.4" cy="58.3" r="0.6" opacity="0.24" fill="var(--star)"/><circle cx="132.5" cy="425.2" r="1.3" opacity="0.09" fill="var(--star)"/><circle cx="779.5" cy="522.4" r="1.3" opacity="0.24" fill="var(--star)"/><circle cx="677.8" cy="275" r="0.6" opacity="0.20" fill="var(--star)"/><circle cx="778.7" cy="263" r="0.6" opacity="0.15" fill="var(--star)"/><circle cx="782.8" cy="352.9" r="0.8" opacity="0.19" fill="var(--star)"/><circle cx="652" cy="227.6" r="1" opacity="0.15" fill="var(--star)"/><circle cx="190.8" cy="214.6" r="1.3" opacity="0.25" fill="var(--star)"/><circle cx="563.9" cy="528.4" r="1.3" opacity="0.11" fill="var(--star)"/><circle cx="574.9" cy="115.8" r="0.8" opacity="0.17" fill="var(--star)"/><circle cx="683.4" cy="569.6" r="0.8" opacity="0.11" fill="var(--star)"/><circle cx="404.1" cy="133" r="1" opacity="0.17" fill="var(--star)"/><circle cx="502.9" cy="323.8" r="1.3" opacity="0.14" fill="var(--star)"/><circle cx="665.8" cy="54.6" r="0.8" opacity="0.17" fill="var(--star)"/><circle cx="194.4" cy="444.8" r="0.8" opacity="0.12" fill="var(--star)"/><circle cx="587.2" cy="280.3" r="0.6" opacity="0.21" fill="var(--star)"/><circle cx="727.7" cy="552.7" r="1.3" opacity="0.20" fill="var(--star)"/><circle cx="844.6" cy="54.1" r="1.3" opacity="0.18" fill="var(--star)"/><circle cx="642.7" cy="543" r="0.6" opacity="0.10" fill="var(--star)"/><circle cx="89" cy="100.6" r="0.6" opacity="0.08" fill="var(--star)"/><circle cx="540.3" cy="569.6" r="0.6" opacity="0.10" fill="var(--star)"/><circle cx="193.9" cy="418" r="0.6" opacity="0.16" fill="var(--star)"/><circle cx="874.8" cy="276.7" r="1" opacity="0.21" fill="var(--star)"/><circle cx="361.3" cy="273.2" r="0.6" opacity="0.12" fill="var(--star)"/><circle cx="714.6" cy="585.6" r="0.6" opacity="0.24" fill="var(--star)"/><circle cx="457.5" cy="108.4" r="0.6" opacity="0.18" fill="var(--star)"/><circle cx="166.7" cy="83.7" r="0.8" opacity="0.19" fill="var(--star)"/><circle cx="498.3" cy="309.2" r="1.3" opacity="0.09" fill="var(--star)"/><circle cx="375.5" cy="216.1" r="0.6" opacity="0.08" fill="var(--star)"/><circle cx="375.6" cy="91.2" r="0.6" opacity="0.24" fill="var(--star)"/><circle cx="688.6" cy="467.8" r="0.8" opacity="0.23" fill="var(--star)"/><circle cx="847.7" cy="488.5" r="1" opacity="0.18" fill="var(--star)"/><circle cx="319.3" cy="267.9" r="0.8" opacity="0.16" fill="var(--star)"/><circle cx="508" cy="444.2" r="1" opacity="0.19" fill="var(--star)"/><circle cx="646.9" cy="535.3" r="1.3" opacity="0.25" fill="var(--star)"/><circle cx="396.7" cy="312.8" r="1.3" opacity="0.25" fill="var(--star)"/><line x1="70" y1="40" x2="70" y2="560" stroke="var(--grid)"/><line x1="146" y1="40" x2="146" y2="560" stroke="var(--grid)"/><line x1="222" y1="40" x2="222" y2="560" stroke="var(--grid)"/><line x1="298" y1="40" x2="298" y2="560" stroke="var(--grid)"/><line x1="374" y1="40" x2="374" y2="560" stroke="var(--grid)"/><line x1="450" y1="40" x2="450" y2="560" stroke="var(--grid)"/><line x1="526" y1="40" x2="526" y2="560" stroke="var(--grid)"/><line x1="602" y1="40" x2="602" y2="560" stroke="var(--grid)"/><line x1="678" y1="40" x2="678" y2="560" stroke="var(--grid)"/><line x1="754" y1="40" x2="754" y2="560" stroke="var(--grid)"/><line x1="830" y1="40" x2="830" y2="560" stroke="var(--grid)"/><rect x="70" y="40" width="760" height="520" fill="none" stroke="var(--line)"/><line x1="70" y1="560" x2="70" y2="570" stroke="var(--dim)"/><text class="gt" x="70" y="586" text-anchor="middle">0</text><line x1="108" y1="560" x2="108" y2="565" stroke="var(--dim)"/><line x1="146" y1="560" x2="146" y2="570" stroke="var(--dim)"/><text class="gt" x="146" y="586" text-anchor="middle">10</text><line x1="184" y1="560" x2="184" y2="565" stroke="var(--dim)"/><line x1="222" y1="560" x2="222" y2="570" stroke="var(--dim)"/><text class="gt" x="222" y="586" text-anchor="middle">20</text><line x1="260" y1="560" x2="260" y2="565" stroke="var(--dim)"/><line x1="298" y1="560" x2="298" y2="570" stroke="var(--dim)"/><text class="gt" x="298" y="586" text-anchor="middle">30</text><line x1="336" y1="560" x2="336" y2="565" stroke="var(--dim)"/><line x1="374" y1="560" x2="374" y2="570" stroke="var(--dim)"/><text class="gt" x="374" y="586" text-anchor="middle">40</text><line x1="412" y1="560" x2="412" y2="565" stroke="var(--dim)"/><line x1="450" y1="560" x2="450" y2="570" stroke="var(--dim)"/><text class="gt" x="450" y="586" text-anchor="middle">50</text><line x1="488" y1="560" x2="488" y2="565" stroke="var(--dim)"/><line x1="526" y1="560" x2="526" y2="570" stroke="var(--dim)"/><text class="gt" x="526" y="586" text-anchor="middle">60</text><line x1="564" y1="560" x2="564" y2="565" stroke="var(--dim)"/><line x1="602" y1="560" x2="602" y2="570" stroke="var(--dim)"/><text class="gt" x="602" y="586" text-anchor="middle">70</text><line x1="640" y1="560" x2="640" y2="565" stroke="var(--dim)"/><line x1="678" y1="560" x2="678" y2="570" stroke="var(--dim)"/><text class="gt" x="678" y="586" text-anchor="middle">80</text><line x1="716" y1="560" x2="716" y2="565" stroke="var(--dim)"/><line x1="754" y1="560" x2="754" y2="570" stroke="var(--dim)"/><text class="gt" x="754" y="586" text-anchor="middle">90</text><line x1="792" y1="560" x2="792" y2="565" stroke="var(--dim)"/><line x1="830" y1="560" x2="830" y2="570" stroke="var(--dim)"/><text class="gt" x="830" y="586" text-anchor="middle">100</text><path d="M70,560 L73.8,559.9 L77.6,559.6 L81.4,559.2 L85.2,558.5 L89,557.7 L92.8,556.6 L96.6,555.4 L100.4,554 L104.2,552.5 L108,550.7 L111.8,548.8 L115.6,546.7 L119.4,544.4 L123.2,541.9 L127,539.3 L130.8,536.5 L134.6,533.5 L138.4,530.4 L142.2,527.1 L146,523.7 L149.8,520.1 L153.6,516.4 L157.4,512.5 L161.2,508.5 L165,504.4 L168.8,500.1 L172.6,495.6 L176.4,491.1 L180.2,486.5 L184,481.7 L187.8,476.8 L191.6,471.8 L195.4,466.7 L199.2,461.5 L203,456.3 L206.8,450.9 L210.6,445.5 L214.4,439.9 L218.2,434.4 L222,428.7 L225.8,423 L229.6,417.3 L233.4,411.4 L237.2,405.6 L241,399.7 L244.8,393.8 L248.6,387.9 L252.4,381.9 L256.2,376 L260,370 L263.8,364 L267.6,358.1 L271.4,352.1 L275.2,346.2 L279,340.3 L282.8,334.4 L286.6,328.6 L290.4,322.7 L294.2,317 L298,311.3 L301.8,305.6 L305.6,300.1 L309.4,294.5 L313.2,289.1 L317,283.7 L320.8,278.5 L324.6,273.3 L328.4,268.2 L332.2,263.2 L336,258.3 L339.8,253.5 L343.6,248.9 L347.4,244.4 L351.2,239.9 L355,235.6 L358.8,231.5 L362.6,227.5 L366.4,223.6 L370.2,219.9 L374,216.3 L377.8,212.9 L381.6,209.6 L385.4,206.5 L389.2,203.5 L393,200.7 L396.8,198.1 L400.6,195.6 L404.4,193.3 L408.2,191.2 L412,189.3 L415.8,187.5 L419.6,186 L423.4,184.6 L427.2,183.4 L431,182.3 L434.8,181.5 L438.6,180.8 L442.4,180.4 L446.2,180.1 L450,180 L453.8,180.1 L457.6,180.4 L461.4,180.8 L465.2,181.5 L469,182.3 L472.8,183.4 L476.6,184.6 L480.4,186 L484.2,187.5 L488,189.3 L491.8,191.2 L495.6,193.3 L499.4,195.6 L503.2,198.1 L507,200.7 L510.8,203.5 L514.6,206.5 L518.4,209.6 L522.2,212.9 L526,216.3 L529.8,219.9 L533.6,223.6 L537.4,227.5 L541.2,231.5 L545,235.6 L548.8,239.9 L552.6,244.4 L556.4,248.9 L560.2,253.5 L564,258.3 L567.8,263.2 L571.6,268.2 L575.4,273.3 L579.2,278.5 L583,283.7 L586.8,289.1 L590.6,294.5 L594.4,300.1 L598.2,305.6 L602,311.3 L605.8,317 L609.6,322.7 L613.4,328.6 L617.2,334.4 L621,340.3 L624.8,346.2 L628.6,352.1 L632.4,358.1 L636.2,364 L640,370 L643.8,376 L647.6,381.9 L651.4,387.9 L655.2,393.8 L659,399.7 L662.8,405.6 L666.6,411.4 L670.4,417.3 L674.2,423 L678,428.7 L681.8,434.4 L685.6,439.9 L689.4,445.5 L693.2,450.9 L697,456.3 L700.8,461.5 L704.6,466.7 L708.4,471.8 L712.2,476.8 L716,481.7 L719.8,486.5 L723.6,491.1 L727.4,495.6 L731.2,500.1 L735,504.4 L738.8,508.5 L742.6,512.5 L746.4,516.4 L750.2,520.1 L754,523.7 L757.8,527.1 L761.6,530.4 L765.4,533.5 L769.2,536.5 L773,539.3 L776.8,541.9 L780.6,544.4 L784.4,546.7 L788.2,548.8 L792,550.7 L795.8,552.5 L799.6,554 L803.4,555.4 L807.2,556.6 L811,557.7 L814.8,558.5 L818.6,559.2 L822.4,559.6 L826.2,559.9 L830,560" fill="none" stroke="var(--orbit)" stroke-width="1.4"/><text class="gt" x="70" y="610">← Uppför · lista ut</text><text class="gt" x="830" y="610" text-anchor="end">Nedför · genomföra →</text><g><circle cx="146" cy="523.7" r="19.5" fill="#ff8c57" opacity=".13"/><circle cx="146" cy="523.7" r="7.5" fill="#ff8c57"/><text class="sn" x="160" y="511.7" text-anchor="start"><tspan class="sm">A </tspan>Felmeddelanden <tspan class="sm">10</tspan></text></g><g><circle cx="716" cy="481.7" r="13" fill="#b5d0ff" opacity=".13"/><circle cx="716" cy="481.7" r="5" fill="#b5d0ff"/><text class="sn" x="702" y="463.7" text-anchor="end"><tspan class="sm">A </tspan>BankID-flöde <tspan class="sm">85</tspan></text></g></svg>
+      <p class="hint">Dra en stjärna för att ändra Läge. Ändringen hamnar i det Projektets Historik.</p>
+    </div>
+    <aside class="key" aria-label="Projekt"><section><div class="pk"><span class="glyph">A</span><a href="#">Ny inloggning</a><span class="cd"><span class="ned"><span class="c"><span>4 dagar kvar av 8 veckor</span><span class="bar" aria-hidden="true"><span class="fill" style="width:93%"></span></span></span><span class="ms">◆ Acceptanstest om 4 dagar</span></span></span></div><ul><li><span class="dot" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="4" fill="#b5d0ff"/></svg></span><button class="länk">BankID-flöde</button><b>85</b></li><li><span class="dot" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#ff8c57"/></svg></span><button class="länk">Felmeddelanden</button><b>10</b></li></ul></section></aside>
+  </div>
+
+  <section class="utdrag" aria-label="Projektsidan, sidomenyn">
+    <span class="cap">Projektsidan · Ny inloggning (utdrag)</span>
+    <div class="pframe">
+      <nav class="grannar" aria-labelledby="gr-h"><h2 id="gr-h">Andra Projekt i Kundupplevelse</h2><ul><li><a href="#"><svg width="150" height="44" viewBox="0 0 150 44" aria-hidden="true"><path d="M6.0,37.0 L11.5,36.5 L17.0,35.2 L22.6,33.1 L28.1,30.4 L33.6,27.2 L39.1,23.8 L44.6,20.2 L50.2,16.9 L55.7,13.9 L61.2,11.5 L66.7,9.8 L72.2,8.9 L77.8,8.9 L83.3,9.8 L88.8,11.5 L94.3,13.9 L99.8,16.9 L105.4,20.2 L110.9,23.8 L116.4,27.2 L121.9,30.4 L127.4,33.1 L133.0,35.2 L138.5,36.5 L144.0,37.0" fill="none" stroke="var(--orbit)" stroke-width=".8" opacity=".7"/><circle cx="19.8" cy="34.3" r="2.4" fill="#ff9159"/><circle cx="36.4" cy="25.5" r="2.4" fill="#ffac67"/><circle cx="75.0" cy="8.8" r="3.5" fill="none" stroke="var(--red)" stroke-width=".8" stroke-dasharray="2 1.5"/><circle cx="75.0" cy="8.8" r="1.8" fill="#fff1c9"/><circle cx="88.8" cy="11.5" r="2.4" fill="#eceadf"/></svg><span class="gnamn">Mina sidor</span><span class="gst">1 stilla</span><span class="gmeta">64 dagar kvar av 88 dagar</span><span class="gbar"><i></i></span><span class="gmeta">◆ Demo för ledningen om 14 dagar</span></a></li><li><a class="avs" href="#"><span class="star" aria-hidden="true">✦</span><span><span class="gnamn">Onboarding-guide</span><span class="gmeta">Avslutat</span></span></a></li></ul></nav>
+      <div class="phuvud">
+        <div class="crumbs"><a href="#">Alla Funktionsområden</a> / <a href="#">Kundupplevelse</a></div>
+        <h1>Ny inloggning</h1>
+        <div class="verktyg"><span>Byt namn</span><span>Flytta</span><span>Kopiera länk</span><span>Bädda in</span><span>Ta bort</span></div>
+        <div class="ptid"><span class="ned"><span class="c"><span>4 dagar kvar av 8 veckor</span><span class="bar" aria-hidden="true"><span class="fill" style="width:93%"></span></span></span><span class="ms">◆ Acceptanstest om 4 dagar</span></span></div>
+        <div class="prest">Hill chart och Scope-lista som i dag</div>
+      </div>
+    </div>
+  </section>
+</div>
+</main>
+</body>
+</html>

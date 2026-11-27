@@ -1,0 +1,281 @@
+{
+  "baseUrl": "http://localhost:5174",
+  "roles": {
+    "utan": {
+      "storageState": "/private/tmp/claude-501/-Users-roberth-CDAB-repos-hill-charts--claude-worktrees-project-status-next-steps-e3806b/8a07ad0d-377b-4492-84c2-ab9324e801f6/scratchpad/state-utan.json"
+    },
+    "med": {
+      "storageState": "/private/tmp/claude-501/-Users-roberth-CDAB-repos-hill-charts--claude-worktrees-project-status-next-steps-e3806b/8a07ad0d-377b-4492-84c2-ab9324e801f6/scratchpad/state-med.json"
+    },
+    "dag": {
+      "storageState": "/private/tmp/claude-501/-Users-roberth-CDAB-repos-hill-charts--claude-worktrees-project-status-next-steps-e3806b/8a07ad0d-377b-4492-84c2-ab9324e801f6/scratchpad/state-dag.json"
+    }
+  },
+  "viewports": {
+    "desktop": {
+      "w": 1440,
+      "h": 900
+    },
+    "phone": {
+      "w": 390,
+      "h": 844
+    },
+    "embed-bred": {
+      "w": 720,
+      "h": 320
+    },
+    "embed-smal": {
+      "w": 400,
+      "h": 320
+    }
+  },
+  "pages": [
+    {
+      "view": "start",
+      "path": "/",
+      "role": "utan",
+      "viewports": [
+        "desktop",
+        "phone"
+      ],
+      "waitFor": "text=Kundupplevelse"
+    },
+    {
+      "view": "start-signatur",
+      "path": "/",
+      "role": "med",
+      "viewports": [
+        "desktop"
+      ],
+      "waitFor": "text=Mina Scopes"
+    },
+    {
+      "view": "fo-plattform",
+      "path": "/f/4djnni9x4g",
+      "role": "med",
+      "viewports": [
+        "desktop",
+        "phone"
+      ],
+      "waitFor": "text=Testprojekt"
+    },
+    {
+      "view": "fo-ekonomi",
+      "path": "/f/w4dhss972v",
+      "role": "med",
+      "viewports": [
+        "desktop"
+      ],
+      "waitFor": "text=Budgetverktyg"
+    },
+    {
+      "view": "projekt",
+      "path": "/p/0qtx4cq2ev",
+      "role": "med",
+      "viewports": [
+        "desktop",
+        "phone"
+      ],
+      "waitFor": "[role=slider]"
+    },
+    {
+      "view": "projekt-dag",
+      "path": "/p/0qtx4cq2ev",
+      "role": "dag",
+      "viewports": [
+        "desktop"
+      ],
+      "waitFor": "[role=slider]"
+    },
+    {
+      "view": "projekt-historik",
+      "path": "/p/0qtx4cq2ev",
+      "role": "med",
+      "viewports": [
+        "desktop"
+      ],
+      "waitFor": "[role=slider]",
+      "actions": [
+        {
+          "click": "button:has-text('Historik')"
+        },
+        {
+          "waitFor": "button:has-text('Visa')"
+        }
+      ]
+    },
+    {
+      "view": "projekt-historik-visa",
+      "path": "/p/0qtx4cq2ev",
+      "role": "med",
+      "viewports": [
+        "desktop"
+      ],
+      "waitFor": "[role=slider]",
+      "actions": [
+        {
+          "click": "button:has-text('Historik')"
+        },
+        {
+          "click": "button:has-text('Visa') >> nth=3"
+        },
+        {
+          "waitFor": ".visning"
+        }
+      ]
+    },
+    {
+      "view": "projekt-scope-vald",
+      "path": "/p/0qtx4cq2ev",
+      "role": "med",
+      "viewports": [
+        "desktop",
+        "phone"
+      ],
+      "waitFor": "[role=slider]",
+      "actions": [
+        {
+          "click": "button.länk >> nth=1"
+        }
+      ]
+    },
+    {
+      "view": "projekt-ny-scope",
+      "path": "/p/0qtx4cq2ev",
+      "role": "med",
+      "viewports": [
+        "desktop"
+      ],
+      "waitFor": "[role=slider]",
+      "actions": [
+        {
+          "click": "button:has-text('Ny Scope')"
+        }
+      ]
+    },
+    {
+      "view": "projekt-signatur-remsa",
+      "path": "/p/0qtx4cq2ev",
+      "role": "utan",
+      "viewports": [
+        "phone"
+      ],
+      "waitFor": "[role=slider]",
+      "actions": [
+        {
+          "click": "[aria-label^='Felmeddelanden'] >> nth=0"
+        },
+        {
+          "press": "ArrowRight"
+        },
+        {
+          "waitFor": "text=Spara"
+        }
+      ]
+    },
+    {
+      "view": "projekt-badda-in",
+      "path": "/p/0qtx4cq2ev",
+      "role": "med",
+      "viewports": [
+        "desktop"
+      ],
+      "waitFor": "[role=slider]",
+      "actions": [
+        {
+          "click": "button:has-text('Bädda in')"
+        },
+        {
+          "waitFor": "[role=dialog]"
+        }
+      ]
+    },
+    {
+      "view": "projekt-over-tid",
+      "path": "/p/59rz6gw74a",
+      "role": "med",
+      "viewports": [
+        "desktop"
+      ],
+      "waitFor": "[role=slider]"
+    },
+    {
+      "view": "projekt-avslutat",
+      "path": "/p/yrexpob6yl",
+      "role": "med",
+      "viewports": [
+        "desktop"
+      ],
+      "waitFor": "text=Öppna igen"
+    },
+    {
+      "view": "projekt-borttagen",
+      "path": "/p/aekstro366",
+      "role": "med",
+      "viewports": [
+        "desktop"
+      ],
+      "waitFor": "text=Testprojekt"
+    },
+    {
+      "view": "projekt-saknas",
+      "path": "/p/finnsinte00-x",
+      "role": "med",
+      "viewports": [
+        "desktop"
+      ]
+    },
+    {
+      "view": "embed",
+      "path": "/p/0qtx4cq2ev/embed",
+      "role": "utan",
+      "viewports": [
+        "embed-bred",
+        "embed-smal"
+      ],
+      "waitFor": "[role=slider]"
+    },
+    {
+      "view": "embed-dag",
+      "path": "/p/0qtx4cq2ev/embed?tema=dag",
+      "role": "dag",
+      "viewports": [
+        "embed-bred"
+      ],
+      "waitFor": "[role=slider]"
+    },
+    {
+      "view": "stjarnkarta",
+      "path": "/person/9p2wfr02el",
+      "role": "med",
+      "viewports": [
+        "desktop",
+        "phone"
+      ],
+      "waitFor": "[role=slider]"
+    },
+    {
+      "view": "personer",
+      "path": "/installningar/personer",
+      "role": "med",
+      "viewports": [
+        "desktop",
+        "phone"
+      ],
+      "waitFor": "text=Personer-historik",
+      "actions": [
+        {
+          "click": "button:has-text('Visa inaktiva')"
+        }
+      ]
+    },
+    {
+      "view": "saknas",
+      "path": "/finns-inte",
+      "role": "med",
+      "viewports": [
+        "desktop"
+      ]
+    }
+  ]
+}

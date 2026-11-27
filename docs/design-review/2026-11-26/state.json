@@ -1,0 +1,42 @@
+{
+  "mode": "review",
+  "phase": 6,
+  "gate": null,
+  "roundDir": "docs/design-review/2026-11-26",
+  "language": "sv",
+  "designRules": [
+    "PRODUCT.md",
+    "GLOSSARY.md",
+    "src/web/app.css (Stjärnatlas tokens, natt/dag)",
+    "src/web/lib/hill.ts (Läge colour ramp)",
+    "origin/prototype/stjarnatlas",
+    "origin/prototype/embed (variant B)",
+    "origin/prototype/person (variant B)",
+    "origin/prototype/historik",
+    "Spec #31: visual notes"
+  ],
+  "brand": [
+    "Name Apogee",
+    "Stjärnatlas direction: night-sky chart, Scopes as stars",
+    "Barlow"
+  ],
+  "roles": [
+    "anyone (no sign-in)"
+  ],
+  "tracker": {
+    "kind": "github",
+    "repo": "RobhJoh/hill-charts",
+    "project": "Apogee v.1.0.0 (user project 1)",
+    "parent": 45
+  },
+  "artifactUrl": "https://claude.ai/artifact/3dCJGLvKpdbPAjT9GAmZPh",
+  "discussionRounds": 1,
+  "updatedAt": "2026-11-27T14:01:34.935208Z",
+  "brandChanges": [
+    "Accent red should be more orange-red, and may be used somewhat more often than only selection, stuck and primary action"
+  ],
+  "followUps": [
+    "After the round's decisions, have Impeccable write DESIGN.md (design manual) from the decided direction"
+  ],
+  "subGate": null
+}

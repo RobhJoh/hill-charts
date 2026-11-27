@@ -27,7 +27,7 @@
   import StillaAntal from "../components/StillaAntal.svelte";
   import { grannar as ordnaGrannar } from "../lib/grannar.js";
   import Saknas from "./Saknas.svelte";
-  import { avslutatText } from "../lib/avslutat.js";
+  import { avslutatStatus } from "../lib/avslutat.js";
 
   let { id }: { id: string } = $props();
 
@@ -294,7 +294,7 @@
         <!-- Title plus one row (Q5 a): status and time on the left, the actions on the right. -->
         <div class="statusrad">
           <div class="status">
-            <span class:avslut={stängt}>{avslutatText(projekt)}</span>
+            <span class:avslut={stängt}>{avslutatStatus(projekt)}</span>
             {#if stängt}
               <span class="lås">
                 <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">

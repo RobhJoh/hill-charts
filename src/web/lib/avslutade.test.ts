@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { avslutatText, delaProjekt } from "./avslutade.js";
+import { avslutatRad, delaProjekt } from "./avslutade.js";
 import { kontrast } from "./farg.js";
 import { tokens } from "./kontrast.js";
 
@@ -21,13 +21,13 @@ describe("Pågående cells first, Avslutade in a list under them (Q4 c, Q11 a)",
 
 describe("the date in the Avslutade list", () => {
   it("reads 'Avslutat 12 nov.' in Swedish time", () => {
-    expect(avslutatText("2026-11-12T09:00:00.000Z")).toBe("Avslutat 12 nov.");
+    expect(avslutatRad("2026-11-12T09:00:00.000Z")).toBe("Avslutat 12 nov.");
     // 23:30 UTC on the 2nd is already the 3rd in Stockholm
-    expect(avslutatText("2026-11-02T23:30:00.000Z")).toBe("Avslutat 3 nov.");
+    expect(avslutatRad("2026-11-02T23:30:00.000Z")).toBe("Avslutat 3 nov.");
   });
 
   it("is just 'Avslutat' when the date is unknown", () => {
-    expect(avslutatText(null)).toBe("Avslutat");
+    expect(avslutatRad(null)).toBe("Avslutat");
   });
 });
 

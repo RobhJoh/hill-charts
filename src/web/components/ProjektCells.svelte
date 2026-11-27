@@ -5,7 +5,7 @@
   import type { ProjektRad } from "../../core/index.js";
   import { tema } from "../lib/tema.svelte.js";
   import { projektHref } from "../lib/links.js";
-  import { avslutatText, delaProjekt } from "../lib/avslutade.js";
+  import { avslutatRad, delaProjekt } from "../lib/avslutade.js";
   import MiniHill from "./MiniHill.svelte";
   import Nedrakning from "./Nedrakning.svelte";
   import StillaAntal from "./StillaAntal.svelte";
@@ -46,7 +46,7 @@
           <a href={projektHref(p)}>
             <span class="klar" aria-hidden="true">✦</span>
             <b>{p.namn}</b>
-            <span class="datum">{avslutatText(p.avslutad)}</span>
+            <span class="datum">{avslutatRad(p.avslutad)}</span>
           </a>
         </li>
       {/each}

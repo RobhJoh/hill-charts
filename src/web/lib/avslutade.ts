@@ -10,6 +10,8 @@ export function delaProjekt<P extends { avslutat: boolean }>(
 
 const dag = new Intl.DateTimeFormat("sv-SE", { day: "numeric", month: "short", timeZone: "Europe/Stockholm" });
 
-/** "Avslutat 12 nov.", or just "Avslutat" when it is not known when. */
-export const avslutatText = (avslutad: string | null): string =>
-  avslutad ? `Avslutat ${dag.format(new Date(avslutad))}` : "Avslutat";
+/** "Avslutat 12 nov.": the day a Projekt was Avslutat, in Stockholm time. Shared by the list and the Projekt page. */
+export const avslutatDen = (tid: string): string => `Avslutat ${dag.format(new Date(tid))}`;
+
+/** An Avslutade list row's date: "Avslutat 12 nov.", or just "Avslutat" when it is not known when. */
+export const avslutatRad = (avslutad: string | null): string => (avslutad ? avslutatDen(avslutad) : "Avslutat");

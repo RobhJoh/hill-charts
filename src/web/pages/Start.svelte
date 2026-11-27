@@ -96,7 +96,7 @@
     {#each översikt as fo (fo.id)}
       <section>
         <h2>
-          <a href={funktionsområdeHref(fo)}>{fo.namn}</a>
+          <a href={funktionsområdeHref(fo)}>{fo.namn}<span class="pil" aria-hidden="true">›</span></a>
           <span
             >{fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}</span
           >
@@ -131,12 +131,28 @@
   h2 a:hover {
     text-decoration: underline;
   }
+  /* The heading opens the Funktionsområde page: a quiet arrow says so without hover. */
+  h2 .pil {
+    font: inherit;
+    margin-left: 0.3em;
+    color: var(--dim);
+  }
+  h2 a:hover .pil {
+    color: var(--tx);
+  }
   h2 span {
     font: 400 14px Barlow, system-ui, sans-serif;
     color: var(--dim);
   }
   .cd {
     margin: 4px 0 10px;
+  }
+  /* Cells right under the heading use its rule as their top edge (no double line). */
+  h2:has(+ :global(.cells)) {
+    margin-bottom: 0;
+  }
+  h2 + :global(.cells) {
+    border-top: 0;
   }
   .status {
     margin: 0;

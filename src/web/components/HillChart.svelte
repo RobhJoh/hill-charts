@@ -15,12 +15,15 @@
     RUTA,
     dagarSedan,
     etikettText,
+    höjdpunkt,
     kompaktRuta,
     lägeFrånX,
     lägeFärg,
     placeraEtiketter,
     punkt,
     radie,
+    stillaNot,
+    type Hinder,
     type Ruta,
     type Tema,
   } from "../lib/hill.js";
@@ -109,8 +112,21 @@
   const stillaTillägg = (s: ScopeVy) =>
     kompakt && s.stilla && pågående[s.id] === undefined ? ` · ${s.stillaDagar} d` : "";
 
+  /** The big chart's "Ingen rörelse på N dagar" notes, by Scope id (hidden while a star moves). */
+  const noter = $derived(
+    new Map(
+      kompakt
+        ? []
+        : stjärnor
+            .filter((t) => t.s.stilla && pågående[t.s.id] === undefined)
+            .map((t) => [t.s.id, stillaNot(t.läge, t.s.stillaDagar ?? 0, ruta)] as const),
+    ),
+  );
+
   const placerade = $derived.by(() => {
     if (!etiketter) return new Map();
+    // Labels keep clear of the Stilla notes and their leaders.
+    const hinder: Hinder[] = [...noter.values()].flatMap((n) => n.hinder);
     // The selected star's label gets first pick, then left to right.
     const ordning = [...stjärnor]
       .filter((t) => etiketter !== "valt" || t.s.id === valt)
@@ -122,6 +138,7 @@
         text: `${etikettText({ namn: t.s.namn, läge: t.läge, märke: märken[t.s.id], vald: t.s.id === valt })}${stillaTillägg(t.s)}`,
       })),
       ruta,
+      hinder,
     );
     return new Map(lista.map((e) => [e.id, e]));
   });
@@ -131,6 +148,18 @@
     if (!ctm) return 0;
     const p = new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse());
     return lägeFrånX(p.x, ruta);
+  }
+
+  /** A short glint on a star whose drop crossed the crest or landed on 100. */
+  let glimt = $state<{ id: string; sort: "krön" | "mål"; n: number } | null>(null);
+  let glimtTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function glimta(id: string, från: number, till: number) {
+    const sort = höjdpunkt(från, till);
+    if (!sort) return;
+    clearTimeout(glimtTimer);
+    glimt = { id, sort, n: (glimt?.n ?? 0) + 1 };
+    glimtTimer = setTimeout(() => (glimt = null), 900);
   }
 
   /** Stars whose drop is being written (or held for a Signatur). */
@@ -147,6 +176,7 @@
     skickas.add(s.id);
     try {
       await onflytta(s.id, läge);
+      glimta(s.id, s.läge, läge);
     } catch {
       // Not saved (e.g. the Signatur was abandoned): snap back.
     } finally {
@@ -291,19 +321,21 @@
       {#if kompakt && s.stilla && pågående[s.id] === undefined}
         <circle class="stillahalo" cx={x} cy={y} r="12.5" />
         <circle class="stilla" cx={x} cy={y} r="12.5" />
-      {:else if s.stilla && pågående[s.id] === undefined}
+      {:else if noter.get(s.id)}
         <!-- Stuck: dashed red ring and a leader to the note, turned away from the frame's edges. -->
-        {@const dx = x > 600 ? -1 : 1}
-        {@const dy = y > 470 ? -1 : 1}
+        {@const not = noter.get(s.id)!}
         <circle class="stillahalo" cx={x} cy={y} r="14" />
         <circle class="stilla" cx={x} cy={y} r="14" />
-        <polyline
-          class="stilla"
-          points="{x + 12 * dx},{y + 10 * dy} {x + 60 * dx},{y + 52 * dy} {x + 232 * dx},{y + 52 * dy}"
-        />
-        <text class="stillatext" x={x + 64 * dx} y={y + (dy > 0 ? 46 : -58)} text-anchor={dx > 0 ? "start" : "end"}
-          >Ingen rörelse på {s.stillaDagar} dagar</text
-        >
+        <polyline class="stilla" points={not.punkter.map((p) => p.join(",")).join(" ")} />
+        <text class="stillatext" x={not.text.x} y={not.text.y} text-anchor={not.text.anchor}>{not.text.innehåll}</text>
+      {/if}
+      {#if glimt?.id === s.id}
+        {#key glimt.n}
+          <circle class="glimt" cx={x} cy={y} r={r * (kompakt ? 2.4 : 2.6)} fill={färg} />
+          {#if glimt.sort === "mål"}
+            <circle class="målring" cx={x} cy={y} r={kompakt ? 13 : 20} stroke={färg} />
+          {/if}
+        {/key}
       {/if}
       {#if e}
         {#if e.ledare}
@@ -426,6 +458,46 @@
     stroke-width: 5px;
     stroke-linejoin: round;
     pointer-events: none;
+  }
+  /* A drop over the crest or onto 100: the star's glow flares once, and at
+     100 a thin ring widens and fades. No sound, no confetti. */
+  .glimt {
+    opacity: 0;
+    pointer-events: none;
+    animation: glimt 350ms ease-out;
+  }
+  @keyframes glimt {
+    30% {
+      opacity: 0.5;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+  .målring {
+    fill: none;
+    stroke-width: 1.2;
+    opacity: 0;
+    pointer-events: none;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: målring 800ms ease-out;
+  }
+  @keyframes målring {
+    from {
+      opacity: 0.9;
+      transform: scale(0.6);
+    }
+    to {
+      opacity: 0;
+      transform: scale(1.8);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .glimt,
+    .målring {
+      animation: none;
+    }
   }
   .ledare {
     stroke: var(--dim);

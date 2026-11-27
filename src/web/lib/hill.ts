@@ -121,6 +121,16 @@ export function radie(dagar: number): number {
   return 5;
 }
 
+/**
+ * A drop's high point, marked with a short glint: over the crest (from
+ * figuring out to doing) or landing on 100 (done). Moving back is not one.
+ */
+export function höjdpunkt(från: number, till: number): "krön" | "mål" | null {
+  if (till === 100 && från < 100) return "mål";
+  if (från < 50 && till >= 50) return "krön";
+  return null;
+}
+
 /** Whole days since a time: the core's rule, so star size and "stuck" agree. */
 export { dagarSedan } from "../../core/index.js";
 
@@ -148,13 +158,84 @@ export function etikettText(s: { namn: string; läge: number; märke?: string; v
 
 const RAD = 18;
 
+/** A box in chart units: left `x`, top `y`, width `b`, height `h`. */
+export type Låda = { x: number; y: number; b: number; h: number };
+
+/** Something a label must keep clear of: a box (a text) or a line (a leader, the orbit). */
+export type Hinder = { ruta: Låda } | { linje: { x1: number; y1: number; x2: number; y2: number } };
+
+/**
+ * A Stilla star's note on the big chart: a leader from its ring out to
+ * "Ingen rörelse på N dagar", turned away from the frame's right edge and the
+ * baseline. `hinder` are the leader and the text, for label placement.
+ */
+export function stillaNot(läge: number, dagar: number, box: Ruta = RUTA) {
+  const [x, y] = punkt(läge, box);
+  const dx = x > (box.bredd * 2) / 3 ? -1 : 1;
+  const dy = y > box.bas - 90 ? -1 : 1;
+  const punkter: [number, number][] = [
+    [x + 12 * dx, y + 10 * dy],
+    [x + 60 * dx, y + 52 * dy],
+    [x + 232 * dx, y + 52 * dy],
+  ];
+  const innehåll = `Ingen rörelse på ${dagar} dagar`;
+  const text = { x: x + 64 * dx, y: y + (dy > 0 ? 46 : -58), anchor: (dx > 0 ? "start" : "end") as Etikett["anchor"], innehåll };
+  // The note is 14px against the labels' 15px.
+  const bredd = (innehåll.length * box.tecken * 14) / 15;
+  const hinder: Hinder[] = [
+    { ruta: { x: (dx > 0 ? text.x : text.x - bredd) - 2, y: text.y - 13, b: bredd + 4, h: 17 } },
+    ...punkter.slice(1).map(([x2, y2], i) => ({ linje: { x1: punkter[i]![0], y1: punkter[i]![1], x2, y2 } })),
+  ];
+  return { punkter, text, hinder };
+}
+
 function ruta(x: number, y: number, anchor: Etikett["anchor"], bredd: number) {
   const vänster = anchor === "start" ? x : anchor === "end" ? x - bredd : x - bredd / 2;
   return { x: vänster - 2, y: y - 14, b: bredd + 4, h: RAD };
 }
 
-const krockar = (a: Etikett["ruta"], b: Etikett["ruta"]) =>
-  a.x < b.x + b.b && b.x < a.x + a.b && a.y < b.y + b.h && b.y < a.y + a.h;
+const krockar = (a: Låda, b: Låda) => a.x < b.x + b.b && b.x < a.x + a.b && a.y < b.y + b.h && b.y < a.y + a.h;
+
+/** Whether a line segment passes through a box (Liang–Barsky clipping). */
+function korsar(r: Låda, { x1, y1, x2, y2 }: { x1: number; y1: number; x2: number; y2: number }): boolean {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  let t0 = 0;
+  let t1 = 1;
+  for (const [p, q] of [
+    [-dx, x1 - r.x],
+    [dx, r.x + r.b - x1],
+    [-dy, y1 - r.y],
+    [dy, r.y + r.h - y1],
+  ] as const) {
+    if (p === 0) {
+      if (q < 0) return false;
+    } else {
+      const t = q / p;
+      if (p < 0) t0 = Math.max(t0, t);
+      else t1 = Math.min(t1, t);
+      if (t0 > t1) return false;
+    }
+  }
+  return true;
+}
+
+/** Whether the orbit runs through a box: checked in half-Läge steps across the box's width. */
+function påBanan(r: Låda, box: Ruta): boolean {
+  const från = Math.max(0, Math.floor(((r.x - box.x0) / box.w) * 200));
+  const till = Math.min(200, Math.ceil(((r.x + r.b - box.x0) / box.w) * 200));
+  for (let j = från; j < till; j++) {
+    const [x1, y1] = punkt(j / 2, box);
+    const [x2, y2] = punkt((j + 1) / 2, box);
+    if (korsar(r, { x1, y1, x2, y2 })) return true;
+  }
+  return false;
+}
+
+const träffar = (r: Låda, h: Hinder) => ("ruta" in h ? krockar(r, h.ruta) : korsar(r, h.linje));
+
+/** A label spot: anchor point, alignment, and whether it is stacked away (with a leader). */
+type Kandidat = [number, number, Etikett["anchor"], boolean];
 
 /** The prototype's spot for a label, by Läge. */
 function grundläge(läge: number, x: number, y: number): [number, number, Etikett["anchor"]] {
@@ -172,6 +253,7 @@ function grundläge(läge: number, x: number, y: number): [number, number, Etike
 export function placeraEtiketter(
   stjärnor: { id: string; läge: number; text: string }[],
   box: Ruta = RUTA,
+  hinder: readonly Hinder[] = [],
 ): Etikett[] {
   const placerade: Etikett[] = [];
   // Star cores are obstacles too, so a label never covers another star.
@@ -182,34 +264,51 @@ export function placeraEtiketter(
   for (const s of stjärnor) {
     const [x, y] = punkt(s.läge, box);
     const bredd = s.text.length * box.tecken;
-    const kandidater: [number, number, Etikett["anchor"], boolean][] = [
+    const kandidater: Kandidat[] = [
       [...grundläge(s.läge, x, y), false],
       [x + 14, y - 12, "start", false],
       [x - 14, y - 12, "end", false],
       [x, y - 22, "middle", false],
-      [x, y + 30, "middle", false],
     ];
-    for (let k = 1; k <= 14; k++) {
-      kandidater.push([x, y - 22 - RAD * k, "middle", true]);
-      kandidater.push([x, y + 30 + RAD * k, "middle", true]);
-    }
-    const inom = (r: Etikett["ruta"]) => r.x >= 0 && r.x + r.b <= box.bredd && r.y >= 0 && r.y + r.h <= box.höjd;
-    let vald: Etikett | undefined;
-    for (const [lx, ly, anchor, långt] of kandidater) {
+    const upp = Array.from({ length: 14 }, (_, i): Kandidat => [x, y - 22 - RAD * (i + 1), "middle", true]);
+    const ner: Kandidat[] = [
+      [x, y + 30, "middle", false],
+      ...Array.from({ length: 14 }, (_, i): Kandidat => [x, y + 30 + RAD * (i + 1), "middle", true]),
+    ];
+    // At the crest a label under its star sits inside the hill, between the
+    // slopes: stack upward first. Elsewhere take the nearest free spot.
+    if (Math.abs(s.läge - 50) <= 10) kandidater.push(...upp, ...ner);
+    else kandidater.push(ner[0]!, ...upp.flatMap((u, i) => [u, ner[i + 1]!]));
+    // Inside the chart and above its baseline: below it is the axis.
+    const inom = (r: Låda) => r.x >= 0 && r.x + r.b <= box.bredd && r.y >= 0 && r.y + r.h <= box.bas;
+    /** A centred label that would cross the chart's side slides in, anchored at that side. */
+    const iRutan = ([lx, ly, anchor, långt]: Kandidat): Kandidat => {
+      if (anchor !== "middle") return [lx, ly, anchor, långt];
+      if (lx - bredd / 2 - 2 < 0) return [2, ly, "start", långt];
+      if (lx + bredd / 2 + 2 > box.bredd) return [box.bredd - 2, ly, "end", långt];
+      return [lx, ly, anchor, långt];
+    };
+    const etikett = ([lx, ly, anchor, långt]: Kandidat): Etikett => {
       const r = ruta(lx, ly, anchor, bredd);
-      if (!inom(r) || placerade.some((p) => krockar(p.ruta, r)) || kärnor.some((k) => krockar(k, r))) continue;
-      vald = { id: s.id, x: lx, y: ly, anchor, ruta: r };
+      const e: Etikett = { id: s.id, x: lx, y: ly, anchor, ruta: r };
       if (långt) {
         const ovan = ly < y;
-        vald.ledare = { x1: x, y1: y + (ovan ? -10 : 10), x2: lx, y2: ovan ? r.y + r.h : r.y };
+        // The leader meets the label straight above or below the star where it can.
+        const x2 = Math.min(r.x + r.b - 4, Math.max(r.x + 4, x));
+        e.ledare = { x1: x, y1: y + (ovan ? -10 : 10), x2, y2: ovan ? r.y + r.h : r.y };
       }
-      break;
-    }
-    // Nowhere free (a very crowded chart): fall back to the prototype's spot.
-    if (!vald) {
-      const [lx, ly, anchor] = grundläge(s.läge, x, y);
-      vald = { id: s.id, x: lx, y: ly, anchor, ruta: ruta(lx, ly, anchor, bredd) };
-    }
+      return e;
+    };
+    const iDiagrammet = kandidater.map(iRutan).filter(([lx, ly, anchor]) => inom(ruta(lx, ly, anchor, bredd)));
+    const fri = iDiagrammet.find(([lx, ly, anchor]) => {
+      const r = ruta(lx, ly, anchor, bredd);
+      if (placerade.some((p) => krockar(p.ruta, r)) || kärnor.some((k) => krockar(k, r))) return false;
+      if (hinder.some((h) => träffar(r, h))) return false;
+      // Under its star a label would sit on the orbit as it falls away.
+      return !(ly > y && påBanan(r, box));
+    });
+    // Nowhere free (a very crowded chart): the first spot inside the chart, overlapping.
+    const vald = etikett(fri ?? iDiagrammet[0] ?? [...grundläge(s.läge, x, y), false]);
     placerade.push(vald);
   }
   return placerade;

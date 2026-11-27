@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { tillOklch, kontrast } from "./farg.js";
-import { etikettText, kompaktRuta, lägeFärg, placeraEtiketter, punkt, lägeFrånX, type Etikett } from "./hill.js";
+import {
+  etikettText,
+  höjdpunkt,
+  kompaktRuta,
+  lägeFärg,
+  placeraEtiketter,
+  punkt,
+  lägeFrånX,
+  stillaNot,
+  type Etikett,
+  type Hinder,
+} from "./hill.js";
 
 describe("colour from Läge", () => {
   const heltal = Array.from({ length: 101 }, (_, i) => i);
@@ -81,6 +92,20 @@ describe("label placement", () => {
   const överlappar = (a: Etikett, b: Etikett) =>
     a.ruta.x < b.ruta.x + b.ruta.b && b.ruta.x < a.ruta.x + a.ruta.b && a.ruta.y < b.ruta.y + b.ruta.h && b.ruta.y < a.ruta.y + a.ruta.h;
 
+  /** Whether a label's box touches an obstacle (independent of the placement code). */
+  const krockarHinder = (e: Etikett, h: Hinder) => {
+    const r = e.ruta;
+    if ("ruta" in h) return r.x < h.ruta.x + h.ruta.b && h.ruta.x < r.x + r.b && r.y < h.ruta.y + h.ruta.h && h.ruta.y < r.y + r.h;
+    // Sample the line densely.
+    const { x1, y1, x2, y2 } = h.linje;
+    for (let t = 0; t <= 1; t += 1 / 400) {
+      const px = x1 + (x2 - x1) * t;
+      const py = y1 + (y2 - y1) * t;
+      if (px > r.x && px < r.x + r.b && py > r.y && py < r.y + r.h) return true;
+    }
+    return false;
+  };
+
   it("places a lone star's label beside it, as in the prototype", () => {
     const [e] = placeraEtiketter([{ id: "a", läge: 20, text: "Prislista 20" }]);
     const [x, y] = punkt(20);
@@ -103,6 +128,112 @@ describe("label placement", () => {
     }
   });
 
+  it("keeps clear of other drawings: a text's box and a leader line", () => {
+    const [x, y] = punkt(20);
+    // Both sit right on the lone star's usual spot, up and to the left.
+    const text: Hinder = { ruta: { x: x - 80, y: y - 30, b: 60, h: 20 } };
+    const linje: Hinder = { linje: { x1: x - 120, y1: y - 20, x2: x - 20, y2: y - 20 } };
+    for (const hinder of [text, linje]) {
+      const [e] = placeraEtiketter([{ id: "a", läge: 20, text: "Prislista 20" }], undefined, [hinder]);
+      expect(e!.x === x - 14 && e!.anchor === "end" && e!.y === y - 12).toBe(false);
+      expect(krockarHinder(e!, hinder)).toBe(false);
+    }
+  });
+
+  /** The orbit as short segments, sampled independently of the placement code. */
+  const bana = (ruta?: ReturnType<typeof kompaktRuta>) =>
+    Array.from({ length: 400 }, (_, j): Hinder => {
+      const [x1, y1] = punkt(j / 4, ruta);
+      const [x2, y2] = punkt((j + 1) / 4, ruta);
+      return { linje: { x1, y1, x2, y2 } };
+    });
+
+  it("keeps a label put under its star off the orbit", () => {
+    const [, y] = punkt(30);
+    // Everything above and beside the star is taken.
+    const tak: Hinder = { ruta: { x: 0, y: 0, b: 900, h: y + 5 } };
+    const [e] = placeraEtiketter([{ id: "a", läge: 30, text: "Sessionshantering 30" }], undefined, [tak]);
+    expect(e!.ruta.y).toBeGreaterThan(y);
+    for (const h of bana()) expect(krockarHinder(e!, h)).toBe(false);
+  });
+
+  it("stacks crowded labels at the crest upward, with leader lines, rather than under the stars", () => {
+    const stjärnor = [50, 45, 55, 48, 52].map((läge, i) => ({ id: `s${i}`, läge, text: `Lösenordsåterställning ${läge}` }));
+    const etiketter = placeraEtiketter(stjärnor);
+    for (const e of etiketter) {
+      const [, y] = punkt(stjärnor.find((s) => s.id === e.id)!.läge);
+      expect(e.ruta.y + e.ruta.h, e.id).toBeLessThanOrEqual(y);
+    }
+    expect(etiketter.filter((e) => e.ledare).length).toBeGreaterThan(0);
+  });
+
+  it("prefers stacking a short label at the crest upward to putting it under", () => {
+    const [, y] = punkt(50);
+    // The spots beside and just above are taken; under the star is free.
+    const band: Hinder = { ruta: { x: 0, y: y - 50, b: 900, h: 55 } };
+    const [e] = placeraEtiketter([{ id: "a", läge: 50, text: "UX 50" }], undefined, [band]);
+    expect(e!.ruta.y + e!.ruta.h).toBeLessThanOrEqual(y - 50);
+    expect(e!.ledare).toBeDefined();
+  });
+
+  it("anchors a label at Läge 0 to the right of its star, and mirrors it at 100", () => {
+    const [x0] = punkt(0);
+    const [x100] = punkt(100);
+    const [vänster] = placeraEtiketter([{ id: "a", läge: 0, text: "B Export till PDF 0" }]);
+    const [höger] = placeraEtiketter([{ id: "a", läge: 100, text: "B Export till PDF 100" }]);
+    expect(vänster).toMatchObject({ x: x0 + 14, anchor: "start" });
+    expect(höger).toMatchObject({ x: x100 - 14, anchor: "end" });
+  });
+
+  it("keeps crowded labels at both ends inside the chart (the Stjärnkarta's many Scopes)", () => {
+    const namn = ["Export till PDF", "Prislista", "Inloggning", "Kvitton", "Kortbetalning", "Sessionshantering"];
+    for (const ruta of [undefined, kompaktRuta(360, 300)]) {
+      const bredd = ruta?.bredd ?? 900;
+      const stjärnor = [0, 0, 1, 2, 3, 4, 96, 97, 98, 99, 100, 100].map((läge, i) => ({
+        id: `s${i}`,
+        läge,
+        text: `${"ABCD"[i % 4]} ${namn[i % namn.length]} ${läge}`,
+      }));
+      for (const e of placeraEtiketter(stjärnor, ruta)) {
+        expect(e.ruta.x, e.id).toBeGreaterThanOrEqual(0);
+        expect(e.ruta.x + e.ruta.b, e.id).toBeLessThanOrEqual(bredd);
+        expect(e.ruta.y, e.id).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
+  it("lays out a crowded Projekt clear of each other, the Stilla note, the orbit and the axis", () => {
+    // Two at the crest, two at the end, and a Stilla star near the crest.
+    const stjärnor = [
+      { id: "tillg", läge: 45, text: "Tillgänglighetsgranskning 45" },
+      { id: "lösen", läge: 55, text: "Lösenordsåterställning 55" },
+      { id: "kort", läge: 95, text: "Kortbetalning 95" },
+      { id: "kvitto", läge: 100, text: "Kvitton 100" },
+      { id: "sess", läge: 38, text: "Sessionshantering 38" },
+    ];
+    const not = stillaNot(38, 21);
+    const etiketter = placeraEtiketter(stjärnor, undefined, not.hinder);
+    for (const a of etiketter) {
+      const [, y] = punkt(stjärnor.find((s) => s.id === a.id)!.läge);
+      for (const b of etiketter) if (a !== b) expect(överlappar(a, b), `${a.id} / ${b.id}`).toBe(false);
+      for (const h of not.hinder) expect(krockarHinder(a, h), `${a.id} on the note`).toBe(false);
+      if (a.ruta.y > y) for (const h of bana()) expect(krockarHinder(a, h), `${a.id} on the orbit`).toBe(false);
+      // Below the baseline is the axis.
+      expect(a.ruta.y + a.ruta.h, a.id).toBeLessThanOrEqual(560);
+      // A label sits by its own star or has a leader to it.
+      if (!a.ledare) expect(Math.abs(a.y - y), a.id).toBeLessThan(40);
+      expect(a.ruta.x, a.id).toBeGreaterThanOrEqual(0);
+      expect(a.ruta.x + a.ruta.b, a.id).toBeLessThanOrEqual(900);
+    }
+  });
+
+  it("never puts a label at the end below the baseline, onto the axis", () => {
+    const [, y] = punkt(97);
+    const tak: Hinder = { ruta: { x: 0, y: 0, b: 900, h: y + 3 } };
+    const [e] = placeraEtiketter([{ id: "a", läge: 97, text: "Kvitton 97" }], undefined, [tak]);
+    expect(e!.ruta.y + e!.ruta.h).toBeLessThanOrEqual(560);
+  });
+
   it("keeps labels inside a compact box, sized for its smaller type", () => {
     const ruta = kompaktRuta(400, 260);
     const etiketter = placeraEtiketter(
@@ -121,6 +252,24 @@ describe("label placement", () => {
   });
 });
 
+describe("a Stilla star's note", () => {
+  it("leads from the ring to the text, turned away from the frame's edges", () => {
+    const [x, y] = punkt(30);
+    const not = stillaNot(30, 21);
+    expect(not.text).toMatchObject({ x: x + 64, y: y + 46, anchor: "start", innehåll: "Ingen rörelse på 21 dagar" });
+    expect(not.punkter).toEqual([
+      [x + 12, y + 10],
+      [x + 60, y + 52],
+      [x + 232, y + 52],
+    ]);
+    // Near the right edge and the baseline it turns left and up.
+    const [x2, y2] = punkt(92);
+    const höger = stillaNot(92, 30);
+    expect(höger.text).toMatchObject({ x: x2 - 64, y: y2 - 58, anchor: "end" });
+    expect(höger.punkter[2]).toEqual([x2 - 232, y2 - 52]);
+  });
+});
+
 describe("a star's label text", () => {
   it("is the name and Läge", () => {
     expect(etikettText({ namn: "Sessionshantering", läge: 40 })).toBe("Sessionshantering 40");
@@ -135,5 +284,23 @@ describe("a star's label text", () => {
     expect(etikettText({ namn: "Sessionshantering", läge: 40, märke: "B", vald: true })).toBe(
       "B ✦ Sessionshantering 40",
     );
+  });
+});
+
+describe("a drop's high point", () => {
+  it("marks a drop over the crest and one that lands on 100", () => {
+    expect(höjdpunkt(40, 60)).toBe("krön");
+    expect(höjdpunkt(49, 50)).toBe("krön");
+    expect(höjdpunkt(70, 100)).toBe("mål");
+    // All the way from uphill to done: the landing is the bigger moment.
+    expect(höjdpunkt(20, 100)).toBe("mål");
+  });
+
+  it("leaves ordinary moves, and moves back, unmarked", () => {
+    expect(höjdpunkt(20, 40)).toBeNull();
+    expect(höjdpunkt(60, 90)).toBeNull();
+    expect(höjdpunkt(60, 40)).toBeNull();
+    expect(höjdpunkt(100, 100)).toBeNull();
+    expect(höjdpunkt(50, 70)).toBeNull();
   });
 });

@@ -1,0 +1,67 @@
+{
+  "object": "list",
+  "results": [
+    {
+      "object": "page",
+      "id": "1a2b3c4d-0000-4000-8000-000000000001",
+      "created_time": "2026-10-01T08:00:00.000Z",
+      "last_edited_time": "2026-11-20T09:12:00.000Z",
+      "archived": false,
+      "in_trash": false,
+      "parent": { "type": "data_source_id", "data_source_id": "ds-projekt", "database_id": "db-projekt" },
+      "url": "https://www.notion.so/Kassan-1a2b3c4d000040008000000000000001",
+      "public_url": null,
+      "properties": {
+        "Apogee": { "id": "%3FaB", "type": "checkbox", "checkbox": true },
+        "Datum": { "id": "dAtM", "type": "date", "date": { "start": "2026-11-02", "end": "2026-12-14", "time_zone": null } },
+        "Status": { "id": "sTat", "type": "status", "status": { "id": "s1", "name": "Pågående", "color": "blue" } },
+        "Projektledare": {
+          "id": "pLed",
+          "type": "people",
+          "people": [
+            { "object": "user", "id": "u-anna-0001", "name": "Anna Andersson", "avatar_url": null, "type": "person", "person": { "email": "anna@example.com" } }
+          ]
+        },
+        "Funktionsområde": { "id": "fOmr", "type": "relation", "relation": [{ "id": "f0000000-0000-4000-8000-00000000000e" }], "has_more": false },
+        "Projekt": {
+          "id": "title",
+          "type": "title",
+          "title": [
+            { "type": "text", "text": { "content": "Kas", "link": null }, "annotations": { "bold": false, "italic": false, "strikethrough": false, "underline": false, "code": false, "color": "default" }, "plain_text": "Kas", "href": null },
+            { "type": "text", "text": { "content": "san", "link": null }, "annotations": { "bold": true, "italic": false, "strikethrough": false, "underline": false, "code": false, "color": "default" }, "plain_text": "san", "href": null }
+          ]
+        }
+      }
+    },
+    {
+      "object": "page",
+      "id": "1a2b3c4d-0000-4000-8000-000000000002",
+      "created_time": "2026-10-02T08:00:00.000Z",
+      "last_edited_time": "2026-11-21T09:12:00.000Z",
+      "archived": false,
+      "in_trash": false,
+      "parent": { "type": "data_source_id", "data_source_id": "ds-projekt", "database_id": "db-projekt" },
+      "url": "https://www.notion.so/Momsdeklaration-1a2b3c4d000040008000000000000002",
+      "public_url": null,
+      "properties": {
+        "Apogee": { "id": "%3FaB", "type": "checkbox", "checkbox": true },
+        "Datum": { "id": "dAtM", "type": "date", "date": { "start": "2026-12-18", "end": null, "time_zone": null } },
+        "Status": { "id": "sTat", "type": "status", "status": { "id": "s2", "name": "Planerad", "color": "gray" } },
+        "Projektledare": { "id": "pLed", "type": "people", "people": [{ "object": "user", "id": "u-utan-namn-0003" }] },
+        "Funktionsområde": { "id": "fOmr", "type": "relation", "relation": [{ "id": "f0000000-0000-4000-8000-00000000000e" }], "has_more": false },
+        "Projekt": {
+          "id": "title",
+          "type": "title",
+          "title": [
+            { "type": "text", "text": { "content": "Momsdeklaration", "link": null }, "annotations": { "bold": false, "italic": false, "strikethrough": false, "underline": false, "code": false, "color": "default" }, "plain_text": "Momsdeklaration", "href": null }
+          ]
+        }
+      }
+    }
+  ],
+  "next_cursor": "projekt-cursor-2",
+  "has_more": true,
+  "type": "page_or_data_source",
+  "page_or_data_source": {},
+  "request_id": "req-projekt-1"
+}

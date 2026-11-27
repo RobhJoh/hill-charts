@@ -175,7 +175,7 @@ Kall blå neutralskala med en enda varm accent; Läge-rampen står för all anna
 Tokens bor i `src/web/app.css` som CSS-variabler (`--bg`, `--tx`, `--red` osv.). Frontmatterns nycklar heter `natt-*` och `dag-*`; i CSS är det samma variabelnamn med `[data-theme="dag"]` som överskrivning. `accent` motsvarar `--red`, `accent-tx` motsvarar `--redtx`. `accent-on` och `klar` är nya variabler.
 
 ### Primary
-- **Orangeröd accent** (natt `#f0602e`, dag `#c44a1c`; i dag `#e0503a` / `#c8402b`): Vald stjärnas ring, stilla-ringen, primärknappen, fokusring, aktiv flik i sidhuvudet, Över tid-stapeln. Beslut Q1 c och Q13 a.
+- **Orangeröd accent** (natt `#f0602e`, dag `#c44a1c`; i dag `#e0503a` / `#c8402b`): Vald stjärnas ring, stilla-ringen, primärknappen, fokusring, aktiv flik i sidhuvudet, på-läget för "Visa inaktiva", Över tid-stapeln och inbäddningens nästan-slut-på-Appetit-stapel. Beslut Q1 c och Q13 a.
 - **Text på accent** (natt `#081026`, dag `#ffffff`; i dag alltid `#fff`): Primärknappens text. Natt ger 5,8:1, dag 4,8:1. Vit text på natt-accenten är förbjuden (under 4,5:1).
 - **Accenttext** (natt `#ff8a5c`, dag `#b0401a`; i dag `#ff7a66` / `#b8381f`): Accent som text mot bakgrund: "Ingen rörelse på 26 dagar", "26 d", Över tid, felmeddelanden, ✦ före vald Scopes namn.
 
@@ -202,11 +202,11 @@ Scopets färg räknas fram ur Läge och lagras aldrig. Varm uppför, guld vid kr
 - Förklaringsstapeln (`rampGradient`) samplas ur `lägeFärg` var 5:e Läge, eftersom CSS annars blandar i sRGB.
 
 ### Named Rules
-**Tre-användningsregeln.** Accenten betyder val, stilla eller primär handling. Inget annat. Fokusring och aktiv sida räknas som val (tryckt läge använder inte accenten, se Buttons); Över tid räknas som stilla (något kräver uppmärksamhet). Den används inte för dekor, länkar, rubriker eller för att få en sällsynt handling att synas (Nytt Funktionsområde är en vanlig konturknapp). Beslut Q1 c.
+**Tre-användningsregeln.** Accenten betyder val, stilla eller primär handling. Inget annat. Fokusring och aktiv sida räknas som val (tryckt läge använder inte accenten, se Buttons), och det gör även på-läget för "Visa inaktiva" på Personer, som får aktiv sidas accentunderstrykning (#48). Över tid räknas som stilla (något kräver uppmärksamhet), och det gör även inbäddningens Appetit-stapel när Appetiten nästan är slut (#66). Båda undantagen är medvetna och beställda i ärendena. Den används inte för dekor, länkar, rubriker eller för att få en sällsynt handling att synas (Nytt Funktionsområde är en vanlig konturknapp). Beslut Q1 c.
 
 **Form-före-färg-regeln.** Accenten och rampens uppförsfärger ligger nära varandra. Vald och stilla skiljs därför från stjärnorna med form: ✦ och heldragen ring för vald, streckad ring med mörk halo för stilla. Lägg aldrig till ett nytt tillstånd som bara skiljer sig i kulör.
 
-**Klar-regeln.** Ljusblå ✦ betyder Avslutat Projekt och bara det. Avslutade Projekt visas aldrig som stjärnor på Stjärnkartan.
+**Klar-regeln.** Ljusblå ✦ betyder Avslutat Projekt och bara det. Den står i listor och grannlistor, och medvetet även före rubriken (h1) på ett Avslutat Projekts sida så att statusen syns tydligt (#62, ägarens not till Q8). Avslutade Projekt visas aldrig som stjärnor på Stjärnkartan.
 
 ## Typography
 

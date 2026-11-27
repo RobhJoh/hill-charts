@@ -1,7 +1,7 @@
-// Projekt-level fields: the Avslutat mark, dates (Appetit) and Milstolpar.
-// A Projekt's Avslutat mark and Milstolpar are Uppdateringar in its Historik;
-// its dates, and a Funktionsområde's dates and Milstolpar, are saved on the
-// record itself without Historik.
+// Projekt-level fields: dates (Appetit) and Milstolpar. A Projekt's
+// Milstolpar are Uppdateringar in its Historik; its dates, and a
+// Funktionsområde's dates and Milstolpar, are saved on the record itself
+// without Historik.
 import { datumFrån, iOrdning, nyaDatum, TOM_TIDSPLAN, ändraMilstolpe, type DatumInput } from "../datum.js";
 import { fältLika, projektFält } from "../status.js";
 import { UPPDATERING_TYP } from "../typer.js";
@@ -80,19 +80,6 @@ export function projektfält(k: Kärna) {
   }
 
   return {
-    /** Marks a Projekt Avslutat whatever its Scopes' Läge. Null when already marked. */
-    async markAvslutat(projektId: ProjektId, vem: PersonId | null) {
-      return ändraProjektFält(projektId, UPPDATERING_TYP.avslutat, () => ({ avslutat: true }), vem);
-    },
-
-    /**
-     * "Öppna igen": removes the Avslutat mark. Null when not marked. A Projekt
-     * with every Scope at Läge 100 (or none) stays Avslutat.
-     */
-    async reopenProjekt(projektId: ProjektId, vem: PersonId | null) {
-      return ändraProjektFält(projektId, UPPDATERING_TYP.öppnaIgen, () => ({ avslutat: false }), vem);
-    },
-
     /**
      * Sets a Projekt's or Funktionsområde's Startdatum and Slutdatum: two dates,
      * a Startdatum plus weeks, or a new Startdatum keeping the Appetit. A

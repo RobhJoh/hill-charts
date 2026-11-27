@@ -12,8 +12,6 @@ export const UPPDATERING_TYP = {
   /** A removed Person's Scopes handed over to someone else. */
   överlämning: "överlämning",
   // Projekt-level commands
-  avslutat: "avslutat",
-  öppnaIgen: "öppna igen",
   datum: "datum",
   milstolpe: "milstolpe",
   // Historik commands

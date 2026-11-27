@@ -10,6 +10,7 @@
   import { funktionsområdeHref, projektHref } from "../lib/links.js";
   import StillaAntal from "../components/StillaAntal.svelte";
   import { samladStatus } from "../lib/stilla.js";
+  import { STATUS_ORD } from "../lib/avslutat.js";
 
   let översikt = $state<Översikt | undefined>();
   let utan = $state<UtanFunktionsområdeVy | null>(null);
@@ -103,7 +104,7 @@
         <h2>
           <a href={funktionsområdeHref(fo)}>{fo.namn}<span class="pil" aria-hidden="true">›</span></a>
           <span
-            >{fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}</span
+            >{STATUS_ORD[fo.status]} · {fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}</span
           >
         </h2>
         {#if fo.nedräkning || fo.nästaMilstolpe}

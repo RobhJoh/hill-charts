@@ -64,7 +64,7 @@ export const api = {
   createPerson: (namn: string, vem: string | null) => call<PersonVy>("POST", "/personer", { namn }, vem),
   renamePerson: (id: string, namn: string, vem: string) =>
     call<PersonVy>("PATCH", `/personer/${enc(id)}`, { namn }, vem),
-  /** Hands their Scopes in Pågående Projekt to `nyÄgare` and makes them inaktiv. */
+  /** Hands their Scopes in Projekt not Avslutat to `nyÄgare` and makes them inaktiv. */
   removePerson: (id: string, nyÄgare: string, vem: string) =>
     call<{ uppdateringar: Uppdatering[] }>("DELETE", `/personer/${enc(id)}`, { nyÄgare }, vem),
   reactivatePerson: (id: string, vem: string) =>
@@ -85,14 +85,7 @@ export const api = {
   moveProjekt: (id: string, funktionsområdeId: string, vem: string) =>
     call<void>("PATCH", `/projekt/${enc(id)}`, { funktionsområdeId }, vem),
 
-  /** Marks a Projekt Avslutat. The Uppdatering is null when it already was. */
-  markAvslutat: (projektId: string, vem: string) =>
-    call<{ uppdatering: Uppdatering | null }>("POST", `/projekt/${enc(projektId)}/avslutat`, undefined, vem),
-  /** "Öppna igen". The Uppdatering is null when it was not marked. */
-  reopenProjekt: (projektId: string, vem: string) =>
-    call<{ uppdatering: Uppdatering | null }>("DELETE", `/projekt/${enc(projektId)}/avslutat`, undefined, vem),
-
-  /** Ta bort: always allowed for a Projekt; a Funktionsområde only when all its Projekt are Avslutade. */
+  /** Ta bort: always allowed for a Projekt; a Funktionsområde only when none of its Projekt is Pågående. */
   taBortProjekt: (id: string, vem: string) => call<void>("POST", `/projekt/${enc(id)}/borttagen`, undefined, vem),
   återställProjekt: (id: string, vem: string) =>
     call<void>("DELETE", `/projekt/${enc(id)}/borttagen`, undefined, vem),

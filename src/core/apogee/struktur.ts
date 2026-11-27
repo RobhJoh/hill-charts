@@ -4,7 +4,7 @@ import { datumVarningar, idagFrån, TOM_TIDSPLAN } from "../datum.js";
 import { DomainError } from "../errors.js";
 import type { Funktionsområde, FunktionsområdeId, Person, PersonId, Projekt, ProjektId } from "../types.js";
 import type { Kärna } from "./karna.js";
-import { avslutadTid } from "../status.js";
+import { avslutadTid, funktionsområdeStatus } from "../status.js";
 import { inteBorttaget, namnFrån, requireBekräftelse } from "./regler.js";
 import {
   borttagenEnsam,
@@ -24,14 +24,14 @@ export function struktur(k: Kärna) {
 
   async function projektRad(p: Projekt, personer: Person[]): Promise<ProjektRad> {
     const logg = await storage.readHistorik(p.id);
-    const { scopes, avslutat, pågående } = k.diagramVy(logg, personer, !!p.borttagen);
+    const { scopes, status, avslutat } = k.diagramVy(logg, personer);
     const { nedräkning, nästaMilstolpe, överTid } = k.projektTidVy(p, logg, avslutat);
     return {
       id: p.id,
       namn: p.namn,
+      status,
       avslutat,
       avslutad: avslutadTid(logg),
-      pågående,
       nedräkning,
       nästaMilstolpe,
       överTid,
@@ -62,6 +62,7 @@ export function struktur(k: Kärna) {
       id: fo.id,
       namn: fo.namn,
       borttagen: fo.borttagen ? borttagenVy(personer, fo.borttagen) : null,
+      status: funktionsområdeStatus(projekt.map((p) => p.status)),
       stilla: projekt.reduce((n, p) => n + p.stilla, 0),
       projekt,
       borttagnaProjekt,
@@ -143,8 +144,8 @@ export function struktur(k: Kärna) {
 
     /**
      * Ta bort: hides a Funktionsområde and, as one unit, its Projekt. Only
-     * when none of its Projekt is Pågående; those taken away on their own
-     * earlier stay so.
+     * when none of its Projekt is Pågående (Inte påbörjat and Avslutat ones
+     * may go); those taken away on their own earlier stay so.
      */
     async taBortFunktionsområde(id: FunktionsområdeId, vem: PersonId | null): Promise<void> {
       const signerad = await signatur(vem);
@@ -153,12 +154,12 @@ export function struktur(k: Kärna) {
       const medFo = allProjekt.filter((p) => p.funktionsområdeId === id && !p.borttagen);
       const pågående: string[] = [];
       for (const p of medFo) {
-        if (k.diagramVy(await storage.readHistorik(p.id), personer, false).pågående) pågående.push(p.namn);
+        if (k.diagramVy(await storage.readHistorik(p.id), personer).status === "pågående") pågående.push(p.namn);
       }
       if (pågående.length > 0) {
         throw new DomainError(
           "ogiltig",
-          `${fo.namn} kan tas bort först när alla dess Projekt är Avslutade. Pågående: ${pågående.sort(svenskOrdning.compare).join(", ")}`,
+          `${fo.namn} kan tas bort först när inget av dess Projekt är Pågående. Pågående: ${pågående.sort(svenskOrdning.compare).join(", ")}`,
         );
       }
       const tid = now().toISOString();
@@ -269,7 +270,7 @@ export function struktur(k: Kärna) {
       const p = await requireProjekt(id);
       const fo = p.funktionsområdeId === undefined ? null : await requireFunktionsområde(p.funktionsområdeId);
       const [logg, personer] = await Promise.all([storage.readHistorik(id), storage.listPersoner()]);
-      const diagram = k.diagramVy(logg, personer, !!p.borttagen);
+      const diagram = k.diagramVy(logg, personer);
       const tid = k.projektTidVy(p, logg, diagram.avslutat);
       return {
         id: p.id,
@@ -277,6 +278,7 @@ export function struktur(k: Kärna) {
         funktionsområde: fo && { id: fo.id, namn: fo.namn },
         borttagen: p.borttagen ? borttagenVy(personer, p.borttagen) : null,
         datumVarningar: datumVarningar(tid.tidsplan, fo?.tidsplan ?? TOM_TIDSPLAN),
+        avslutad: avslutadTid(logg),
         ...diagram,
         ...tid,
       };

@@ -373,25 +373,21 @@ describe("Historik, Återställning and Ångra", () => {
   });
 });
 
-describe("Avslutat", () => {
-  it("marks a Projekt Avslutat and reopens it, each one Uppdatering; signed", async () => {
-    const { api, apiAs, vem } = await start();
-    const fo = await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" });
-    const projekt = (await api("POST", "/api/projekt", { funktionsområdeId: fo.body.id, namn: "Kassan" })).body.id;
-    await api("POST", `/api/projekt/${projekt}/scopes`, { namn: "Prislista", ägare: vem });
-    const avslutat = `/api/projekt/${projekt}/avslutat`;
+describe("status", () => {
+  it("is derived from Läge and shown for Projekt and Funktionsområden; it cannot be marked or reopened", async () => {
+    const { api, vem } = await start();
+    const fo = (await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" })).body.id;
+    const projekt = (await api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Kassan" })).body.id;
+    const scope = (await api("POST", `/api/projekt/${projekt}/scopes`, { namn: "Prislista", ägare: vem })).body.id;
+    expect((await api("GET", `/api/projekt/${projekt}`)).body).toMatchObject({ status: "inte påbörjat", avslutat: false });
 
-    expect((await apiAs(null, "POST", avslutat)).status).toBe(403);
-    const markera = await api("POST", avslutat);
-    expect(markera.status).toBe(200);
-    expect(markera.body.uppdatering).toMatchObject({ typ: "avslutat", vem });
-    expect((await api("POST", avslutat)).body).toEqual({ uppdatering: null });
-    expect((await api("GET", `/api/projekt/${projekt}`)).body).toMatchObject({ avslutat: true, markeradAvslutat: true });
+    await api("PATCH", `/api/projekt/${projekt}/scopes/${scope}`, { läge: 100 });
+    expect((await api("GET", `/api/projekt/${projekt}`)).body).toMatchObject({ status: "avslutat", avslutat: true });
+    expect((await api("GET", `/api/funktionsomraden/${fo}`)).body).toMatchObject({ status: "avslutat" });
+    expect((await api("GET", "/api/oversikt")).body).toMatchObject([{ status: "avslutat", projekt: [{ status: "avslutat" }] }]);
 
-    const öppna = await api("DELETE", avslutat);
-    expect(öppna.body.uppdatering).toMatchObject({ typ: "öppna igen", vem });
-    expect((await api("GET", `/api/projekt/${projekt}`)).body).toMatchObject({ avslutat: false, pågående: true });
-    expect((await api("POST", "/api/projekt/nej/avslutat")).status).toBe(404);
+    expect((await api("POST", `/api/projekt/${projekt}/avslutat`)).status).toBe(404);
+    expect((await api("DELETE", `/api/projekt/${projekt}/avslutat`)).status).toBe(404);
   });
 });
 
@@ -420,17 +416,18 @@ describe("Ta bort and Radera", () => {
     expect((await api("GET", `/api/projekt/${projekt}`)).status).toBe(404);
   });
 
-  it("takes a Funktionsområde away only when its Projekt are Avslutade, lists, restores and erases it", async () => {
+  it("takes a Funktionsområde away only when none of its Projekt is Pågående, lists, restores and erases it", async () => {
     const { api, vem } = await start();
     const fo = (await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" })).body.id;
     const projekt = (await api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Kassan" })).body.id;
-    await api("POST", `/api/projekt/${projekt}/scopes`, { namn: "Prislista", ägare: vem });
+    const scope = (await api("POST", `/api/projekt/${projekt}/scopes`, { namn: "Prislista", ägare: vem })).body.id;
+    await api("PATCH", `/api/projekt/${projekt}/scopes/${scope}`, { läge: 40 });
     const borttaget = `/api/funktionsomraden/${fo}/borttagen`;
 
     const blockerad = await api("POST", borttaget);
     expect(blockerad.status).toBe(400);
     expect(blockerad.body.meddelande).toContain("Kassan");
-    await api("POST", `/api/projekt/${projekt}/avslutat`);
+    await api("PATCH", `/api/projekt/${projekt}/scopes/${scope}`, { läge: 100 });
     expect((await api("POST", borttaget)).status).toBe(204);
     expect((await api("GET", "/api/oversikt")).body).toEqual([]);
     expect((await api("GET", "/api/borttagna")).body).toMatchObject([
@@ -532,7 +529,6 @@ describe("stable links (#40)", () => {
 
     await api("POST", `/api/projekt`, { funktionsområdeId: fo, namn: "Annat" });
     const annat = (await api("GET", `/api/funktionsomraden/${fo}`)).body.projekt[0].id;
-    await api("POST", `/api/projekt/${annat}/avslutat`);
     await api("POST", `/api/funktionsomraden/${fo}/borttagen`);
     const foHtml = await (await get(`/f/${fo}-kund-saljstod`)).text();
     expect(foHtml).toContain('<meta property="og:description" content="Funktionsområdet är borttaget">');

@@ -27,7 +27,7 @@
   import StillaAntal from "../components/StillaAntal.svelte";
   import { grannar as ordnaGrannar } from "../lib/grannar.js";
   import Saknas from "./Saknas.svelte";
-  import { avslutatStatus } from "../lib/avslutat.js";
+  import { statusText } from "../lib/avslutat.js";
 
   let { id }: { id: string } = $props();
 
@@ -46,8 +46,6 @@
   let grannar = $state<ProjektRad[]>([]);
   /** Whether the Funktionsområde is Borttaget too (then its Borttagna list is on the start page). */
   let foBorttaget = $state(false);
-  /** Marked Avslutat (Q8 b): read-only, stars dimmed and still, until Öppna igen. */
-  const stängt = $derived(projekt?.markeradAvslutat ?? false);
 
   // --- Page head (Q5 a): the rare actions in Mer; dates and Milstolpar fold out ---
   let länk = $state<ReturnType<typeof KopieraLank>>();
@@ -62,9 +60,6 @@
       { text: "Flytta", gör: () => void öppnaFlytta() },
       { text: "Kopiera länk", gör: () => void länk?.kopiera() },
       { text: "Bädda in", gör: () => bädda?.öppna() },
-      ...(projekt.markeradAvslutat
-        ? []
-        : [{ avdelare: true, text: "Markera Avslutat", gör: () => void växlaAvslutat(true) }]),
       { avdelare: true, text: "Ta bort", farlig: true, gör: () => (taBortÖppen = true) },
     ];
   });
@@ -184,16 +179,6 @@
     valt = nytt ?? null;
   }
 
-  /** Markera Avslutat / Öppna igen. */
-  async function växlaAvslutat(markera: boolean) {
-    skrivFel = "";
-    try {
-      await redigera((vem) => (markera ? api.markAvslutat(id, vem) : api.reopenProjekt(id, vem)));
-    } catch (e) {
-      if (!(e instanceof Avbruten)) skrivFel = felText(e, "Kunde inte spara");
-    }
-  }
-
   /** Återställ a Borttaget Projekt from its own page (same command as in the Borttagna list). */
   async function återställProjekt() {
     await signatur.signera((vem) => api.återställProjekt(id, vem));
@@ -306,20 +291,11 @@
           oncancel={() => (läge = "visa")}
         />
       {:else}
-        <h1>{#if stängt}<span class="klar titelmärke" aria-hidden="true">✦</span>{/if}{projekt.namn}</h1>
+        <h1>{#if projekt.avslutat}<span class="klar titelmärke" aria-hidden="true">✦</span>{/if}{projekt.namn}</h1>
         <!-- Title plus one row (Q5 a): status and time on the left, the actions on the right. -->
         <div class="statusrad">
           <div class="status">
-            <span class:avslut={stängt}>{avslutatStatus(projekt)}</span>
-            {#if stängt}
-              <span class="lås">
-                <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
-                  <rect x="3" y="7" width="10" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.4" />
-                  <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.4" />
-                </svg>
-                Skrivskyddat tills det öppnas igen
-              </span>
-            {/if}
+            <span class:avslut={projekt.avslutat}>{statusText(projekt)}</span>
             <!-- Avslutat is said once, in the status text: no countdown "Avslutat" here.
                  Under Visa, now's time is dimmed (the banner shows the time then). -->
             <span class="nu" class:dämpad={!!visning}>
@@ -332,9 +308,7 @@
               {#each projekt.datumVarningar as v (v)}<span class="varning">· {v}</span>{/each}
             {/if}
             <button class="quiet" aria-expanded={tidÖppen} onclick={() => (tidÖppen = !tidÖppen)}>
-              {stängt
-                ? "Datum och Milstolpar"
-                : projekt.tidsplan.startdatum || projekt.tidsplan.slutdatum || projekt.tidsplan.milstolpar.length > 0
+              {projekt.tidsplan.startdatum || projekt.tidsplan.slutdatum || projekt.tidsplan.milstolpar.length > 0
                   ? "Ändra datum och Milstolpar"
                   : "Sätt datum"}
             </button>
@@ -344,17 +318,13 @@
             <button aria-pressed={historikÖppen} onclick={() => (historikÖppen ? stängHistorik() : (historikÖppen = true))}>
               Historik
             </button>
-            {#if stängt}
-              <button class="pr" onclick={() => växlaAvslutat(false)}>Öppna igen</button>
-            {:else}
-              <button
-                class="pr"
-                aria-pressed={nyScope}
-                aria-controls="ny-scope"
-                disabled={!!visning}
-                onclick={() => (nyScope = !nyScope)}>Ny Scope</button
-              >
-            {/if}
+            <button
+              class="pr"
+              aria-pressed={nyScope}
+              aria-controls="ny-scope"
+              disabled={!!visning}
+              onclick={() => (nyScope = !nyScope)}>Ny Scope</button
+            >
           </div>
         </div>
         <div class="utfall">
@@ -375,7 +345,6 @@
           <Tidsplan
             tidsplan={projekt.tidsplan}
             varningar={projekt.datumVarningar}
-            skrivskyddad={stängt}
             onsätt={(input) => redigera((vem) => api.setDatum(tidMål, input, vem))}
             onlägg={(m) => redigera((vem) => api.addMilstolpe(tidMål, m, vem))}
             onändra={(mid, ä) => redigera((vem) => api.changeMilstolpe(tidMål, mid, ä, vem))}
@@ -441,19 +410,16 @@
             tema={tema.nu}
             {valt}
             onvälj={(s) => (valt = s)}
-            onflytta={stängt ? undefined : flyttaScope}
-            dimmade={stängt ? projekt.scopes.map((s) => s.id) : []}
+            onflytta={flyttaScope}
             väntar={signatur.hållen?.scopeId}
           />
         </div>
-        {#if !stängt}
-          <!-- Right under the chart (Q19 a); the arrow keys only where there is a keyboard-like pointer. -->
-          <p class="dra">
-            Dra en stjärna längs banan för att ändra dess Läge.<span class="tangenter">
-              Markera och använd piltangenterna (Shift = 10 steg).</span
-            >
-          </p>
-        {/if}
+        <!-- Right under the chart (Q19 a); the arrow keys only where there is a keyboard-like pointer. -->
+        <p class="dra">
+          Dra en stjärna längs banan för att ändra dess Läge.<span class="tangenter">
+            Markera och använd piltangenterna (Shift = 10 steg).</span
+          >
+        </p>
       {/if}
       {#if skrivFel}<p class="error" role="alert">{skrivFel}</p>{/if}
     </div>
@@ -477,7 +443,6 @@
         tema={tema.nu}
         {valt}
         bind:nyScope
-        skrivskyddad={stängt}
         onvälj={(s) => (valt = s)}
         onlägg={läggTill}
         onbytnamn={(scopeId, namn) => redigera((vem) => api.changeScope(id, scopeId, { namn }, vem))}
@@ -602,11 +567,6 @@
   .status .avslut {
     color: var(--tx);
     font-weight: 600;
-  }
-  .lås {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
   }
   .tid {
     margin-top: 8px;

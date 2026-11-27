@@ -22,7 +22,7 @@ describe("Historik row text for Milstolpar", () => {
 });
 
 describe("Visa banner: what differs from now", () => {
-  const vy = { skiljer: [], fältSkiljer: [], milstolparSkiljer: [], sammaSomNu: false, markeradAvslutat: false };
+  const vy = { skiljer: [], fältSkiljer: [], milstolparSkiljer: [], sammaSomNu: false };
 
   it("inflects Scopes by number, like Milstolpar", () => {
     expect(skillnaderMotNu({ ...vy, skiljer: ["s1"] })).toEqual(["1 Scope skiljer sig från nu (streckad ring)."]);
@@ -33,10 +33,8 @@ describe("Visa banner: what differs from now", () => {
     expect(skillnaderMotNu({ ...vy, milstolparSkiljer: ["m1", "m2"] })).toEqual(["2 Milstolpar skiljer sig från nu."]);
   });
 
-  it("says when the view is the same as now, and when the Avslutat mark differs", () => {
+  it("says when the view is the same as now", () => {
     expect(skillnaderMotNu({ ...vy, sammaSomNu: true })).toEqual(["Samma som nu."]);
-    expect(
-      skillnaderMotNu({ ...vy, fältSkiljer: ["avslutat"], markeradAvslutat: true, skiljer: ["s1", "s2"] }),
-    ).toEqual(["2 Scopes skiljer sig från nu (streckad ring).", "Projektet var markerat Avslutat då."]);
+    expect(skillnaderMotNu({ ...vy, skiljer: ["s1", "s2"] })).toEqual(["2 Scopes skiljer sig från nu (streckad ring)."]);
   });
 });

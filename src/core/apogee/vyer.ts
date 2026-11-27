@@ -49,19 +49,19 @@ export type FunktionsområdeVy = {
   namn: string;
   /** Its page in Notion, where its namn and dates are changed ("Ändra i Notion"); null if none. */
   notionUrl: string | null;
-  /** Who took it away and when; null while it is shown. */
+  /** When the sync took it away; null while it is shown. */
   borttagen: BorttagenVy | null;
   /** Derived from its Projekt that are not Borttagna (status.ts). */
   status: Status;
   /** Stilla Scopes across its Projekt. */
   stilla: number;
-  /** Its Projekt, except those taken away on their own (they went with it if it is Borttagen). */
+  /** Its Projekt that are not Borttagna. */
   projekt: ProjektRad[];
-  /** Projekt taken away on their own ("Borttagna Projekt"), newest first. */
+  /** Its Borttagna Projekt ("Borttagna Projekt"), newest first. */
   borttagnaProjekt: BorttagetProjekt[];
 } & TidVy;
-/** Who took something away (Ta bort) and when. */
-export type BorttagenVy = { vem: PersonVy; tid: string };
+/** When the Notion sync took something away. */
+export type BorttagenVy = { tid: string };
 /** A row in "Borttagna Projekt". */
 export type BorttagetProjekt = { id: ProjektId; namn: string; borttagen: BorttagenVy };
 export type Översikt = FunktionsområdeVy[];
@@ -77,7 +77,7 @@ export type ProjektVy = {
   notionUrl: string | null;
   /** Its Funktionsområde; null when it has none (Utan funktionsområde). */
   funktionsområde: { id: FunktionsområdeId; namn: string } | null;
-  /** Who took it away and when (on its own or with its Funktionsområde); null while shown. */
+  /** When the sync took it away; null while shown. */
   borttagen: BorttagenVy | null;
   /** Quiet warnings such as "slutar efter Funktionsområdet"; never block saving. */
   datumVarningar: string[];
@@ -179,13 +179,7 @@ export const ägareVy = (personer: Person[], id: PersonId): PersonVy => {
   return p ? personVy(p) : { id, namn: "Okänd", aktiv: false };
 };
 
-export const borttagenVy = (personer: Person[], b: Borttagen): BorttagenVy => ({
-  vem: ägareVy(personer, b.vem),
-  tid: b.tid,
-});
-
-/** Taken away on its own, not with its Funktionsområde. */
-export const borttagenEnsam = (p: Projekt): boolean => !!p.borttagen && !p.borttagen.medFunktionsområde;
+export const borttagenVy = (b: Borttagen): BorttagenVy => ({ tid: b.tid });
 
 export function tidVy(tidsplan: Tidsplan, avslutat: boolean, idag: Datum): TidVy {
   return {

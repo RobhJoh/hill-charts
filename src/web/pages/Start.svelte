@@ -46,11 +46,6 @@
     })),
   );
 
-  async function återställ(id: string) {
-    await signatur.signera((vem) => api.återställFunktionsområde(id, vem));
-    await load();
-  }
-
   async function radera(id: string, namn: string) {
     await signatur.signera((vem) => api.raderaFunktionsområde(id, namn, vem));
     await load();
@@ -64,7 +59,9 @@
       await api.synkaFrånNotion();
       await load();
     } catch (e) {
-      synkError = felText(e, "Kunde inte hämta från Notion");
+      // A failed fetch is recorded in the sync state; show that warning, not a second one.
+      synk = await api.synkStatus().catch(() => synk);
+      if (!synk?.fel) synkError = felText(e, "Kunde inte hämta från Notion");
     } finally {
       hämtar = false;
     }
@@ -97,6 +94,12 @@
         <p class="meta">
           Senast hämtat från Notion: {synk.senastHämtat ? visaTid(synk.senastHämtat) : "aldrig"}
         </p>
+        {#if synk.fel}
+          <!-- A failed fetch changed nothing: Apogee shows what it last fetched. -->
+          <p class="error" role="status">
+            Kunde inte hämta från Notion {visaTid(synk.fel.tid)}. Visar det som senast hämtades.
+          </p>
+        {/if}
       {/if}
       {#if synkError}<p class="error" role="alert">{synkError}</p>{/if}
     </div>
@@ -133,7 +136,7 @@
     {/if}
   {/if}
 
-  <Borttagna rubrik="Borttagna Funktionsområden" rader={borttagnaRader} onåterställ={återställ} onradera={radera} />
+  <Borttagna rubrik="Borttagna Funktionsområden" rader={borttagnaRader} onradera={radera} />
 </div>
 
 <style>

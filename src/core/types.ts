@@ -21,9 +21,8 @@ export type Tidsplan = {
   milstolpar: Milstolpe[];
 };
 
-/** Who took something away (Ta bort) and when. Absent while it is shown. */
+/** When the Notion sync took something away (Borttagen). Absent while it is shown. */
 export type Borttagen = {
-  vem: PersonId;
   tid: string; // ISO timestamp
 };
 
@@ -52,11 +51,8 @@ export type Projekt = {
   /** Its page in Notion, which owns its namn, Funktionsområde and dates (ADR 0003). */
   notionId?: string;
   notionUrl?: string;
-  /**
-   * Set while Borttagen. `medFunktionsområde`: it went with its
-   * Funktionsområde and comes back with it; otherwise it was taken away on its own.
-   */
-  borttagen?: Borttagen & { medFunktionsområde: boolean };
+  /** Set while Borttaget: it is missing from Notion. It comes back when it returns. */
+  borttagen?: Borttagen;
 };
 
 /** Someone who can sign edits and own Scopes. Names are unique ignoring case. */

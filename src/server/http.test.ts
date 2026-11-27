@@ -220,22 +220,25 @@ describe("JSON API", () => {
 describe("Hämta från Notion", () => {
   it("syncs now, waiting for the result, and reports when Apogee last fetched", async () => {
     const { api, apiAs, källa } = await start();
-    expect(await api("GET", "/api/notion/synk")).toEqual(expect.objectContaining({ status: 200, body: { senastHämtat: null } }));
+    expect(await api("GET", "/api/notion/synk")).toEqual(expect.objectContaining({ status: 200, body: { senastHämtat: null, fel: null } }));
 
     källa.projekt({ notionId: "n1", namn: "Sökindex" });
     const synk = await apiAs(null, "POST", "/api/notion/synk");
     expect(synk).toMatchObject({ status: 200, body: { senastHämtat: "2026-11-24T10:00:00.000Z" } });
     expect((await api("GET", "/api/utan-funktionsomrade")).body).toMatchObject({ projekt: [{ namn: "Sökindex" }] });
-    expect((await api("GET", "/api/notion/synk")).body).toEqual({ senastHämtat: "2026-11-24T10:00:00.000Z" });
+    expect((await api("GET", "/api/notion/synk")).body).toEqual({ senastHämtat: "2026-11-24T10:00:00.000Z", fel: null });
   });
 
-  it("answers 502 when Notion cannot be reached, and changes nothing", async () => {
+  it("answers 502 when Notion cannot be reached, changes nothing and records the error", async () => {
     const { api, källa } = await start();
     källa.projekt({ notionId: "n1", namn: "Sökindex" });
     källa.misslyckas(new Error("Notion svarar inte"));
     expect(await api("POST", "/api/notion/synk")).toMatchObject({ status: 502, body: { fel: "notion" } });
     expect((await api("GET", "/api/utan-funktionsomrade")).body).toBeNull();
-    expect((await api("GET", "/api/notion/synk")).body).toEqual({ senastHämtat: null });
+    expect((await api("GET", "/api/notion/synk")).body).toEqual({
+      senastHämtat: null,
+      fel: { tid: "2026-11-24T10:00:00.000Z", meddelande: "Notion svarar inte" },
+    });
   });
 
   it("runs the sync's writes in turn with other writes, so none is lost", async () => {
@@ -425,52 +428,47 @@ describe("status", () => {
   });
 });
 
-describe("Ta bort and Radera", () => {
-  it("takes a Projekt away, restores it, and erases it when its name is typed; signed", async () => {
-    const { api, apiAs, notion } = await start();
+describe("Borttaget and Radera", () => {
+  it("takes nothing away or back by hand: Notion does", async () => {
+    const { api, notion } = await start();
     const projekt = await notion.projekt("Kassan", "Ekonomi");
     const fo = await notion.funktionsområdeId("Ekonomi");
-    const borttagen = `/api/projekt/${projekt}/borttagen`;
-
-    expect((await apiAs(null, "POST", borttagen)).status).toBe(403);
-    expect((await api("POST", borttagen)).status).toBe(204);
-    expect((await api("POST", borttagen)).status).toBe(400);
-    expect((await api("GET", `/api/funktionsomraden/${fo}`)).body).toMatchObject({
-      projekt: [],
-      borttagnaProjekt: [{ id: projekt, namn: "Kassan", borttagen: { vem: { namn: "Testare" } } }],
-    });
-    expect((await api("DELETE", borttagen)).status).toBe(204);
+    for (const path of [`/api/projekt/${projekt}/borttagen`, `/api/funktionsomraden/${fo}/borttagen`]) {
+      for (const method of ["POST", "DELETE"]) {
+        expect(await api(method, path), `${method} ${path}`).toMatchObject({ status: 405, body: { fel: "notion" } });
+      }
+    }
     expect((await api("GET", `/api/projekt/${projekt}`)).body).toMatchObject({ borttagen: null });
+  });
+
+  it("lists a Projekt missing from Notion as Borttaget and erases it when its name is typed; signed", async () => {
+    const { api, apiAs, notion } = await start();
+    const projekt = await notion.projekt("Kassan", "Ekonomi");
+    await notion.projekt("Moms", "Ekonomi");
+    const fo = await notion.funktionsområdeId("Ekonomi");
 
     expect((await api("DELETE", `/api/projekt/${projekt}`, { namn: "Kassan" })).status).toBe(400);
-    await api("POST", borttagen);
+    await notion.avbocka("Kassan");
+    expect((await api("GET", `/api/funktionsomraden/${fo}`)).body).toMatchObject({
+      projekt: [{ namn: "Moms" }],
+      borttagnaProjekt: [{ id: projekt, namn: "Kassan", borttagen: { tid: "2026-11-24T10:00:00.000Z" } }],
+    });
     expect((await api("DELETE", `/api/projekt/${projekt}`, { namn: "kassan" })).status).toBe(400);
     expect((await apiAs(null, "DELETE", `/api/projekt/${projekt}`, { namn: "Kassan" })).status).toBe(403);
     expect((await api("DELETE", `/api/projekt/${projekt}`, { namn: "Kassan" })).status).toBe(204);
     expect((await api("GET", `/api/projekt/${projekt}`)).status).toBe(404);
   });
 
-  it("takes a Funktionsområde away only when none of its Projekt is Pågående, lists, restores and erases it", async () => {
-    const { api, vem, notion } = await start();
+  it("lists a Funktionsområde whose last Projekt left under Borttagna, and erases it with its Projekt", async () => {
+    const { api, notion } = await start();
     const projekt = await notion.projekt("Kassan", "Ekonomi");
     const fo = await notion.funktionsområdeId("Ekonomi");
-    const scope = (await api("POST", `/api/projekt/${projekt}/scopes`, { namn: "Prislista", ägare: vem })).body.id;
-    await api("PATCH", `/api/projekt/${projekt}/scopes/${scope}`, { läge: 40 });
-    const borttaget = `/api/funktionsomraden/${fo}/borttagen`;
-
-    const blockerad = await api("POST", borttaget);
-    expect(blockerad.status).toBe(400);
-    expect(blockerad.body.meddelande).toContain("Kassan");
-    await api("PATCH", `/api/projekt/${projekt}/scopes/${scope}`, { läge: 100 });
-    expect((await api("POST", borttaget)).status).toBe(204);
+    await notion.avbocka("Kassan");
     expect((await api("GET", "/api/oversikt")).body).toEqual([]);
     expect((await api("GET", "/api/borttagna")).body).toMatchObject([
-      { id: fo, namn: "Ekonomi", projekt: [{ id: projekt }], borttagen: { vem: { namn: "Testare" } } },
+      { id: fo, namn: "Ekonomi", borttagen: { tid: "2026-11-24T10:00:00.000Z" }, borttagnaProjekt: [{ id: projekt }] },
     ]);
 
-    expect((await api("DELETE", borttaget)).status).toBe(204);
-    expect((await api("GET", "/api/borttagna")).body).toEqual([]);
-    await api("POST", borttaget);
     expect((await api("DELETE", `/api/funktionsomraden/${fo}`, { namn: "Ekonomi" })).status).toBe(204);
     expect((await api("GET", "/api/borttagna")).body).toEqual([]);
     expect((await api("GET", `/api/funktionsomraden/${fo}`)).status).toBe(404);
@@ -510,8 +508,8 @@ describe("stable links (#40)", () => {
   });
 
   it("answers 404 'Finns inte längre' for unknown and Raderad ids", async () => {
-    const { api, fo, p, get } = await seeded();
-    await api("POST", `/api/projekt/${p}/borttagen`);
+    const { api, fo, p, get, notion } = await seeded();
+    await notion.avbocka("Ny <kassa>");
     await api("DELETE", `/api/projekt/${p}`, { namn: "Ny <kassa>" });
     for (const path of [`/p/${p}-ny-kassa`, `/p/okand-x`, `/f/okand`, `/person/okand-anna`]) {
       const res = await get(path);
@@ -553,7 +551,7 @@ describe("stable links (#40)", () => {
 
   it("serves a Borttagen Projekt or Funktionsområde as the 'borttaget' page, still at its canonical URL", async () => {
     const { api, fo, p, get, notion } = await seeded();
-    await api("POST", `/api/projekt/${p}/borttagen`);
+    await notion.avbocka("Ny <kassa>");
     expect((await get(`/p/${p}`)).headers.get("location")).toBe(`/p/${p}-ny-kassa`);
     const projekt = await get(`/p/${p}-ny-kassa`);
     expect(projekt.status).toBe(200);
@@ -562,7 +560,7 @@ describe("stable links (#40)", () => {
     expect(html).toContain('<meta property="og:description" content="Projektet är borttaget">');
 
     const annat = await notion.projekt("Annat", "Kund & Säljstöd");
-    await api("POST", `/api/funktionsomraden/${fo}/borttagen`);
+    await notion.avbocka("Annat");
     const foHtml = await (await get(`/f/${fo}-kund-saljstod`)).text();
     expect(foHtml).toContain('<meta property="og:description" content="Funktionsområdet är borttaget">');
     const följde = await (await get(`/p/${annat}-annat`)).text();
@@ -692,8 +690,8 @@ describe("the Notion embed (#43)", () => {
   });
 
   it("says 'Det här Projektet är borttaget' for a Borttagen Projekt and 404 'Finns inte längre' once Raderad", async () => {
-    const { api, p, get } = await seeded();
-    await api("POST", `/api/projekt/${p}/borttagen`);
+    const { api, p, get, notion } = await seeded();
+    await notion.avbocka("Ny <kassa>");
     const borttagen = await get(`/p/${p}-ny-kassa/embed`);
     expect(borttagen.status).toBe(200);
     expect(await borttagen.text()).toContain("<title>Det här Projektet är borttaget · Apogee</title>");
@@ -707,9 +705,9 @@ describe("the Notion embed (#43)", () => {
   });
 
   it("may be framed by Notion, whatever the answer", async () => {
-    const { api, p, get } = await seeded();
+    const { p, get, notion } = await seeded();
     const svar = [await get(`/p/${p}-ny-kassa/embed`), await get(`/p/${p}/embed`), await get(`/p/okand/embed`)];
-    await api("POST", `/api/projekt/${p}/borttagen`);
+    await notion.avbocka("Ny <kassa>");
     svar.push(await get(`/p/${p}-ny-kassa/embed`));
     for (const res of svar) {
       expect(res.headers.get("content-security-policy"), res.url).toMatch(/frame-ancestors [^;]*https:\/\/www\.notion\.so/);

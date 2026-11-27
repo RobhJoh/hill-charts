@@ -72,21 +72,13 @@ export const api = {
   personerÖversikt: () => call<PersonRad[]>("GET", "/personer/oversikt"),
   /** A Person's Stjärnkarta; 404 for an inaktiv or unknown Person. */
   stjärnkarta: (personId: string) => call<StjärnkartaVy>("GET", `/personer/${enc(personId)}/stjarnkarta`),
-  /** The sync state: when Apogee last fetched from Notion. */
+  /** The sync state: when Apogee last fetched from Notion, and whether the latest fetch failed. */
   synkStatus: () => call<SynkStatus>("GET", "/notion/synk"),
   /** Hämta från Notion nu: waits for the sync (or joins one already running). */
   synkaFrånNotion: () => call<SynkStatus>("POST", "/notion/synk"),
 
-  /** Ta bort: always allowed for a Projekt; a Funktionsområde only when none of its Projekt is Pågående. */
-  taBortProjekt: (id: string, vem: string) => call<void>("POST", `/projekt/${enc(id)}/borttagen`, undefined, vem),
-  återställProjekt: (id: string, vem: string) =>
-    call<void>("DELETE", `/projekt/${enc(id)}/borttagen`, undefined, vem),
   /** Radera a Borttagen Projekt for good; `namn` is the typed confirmation. */
   raderaProjekt: (id: string, namn: string, vem: string) => call<void>("DELETE", `/projekt/${enc(id)}`, { namn }, vem),
-  taBortFunktionsområde: (id: string, vem: string) =>
-    call<void>("POST", `/funktionsomraden/${enc(id)}/borttagen`, undefined, vem),
-  återställFunktionsområde: (id: string, vem: string) =>
-    call<void>("DELETE", `/funktionsomraden/${enc(id)}/borttagen`, undefined, vem),
   /** Radera a Borttaget Funktionsområde and every Projekt in it, for good. */
   raderaFunktionsområde: (id: string, namn: string, vem: string) =>
     call<void>("DELETE", `/funktionsomraden/${enc(id)}`, { namn }, vem),

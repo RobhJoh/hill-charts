@@ -1,8 +1,9 @@
 <script lang="ts">
   import { felText } from "../lib/fel.js";
-  // "Borttagna Projekt" / "Borttagna Funktionsområden": who took each away and
-  // when, with Återställ and Radera. Radera is confirmed by typing the name,
-  // and lists what goes with it (`följer`).
+  // "Borttagna Projekt" / "Borttagna Funktionsområden": when each left Notion,
+  // with Radera. They come back by themselves when they return in Notion
+  // (#76). Radera is confirmed by typing the name, and lists what goes with it
+  // (`följer`).
   import type { BorttagenVy } from "../../core/index.js";
   import { Avbruten } from "../lib/signatur.svelte.js";
 
@@ -10,10 +11,9 @@
   type Props = {
     rubrik: string;
     rader: Rad[];
-    onåterställ: (id: string) => Promise<void>;
     onradera: (id: string, namn: string) => Promise<void>;
   };
-  let { rubrik, rader, onåterställ, onradera }: Props = $props();
+  let { rubrik, rader, onradera }: Props = $props();
 
   let raderar = $state<string | null>(null);
   let bekräftelse = $state("");
@@ -57,12 +57,10 @@
             <div>
               <span class="namn">{rad.namn}</span>
               <span class="meta"
-                >Borttagen av {rad.borttagen.vem.namn}{#if !rad.borttagen.vem.aktiv}{" "}(inaktiv){/if}
-                · {datum.format(new Date(rad.borttagen.tid))}</span
+                >Inte längre i Notion · {datum.format(new Date(rad.borttagen.tid))}</span
               >
             </div>
             <div class="knappar">
-              <button class="quiet" disabled={busy} onclick={() => kör(() => onåterställ(rad.id))}>Återställ</button>
               <button class="quiet" disabled={busy} onclick={() => öppnaRadera(rad.id)}>Radera</button>
             </div>
           </div>

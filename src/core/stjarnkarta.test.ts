@@ -56,7 +56,7 @@ describe("Stjärnkarta", () => {
     await scope(moms, "Deklaration", anna, 20);
     const bokslut = (await notion.projekt("Bokslut", "Ekonomi"));
     await scope(bokslut, "Balans", anna, 30);
-    await apogee.taBortProjekt(bokslut, anna);
+    await notion.avbocka("Bokslut");
 
     expect(await karta(anna)).toEqual([
       { namn: "Moms", avslutat: false, scopes: ["Deklaration"] },
@@ -65,11 +65,12 @@ describe("Stjärnkarta", () => {
     ]);
   });
 
-  it("leaves out Projekt that went with their Borttagen Funktionsområde", async () => {
+  it("leaves out the Projekt of a Borttaget Funktionsområde", async () => {
     const { apogee, notion, anna, fo, kassan, moms, scope, karta } = await setup();
     await scope(kassan, "Prislista", anna, 100);
     await scope(moms, "Deklaration", anna, 100);
-    await apogee.taBortFunktionsområde(fo, anna);
+    await notion.avbocka("Kassan");
+    await notion.avbocka("Moms");
     expect(await karta(anna)).toEqual([]);
   });
 

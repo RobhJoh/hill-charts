@@ -112,13 +112,13 @@ describe("removing a Person (handover)", () => {
   it("leaves Scopes in Borttagna Projekt with the removed Person, even while still in progress", async () => {
     const { apogee, notion, anna, bo, projekt, scope } = await setup();
     await scope("Prislista", bo, 30);
-    await apogee.taBortProjekt(projekt, anna);
+    await notion.avbocka("Kassan");
     const före = await apogee.historik(projekt);
 
     expect(await apogee.removePerson(bo, anna, anna)).toEqual([]);
 
     expect(await apogee.historik(projekt)).toEqual(före);
-    await apogee.återställProjekt(projekt, anna);
+    await notion.projekt("Kassan", "Ekonomi");
     expect((await apogee.getProjekt(projekt)).scopes[0]!.ägare).toEqual({ id: bo, namn: "Bo", aktiv: false });
   });
 

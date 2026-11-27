@@ -29,6 +29,7 @@
   import { grannar as ordnaGrannar } from "../lib/grannar.js";
   import Saknas from "./Saknas.svelte";
   import { statusText } from "../lib/avslutat.js";
+  import NotionStatus from "../components/NotionStatus.svelte";
 
   let { id }: { id: string } = $props();
 
@@ -256,6 +257,7 @@
       <div class="statusrad">
         <div class="status">
           <span class:avslut={projekt.avslutat}>{statusText(projekt)}</span>
+          <NotionStatus status={projekt.notionStatus} />
           <!-- Avslutat is said once, in the status text: no countdown "Avslutat" here.
                Under Visa, now's time is dimmed (the banner shows the time then). -->
           <span class="nu" class:dämpad={!!visning}>

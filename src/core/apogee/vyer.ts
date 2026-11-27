@@ -33,6 +33,8 @@ export type ProjektRad = {
   namn: string;
   /** Derived from the Scopes' Läge alone (status.ts). */
   status: Status;
+  /** Notion-status, exactly as in Notion; null when empty. Shown beside `status`, never derived from it. */
+  notionStatus: string | null;
   avslutat: boolean;
   /** When it last became Avslutat (ISO time); null while it is not. */
   avslutad: string | null;
@@ -55,6 +57,8 @@ export type FunktionsområdeVy = {
   borttagen: BorttagenVy | null;
   /** Derived from its Projekt that are not Borttagna (status.ts). */
   status: Status;
+  /** Notion-status, exactly as in Notion; null when empty. Shown beside `status`, never derived from it. */
+  notionStatus: string | null;
   /** Stilla Scopes across its Projekt. */
   stilla: number;
   /** Its Projekt, except those taken away on their own (they went with it if it is Borttagen). */
@@ -77,6 +81,8 @@ export type ProjektVy = {
   namn: string;
   /** Its page in Notion, where its namn, Funktionsområde and dates are changed; null if none. */
   notionUrl: string | null;
+  /** Notion-status, exactly as in Notion; null when empty. Shown beside `status`, never derived from it. */
+  notionStatus: string | null;
   /** Its Funktionsområde; null when it has none (Utan funktionsområde). */
   funktionsområde: { id: FunktionsområdeId; namn: string } | null;
   /** Its Projektledare, from Notion; null when empty there. The suggested Ägare of a new Scope. */

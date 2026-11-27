@@ -37,6 +37,8 @@ export type Funktionsområde = {
   /** Its page in Notion, which owns its namn and dates (ADR 0003). */
   notionId?: string;
   notionUrl?: string;
+  /** Notion-status: `Status` exactly as in Notion; drives nothing in Apogee. Missing = none. */
+  notionStatus?: string | null;
   /** Its Funktionsansvarig, from Notion; absent = none. */
   funktionsansvarig?: PersonId;
 };
@@ -54,6 +56,8 @@ export type Projekt = {
   /** Its page in Notion, which owns its namn, Funktionsområde and dates (ADR 0003). */
   notionId?: string;
   notionUrl?: string;
+  /** Notion-status: `Status` exactly as in Notion; drives nothing in Apogee. Missing = none. */
+  notionStatus?: string | null;
   /** Its Projektledare, from Notion; absent = none. */
   projektledare?: PersonId;
   /**

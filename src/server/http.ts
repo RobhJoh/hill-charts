@@ -150,6 +150,9 @@ export function createHandler({ apogee, webDir, publicUrl }: ServerOptions) {
     if (method === "GET" && resource === "oversikt" && id === undefined) {
       return { status: 200, body: await apogee.overview() };
     }
+    if (method === "GET" && resource === "utan-funktionsomrade" && id === undefined) {
+      return { status: 200, body: await apogee.utanFunktionsområde() };
+    }
     if (resource === "funktionsomraden") {
       if (method === "GET" && id !== undefined) {
         return { status: 200, body: await apogee.getFunktionsområde(id) };

@@ -25,4 +25,19 @@ describe("tokens", () => {
   it("input placeholders use the --dim token", () => {
     expect(regel(läs("./app.css"), "input::placeholder")).toMatch(/color:\s*var\(--dim\);/);
   });
+
+  it("a disabled primary button is an outline, not a see-through red fill", () => {
+    const css = läs("./app.css");
+    const avstängd = regel(css, "button.pr:disabled");
+    expect(avstängd).toMatch(/background:\s*none;/);
+    expect(avstängd).toMatch(/border-color:\s*var\(--btn\);/);
+    expect(avstängd).toMatch(/color:\s*var\(--dim\);/);
+    expect(avstängd).toMatch(/opacity:\s*1;/);
+  });
+
+  it("a pressed primary button drops its fill while what it opened is open", () => {
+    const tryckt = regel(läs("./app.css"), 'button.pr[aria-pressed="true"]');
+    expect(tryckt).toMatch(/background:\s*var\(--sel\);/);
+    expect(tryckt).toMatch(/color:\s*var\(--tx\);/);
+  });
 });

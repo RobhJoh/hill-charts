@@ -17,7 +17,7 @@
   import BaddaIn from "../components/BaddaIn.svelte";
   import Mer, { type MerPost } from "../components/Mer.svelte";
   import { api, ApiError } from "../lib/api.js";
-  import { följLive, senasteLaddning } from "../lib/live.js";
+  import { följLive, liveMål, senasteLaddning } from "../lib/live.js";
   import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
   import { tema } from "../lib/tema.svelte.js";
   import { funktionsområdeHref, projektHref } from "../lib/links.js";
@@ -46,7 +46,7 @@
 
   // --- Page head (Q5 a): the rare actions in Mer; dates and Milstolpar fold out ---
   let länk = $state<ReturnType<typeof KopieraLank>>();
-  let baddaÖppen = $state(false);
+  let bädda = $state<ReturnType<typeof BaddaIn>>();
   let taBortÖppen = $state(false);
   let tidÖppen = $state(false);
 
@@ -56,7 +56,7 @@
       { text: "Byt namn", gör: () => (läge = "byt namn") },
       { text: "Flytta", gör: () => void öppnaFlytta() },
       { text: "Kopiera länk", gör: () => void länk?.kopiera() },
-      { text: "Bädda in", gör: () => (baddaÖppen = true) },
+      { text: "Bädda in", gör: () => bädda?.öppna() },
       ...(projekt.markeradAvslutat
         ? []
         : [{ avdelare: true, text: "Markera Avslutat", gör: () => void växlaAvslutat(true) }]),
@@ -87,7 +87,9 @@
   load();
   // Live sync (#36): re-fetch whenever anyone writes to this Projekt's Historik,
   // and on every (re)connect to catch up on what happened while offline.
-  $effect(() => följLive([id], () => void load()));
+  // Only once the first fetch succeeded and while the Projekt is Pågående.
+  const följId = $derived(liveMål(saknas ? undefined : projekt));
+  $effect(() => (följId ? följLive([följId], () => void load()) : undefined));
   laddaPersoner()
     .then((p) => (personer = p))
     .catch(() => {});
@@ -286,12 +288,12 @@
             <button aria-pressed={historikÖppen} onclick={() => (historikÖppen ? stängHistorik() : (historikÖppen = true))}>
               Historik
             </button>
-            <button class="pr" onclick={() => (nyScope = true)}>Ny Scope</button>
+            <button class="pr" aria-pressed={nyScope} aria-controls="ny-scope" onclick={() => (nyScope = !nyScope)}>Ny Scope</button>
           </div>
         </div>
         <div class="utfall">
           <KopieraLank bind:this={länk} knapp={false} href={projektHref(projekt)} />
-          <BaddaIn bind:öppen={baddaÖppen} knapp={false} namn={projekt.namn} href={projektHref(projekt)} />
+          <BaddaIn bind:this={bädda} knapp={false} namn={projekt.namn} href={projektHref(projekt)} />
           {#if taBortÖppen}
             <TaBort
               bind:öppen={taBortÖppen}

@@ -3,14 +3,21 @@
   // /embed) together with a link line to paste below the embed, since Notion's
   // phone apps never show embeds. The link line is copied as a rich link (with
   // a plain-text fallback), so Notion pastes it as "Namn · Apogee".
-  // With knapp={false} the page's Mer menu opens the panel (bind öppen).
-  let {
-    namn,
-    href,
-    öppen = $bindable(false),
-    knapp = true,
-  }: { namn: string; href: string; öppen?: boolean; knapp?: boolean } = $props();
+  //
+  // The panel is a modal <dialog> (#63): it sits in the top layer over a
+  // blurred backdrop, centred on desktop and as a bottom sheet on phone, so it
+  // never runs off a narrow screen. Escape and a click outside close it; focus
+  // goes to the embed field on open and back to "Bädda in" on close.
+  import { utanförRutan } from "../lib/popover.js";
 
+  // With knapp={false} the page's Mer menu calls öppna() (Q5 a); closing then
+  // hands focus back to where it was (the dialog's own focus restore).
+  let { namn, href, knapp = true }: { namn: string; href: string; knapp?: boolean } = $props();
+
+  let öppen = $state(false);
+  let dialog = $state<HTMLDialogElement>();
+  let knappEl = $state<HTMLButtonElement>();
+  let fält = $state<HTMLInputElement>();
   let kopierad = $state<"embed" | "rad" | null>(null);
   let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -56,62 +63,84 @@
     }
   }
 
+  export function öppna() {
+    dialog?.showModal();
+    öppen = true;
+    fält?.focus();
+  }
+
+  // Covers Stäng, Escape (the dialog's own cancel) and a click outside.
+  function stängd() {
+    öppen = false;
+    knappEl?.focus();
+  }
+
+  function klickIDialog(e: MouseEvent) {
+    if (dialog && e.target === dialog && utanförRutan(dialog.getBoundingClientRect(), e)) dialog.close();
+  }
+
   $effect(() => () => clearTimeout(timer));
 </script>
 
-<span class="badda">
-  {#if knapp}
-    <button class="quiet" aria-expanded={öppen} onclick={() => (öppen = !öppen)}>Bädda in</button>
-  {/if}
-  {#if öppen}
-    <div class="panel" role="dialog" aria-label="Bädda in i Notion">
-      <p class="rubrik">Bädda in i Notion</p>
-      <label>
-        <span class="cap">1. Klistra in i Notion och välj Create embed</span>
-        <span class="rad">
-          <input
-            readonly
-            value={embedUrl}
-            onfocus={(e) => e.currentTarget.select()}
-            {@attach (el) => {
-              if (!knapp) el.focus();
-            }}
-          />
-          <button class="quiet" onclick={kopieraEmbed}>{kopierad === "embed" ? "Kopierad" : "Kopiera"}</button>
-        </span>
-      </label>
-      <div class="lbl">
-        <span class="cap">2. Klistra in länken under, för Notions mobilappar som inte visar inbäddningar</span>
-        <span class="rad">
-          <a class="länk" href={url} target="_blank" rel="noopener">{radText}</a>
-          <button class="quiet" onclick={kopieraRad}>{kopierad === "rad" ? "Kopierad" : "Kopiera"}</button>
-        </span>
-      </div>
-      <button class="quiet stäng" onclick={() => (öppen = false)}>Stäng</button>
-    </div>
-  {/if}
-</span>
+{#if knapp}
+  <button class="quiet" aria-haspopup="dialog" aria-expanded={öppen} bind:this={knappEl} onclick={öppna}>Bädda in</button>
+{/if}
+<!-- Escape is handled by the dialog itself (cancel, then close); the click handler is only for the backdrop. -->
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
+<dialog class="panel" aria-labelledby="badda-rubrik" bind:this={dialog} onclose={stängd} onclick={klickIDialog}>
+  <h2 class="rubrik" id="badda-rubrik">Bädda in i Notion</h2>
+  <label>
+    <span class="cap">1. Klistra in i Notion och välj Create embed</span>
+    <span class="rad">
+      <input readonly value={embedUrl} bind:this={fält} onfocus={(e) => e.currentTarget.select()} />
+      <button class="quiet" onclick={kopieraEmbed}>{kopierad === "embed" ? "Kopierad" : "Kopiera"}</button>
+    </span>
+  </label>
+  <div class="lbl">
+    <span class="cap">2. Klistra in länken under, för Notions mobilappar som inte visar inbäddningar</span>
+    <span class="rad">
+      <a class="länk" href={url} target="_blank" rel="noopener">{radText}</a>
+      <button class="quiet" onclick={kopieraRad}>{kopierad === "rad" ? "Kopierad" : "Kopiera"}</button>
+    </span>
+  </div>
+  <button class="quiet stäng" onclick={() => dialog?.close()}>Stäng</button>
+</dialog>
 
 <style>
-  .badda {
-    position: relative;
-    display: inline-block;
-  }
+  /* A modal in the top layer: centred on desktop, never wider than the
+     screen minus 16 px on each side. */
   .panel {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    z-index: 4;
-    width: min(440px, 90vw);
+    width: min(480px, calc(100vw - 32px));
+    max-width: none;
+    margin: auto; /* the global reset zeroes the dialog's own centring */
+    padding: 14px 16px;
+    color: var(--tx);
+    background: var(--panel);
+    border: 1px solid var(--btn);
+    border-radius: 2px;
+    box-shadow: 0 6px 24px rgb(0 0 0 / 0.25);
+  }
+  .panel[open] {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding: 14px 16px;
-    background: var(--panel);
-    border: 1px solid var(--btn);
-    box-shadow: 0 6px 24px rgb(0 0 0 / 0.25);
+  }
+  .panel::backdrop {
+    background: rgb(0 0 0 / 0.3);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+  }
+  /* Phone: a bottom sheet held 16 px in from the page edges. */
+  @media (max-width: 600px) {
+    .panel {
+      inset-inline: 16px;
+      margin: auto 0 16px;
+      width: auto;
+    }
   }
   .rubrik {
+    margin: 0;
+    font-size: inherit;
     font-weight: 600;
   }
   label,

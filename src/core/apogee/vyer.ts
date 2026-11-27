@@ -49,6 +49,8 @@ export type FunktionsområdeVy = {
   namn: string;
   /** Its page in Notion, where its namn and dates are changed ("Ändra i Notion"); null if none. */
   notionUrl: string | null;
+  /** Its Funktionsansvarig, from Notion; null when empty there. */
+  funktionsansvarig: PersonVy | null;
   /** Who took it away and when; null while it is shown. */
   borttagen: BorttagenVy | null;
   /** Derived from its Projekt that are not Borttagna (status.ts). */
@@ -77,6 +79,8 @@ export type ProjektVy = {
   notionUrl: string | null;
   /** Its Funktionsområde; null when it has none (Utan funktionsområde). */
   funktionsområde: { id: FunktionsområdeId; namn: string } | null;
+  /** Its Projektledare, from Notion; null when empty there. The suggested Ägare of a new Scope. */
+  projektledare: PersonVy | null;
   /** Who took it away and when (on its own or with its Funktionsområde); null while shown. */
   borttagen: BorttagenVy | null;
   /** Quiet warnings such as "slutar efter Funktionsområdet"; never block saving. */

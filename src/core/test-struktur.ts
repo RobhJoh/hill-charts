@@ -26,6 +26,8 @@ export function notionStruktur(apogee: Apogee, notion: MemoryNotion, storage: St
 
   return {
     synka,
+    /** The Notion id a test gives the Projekt or Funktionsområde of that name. */
+    idFör: notionIdFör,
     projektId,
     funktionsområdeId,
 

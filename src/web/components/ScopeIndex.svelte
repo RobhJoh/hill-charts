@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from "svelte";
+  import { tick, untrack } from "svelte";
   import { felText } from "../lib/fel.js";
   // The Scope index beside the Hill chart: Namn, Ägare and Läge, highest Läge
   // first, with the colour legend. Rows edit Namn and Ägare and remove a
@@ -15,6 +15,7 @@
     tema,
     valt = null,
     nyScope = $bindable(false),
+    förslag = "",
     onvälj,
     onlägg,
     onbytnamn,
@@ -28,6 +29,8 @@
     valt?: string | null;
     /** Whether the "Ny Scope" form is open. */
     nyScope?: boolean;
+    /** The Ägare the "Ny Scope" form pre-selects (the Projektledare); "" for none. */
+    förslag?: string;
     onvälj: (id: string | null) => void;
     onlägg: (namn: string, ägare: string) => Promise<unknown>;
     onbytnamn: (id: string, namn: string) => Promise<unknown>;
@@ -46,8 +49,10 @@
 
   // Focus Namn once the form is on screen, and bring it into view (on a phone
   // it opens far below the Ny Scope button). autofocus doesn't take here.
+  // Each time it opens, the form starts from the suggested Ägare.
   $effect(() => {
     if (!nyScope) return;
+    nyÄgare = untrack(() => förslag);
     tick().then(() => {
       nyNamnFält?.focus();
       nyForm?.scrollIntoView({ block: "nearest" });

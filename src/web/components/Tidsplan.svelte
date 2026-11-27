@@ -1,15 +1,14 @@
 <script lang="ts">
-  // Editing dates (Appetit) and Milstolpar of a Projekt or Funktionsområde.
-  // Dates are entered as two dates or as Startdatum plus weeks; moving the
-  // Startdatum in the form moves the Slutdatum too, keeping the Appetit.
-  import { dagarMellan, plusDagar, type DatumInput, type Milstolpe, type Tidsplan } from "../../core/index.js";
-  import { datumKnapp, visaDatum } from "../lib/datum.js";
+  // The dates (Appetit) and Milstolpar of a Projekt or Funktionsområde. The
+  // dates come from Notion and are only shown (ADR 0003); Milstolpar are
+  // edited here.
+  import { dagarMellan, type Milstolpe, type Tidsplan } from "../../core/index.js";
+  import { visaDatum } from "../lib/datum.js";
   import { Avbruten } from "../lib/signatur.svelte.js";
 
   let {
     tidsplan,
     varningar = [],
-    onsätt,
     onlägg,
     onändra,
     ontabort,
@@ -19,24 +18,17 @@
     tidsplan: Tidsplan;
     /** Quiet warnings, e.g. "slutar efter Funktionsområdet". */
     varningar?: string[];
-    onsätt: (input: DatumInput) => Promise<unknown>;
     onlägg: (m: { namn: string; datum: string }) => Promise<unknown>;
     onändra: (id: string, ändring: { namn: string; datum: string }) => Promise<unknown>;
     ontabort: (id: string) => Promise<unknown>;
-    /** Show "Ändra datum" and "Ny Milstolpe"; false when a Mer menu opens them instead (Q18 b). */
+    /** Show "Ny Milstolpe"; false when a Mer menu opens it instead (Q18 b). */
     knappar?: boolean;
-    /** Dates and Milstolpar shown, not edited. */
+    /** Milstolpar shown, not edited. */
     skrivskyddad?: boolean;
   } = $props();
 
-  let öppen = $state<"inget" | "datum" | "ny milstolpe" | string>("inget");
+  let öppen = $state<"inget" | "ny milstolpe" | string>("inget");
   let fel = $state("");
-
-  // Date form
-  let sätt = $state<"datum" | "veckor">("datum");
-  let start = $state("");
-  let slut = $state("");
-  let veckor = $state(6);
 
   // Milstolpe form (new or the one being edited)
   let mNamn = $state("");
@@ -48,21 +40,6 @@
   const appetitText = (dagar: number) =>
     dagar % 7 === 0 ? `${dagar / 7} ${dagar === 7 ? "vecka" : "veckor"}` : `${dagar} dagar`;
 
-  export function öppnaDatum() {
-    start = tidsplan.startdatum ?? "";
-    slut = tidsplan.slutdatum ?? "";
-    sätt = "datum";
-    fel = "";
-    öppen = "datum";
-  }
-
-  /** Moving the Startdatum moves the Slutdatum too, keeping the Appetit. */
-  function flyttaStart(event: Event) {
-    const ny = (event.currentTarget as HTMLInputElement).value;
-    if (start && slut && ny) slut = plusDagar(ny, dagarMellan(start, slut));
-    start = ny;
-  }
-
   async function kör(åtgärd: () => Promise<unknown>) {
     fel = "";
     try {
@@ -71,15 +48,6 @@
     } catch (e) {
       if (e instanceof Error && !(e instanceof Avbruten)) fel = e.message;
     }
-  }
-
-  function sparaDatum(event: SubmitEvent) {
-    event.preventDefault();
-    const input: DatumInput =
-      sätt === "veckor"
-        ? { startdatum: start, veckor: Number(veckor) }
-        : { startdatum: start || null, slutdatum: slut || null };
-    void kör(() => onsätt(input));
   }
 
   export function öppnaMilstolpe(m?: Milstolpe) {
@@ -110,38 +78,9 @@
     {/if}
     {#each varningar as v (v)}<span class="varning">{v}</span>{/each}
     {#if knappar && !skrivskyddad}
-      <button class="quiet" onclick={öppnaDatum}>{datumKnapp(tidsplan)}</button>
       <button class="quiet" onclick={() => öppnaMilstolpe()}>Ny Milstolpe</button>
     {/if}
   </div>
-
-  {#if öppen === "datum"}
-    <form onsubmit={sparaDatum}>
-      <label class="sätt">
-        <select bind:value={sätt} aria-label="Hur datum anges">
-          <option value="datum">Start- och slutdatum</option>
-          <option value="veckor">Startdatum och veckor</option>
-        </select>
-      </label>
-      <label>
-        <span class="cap">Startdatum</span>
-        <input type="date" value={start} oninput={flyttaStart} required={sätt === "veckor"} />
-      </label>
-      {#if sätt === "veckor"}
-        <label>
-          <span class="cap">Veckor</span>
-          <input type="number" min="1" step="1" bind:value={veckor} required />
-        </label>
-      {:else}
-        <label>
-          <span class="cap">Slutdatum</span>
-          <input type="date" bind:value={slut} min={start || undefined} />
-        </label>
-      {/if}
-      <button class="pr">Spara</button>
-      <button type="button" onclick={() => (öppen = "inget")}>Avbryt</button>
-    </form>
-  {/if}
 
   {#if öppen === "ny milstolpe"}
     {@render milstolpeForm()}

@@ -1,8 +1,7 @@
-// Projekt-level fields: dates (Appetit) and Milstolpar. A Projekt's
-// Milstolpar are Uppdateringar in its Historik; its dates, and a
-// Funktionsområde's dates and Milstolpar, are saved on the record itself
-// without Historik.
-import { datumFrån, iOrdning, nyaDatum, TOM_TIDSPLAN, ändraMilstolpe, type DatumInput } from "../datum.js";
+// Projekt-level fields: Milstolpar. A Projekt's Milstolpar are Uppdateringar
+// in its Historik; a Funktionsområde's Milstolpar are saved on the record
+// itself without Historik. Dates come from Notion (./notion.ts).
+import { datumFrån, iOrdning, TOM_TIDSPLAN, ändraMilstolpe } from "../datum.js";
 import { fältLika, projektFält } from "../status.js";
 import { UPPDATERING_TYP } from "../typer.js";
 import type {
@@ -52,7 +51,7 @@ export function projektfält(k: Kärna) {
 
   /**
    * Changes the Milstolpar of a Projekt (an Uppdatering in its Historik) or
-   * the dates or Milstolpar of a Funktionsområde (saved without Historik;
+   * of a Funktionsområde (saved without Historik;
    * returns null).
    */
   async function ändraTidsplan(
@@ -80,24 +79,6 @@ export function projektfält(k: Kärna) {
   }
 
   return {
-    /**
-     * Sets a Projekt's or Funktionsområde's Startdatum and Slutdatum: two dates,
-     * a Startdatum plus weeks, or a new Startdatum keeping the Appetit. A
-     * Projekt's dates outside its Funktionsområde's only warn (`datumVarningar`).
-     * Both are saved on the record itself, without Historik (#73): always null.
-     */
-    async setDatum(mål: Mål, input: DatumInput, vem: PersonId | null): Promise<null> {
-      if (!("projekt" in mål)) {
-        await ändraTidsplan(mål, UPPDATERING_TYP.datum, (t) => nyaDatum(t, input), vem);
-        return null;
-      }
-      await signatur(vem);
-      const p = await k.requireProjekt(mål.projekt);
-      const datum = nyaDatum({ startdatum: p.startdatum ?? null, slutdatum: p.slutdatum ?? null }, input);
-      await storage.saveProjekt({ ...p, ...datum });
-      return null;
-    },
-
     /** Adds a Milstolpe (name and date). */
     async addMilstolpe(
       mål: Mål,

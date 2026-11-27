@@ -2,6 +2,7 @@
 // the injected clock and ids, and the lookups and writes all commands use.
 import { idagFrån } from "../datum.js";
 import { DomainError } from "../errors.js";
+import type { NotionKälla } from "../notion.js";
 import type { Storage } from "../storage.js";
 import type { Funktionsområde, FunktionsområdeId, Person, PersonId, Projekt, ProjektId, Uppdatering, UppdateringId } from "../types.js";
 import { utanGamlaFält } from "../status.js";
@@ -14,6 +15,13 @@ export type ApogeeDeps = {
   now: () => Date;
   /** Id generator; injected so tests are deterministic. */
   newId: () => string;
+  /** Where the structure comes from (ADR 0003). Without it, `synkaFrånNotion` fails. */
+  notion?: NotionKälla;
+  /**
+   * Runs the sync's writes in turn with every other write (ADR 0001). The
+   * server passes its write queue; without it the writes run at once.
+   */
+  skrivkö?: <T>(steg: () => Promise<T>) => Promise<T>;
 };
 
 export type Kärna = ReturnType<typeof skapaKärna>;
@@ -22,7 +30,7 @@ export type Kärna = ReturnType<typeof skapaKärna>;
  * `lagring` must already announce Uppdateringar (see live.ts). Every Historik
  * is read without the fields an older Historik held (`utanGamlaFält`).
  */
-export function skapaKärna({ storage: lagring, now, newId }: ApogeeDeps) {
+export function skapaKärna({ storage: lagring, now, newId }: Pick<ApogeeDeps, "storage" | "now" | "newId">) {
   const storage: Storage = {
     ...lagring,
     readHistorik: async (projektId) => utanGamlaFält(await lagring.readHistorik(projektId)),

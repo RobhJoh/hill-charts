@@ -1,0 +1,67 @@
+{
+  "projekt": [
+    {
+      "id": "dev-projekt-kassan",
+      "namn": "Kassan",
+      "apogee": true,
+      "funktionsområde": "dev-fo-ekonomi",
+      "datum": { "start": "2026-11-02", "end": "2026-12-14" },
+      "status": "Pågående",
+      "projektledare": "dev-person-anna"
+    },
+    {
+      "id": "dev-projekt-moms",
+      "namn": "Momsdeklaration",
+      "apogee": true,
+      "funktionsområde": "dev-fo-ekonomi",
+      "datum": { "start": "2026-12-18" },
+      "status": "Planerad",
+      "projektledare": null
+    },
+    {
+      "id": "dev-projekt-sokindex",
+      "namn": "Sökindex",
+      "apogee": true,
+      "funktionsområde": "dev-fo-plattform",
+      "datum": { "start": "2026-11-16", "end": "2027-01-29" },
+      "status": "Pågående",
+      "projektledare": "dev-person-bo"
+    },
+    {
+      "id": "dev-projekt-designsystem",
+      "namn": "Designsystem",
+      "apogee": true,
+      "funktionsområde": null,
+      "datum": null,
+      "status": "Idé",
+      "projektledare": null
+    },
+    {
+      "id": "dev-projekt-ej-ikryssat",
+      "namn": "Ej ikryssat i Notion",
+      "apogee": false,
+      "funktionsområde": "dev-fo-hr"
+    }
+  ],
+  "funktionsområden": [
+    {
+      "id": "dev-fo-ekonomi",
+      "namn": "Ekonomi",
+      "datum": { "start": "2026-10-01", "end": "2027-03-31" },
+      "status": "Pågående",
+      "funktionsansvarig": "dev-person-anna"
+    },
+    {
+      "id": "dev-fo-plattform",
+      "namn": "Plattform",
+      "datum": { "start": "2027-02-26" },
+      "status": "Pågående",
+      "funktionsansvarig": "dev-person-bo"
+    },
+    { "id": "dev-fo-hr", "namn": "HR", "status": "Planerad" }
+  ],
+  "personer": [
+    { "id": "dev-person-anna", "namn": "Anna Andersson" },
+    { "id": "dev-person-bo", "namn": "Bo Berg" }
+  ]
+}

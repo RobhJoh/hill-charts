@@ -47,6 +47,8 @@ export type ProjektRad = {
 export type FunktionsområdeVy = {
   id: FunktionsområdeId;
   namn: string;
+  /** Its page in Notion, where its namn and dates are changed ("Ändra i Notion"); null if none. */
+  notionUrl: string | null;
   /** Who took it away and when; null while it is shown. */
   borttagen: BorttagenVy | null;
   /** Derived from its Projekt that are not Borttagna (status.ts). */
@@ -71,6 +73,8 @@ export type UtanFunktionsområdeVy = { projekt: ProjektRad[] };
 export type ProjektVy = {
   id: ProjektId;
   namn: string;
+  /** Its page in Notion, where its namn, Funktionsområde and dates are changed; null if none. */
+  notionUrl: string | null;
   /** Its Funktionsområde; null when it has none (Utan funktionsområde). */
   funktionsområde: { id: FunktionsområdeId; namn: string } | null;
   /** Who took it away and when (on its own or with its Funktionsområde); null while shown. */

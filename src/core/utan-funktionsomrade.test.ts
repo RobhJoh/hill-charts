@@ -2,6 +2,8 @@
 import { describe, expect, it } from "vitest";
 import { createApogee } from "./index.js";
 import { createMemoryStorage } from "../storage/memory.js";
+import { createMemoryNotion } from "../notion/minne.js";
+import { notionStruktur } from "./test-struktur.js";
 import type { Projekt } from "./types.js";
 
 const skapad = "2026-11-01T10:00:00.000Z";
@@ -13,11 +15,13 @@ const skapad = "2026-11-01T10:00:00.000Z";
 async function setup() {
   const storage = createMemoryStorage();
   let n = 0;
-  const apogee = createApogee({ storage, now: () => new Date("2026-11-24T10:00:00Z"), newId: () => `id${++n}` });
+  const källa = createMemoryNotion();
+  const apogee = createApogee({ storage, notion: källa, now: () => new Date("2026-11-24T10:00:00Z"), newId: () => `id${++n}` });
   const anna = (await apogee.createPerson("Anna", null)).id;
   const utan = async (id: string, namn: string, extra: Partial<Projekt> = {}) =>
     storage.saveProjekt({ id, namn, skapad, ...extra });
-  return { apogee, storage, anna, utan };
+  const notion = notionStruktur(apogee, källa, storage);
+  return { apogee, storage, notion, anna, utan };
 }
 
 describe("a Projekt without a Funktionsområde", () => {
@@ -34,9 +38,8 @@ describe("a Projekt without a Funktionsområde", () => {
   });
 
   it("is listed under Utan funktionsområde, in name order, and in no Funktionsområde", async () => {
-    const { apogee, anna, utan } = await setup();
-    const fo = await apogee.createFunktionsområde("Ekonomi", anna);
-    await apogee.createProjekt(fo.id, "Kassan", anna);
+    const { apogee, notion, utan } = await setup();
+    await notion.projekt("Kassan", "Ekonomi");
     await utan("p1", "Sökindex");
     await utan("p2", "Arkiv");
 
@@ -57,10 +60,9 @@ describe("a Projekt without a Funktionsområde", () => {
   });
 
   it("there is no Utan funktionsområde group when every Projekt has a Funktionsområde", async () => {
-    const { apogee, anna, utan } = await setup();
+    const { apogee, notion, anna, utan } = await setup();
     expect(await apogee.utanFunktionsområde()).toBeNull();
-    const fo = await apogee.createFunktionsområde("Ekonomi", anna);
-    await apogee.createProjekt(fo.id, "Kassan", anna);
+    await notion.projekt("Kassan", "Ekonomi");
     expect(await apogee.utanFunktionsområde()).toBeNull();
     await utan("p1", "Sökindex");
     await apogee.taBortProjekt("p1", anna);

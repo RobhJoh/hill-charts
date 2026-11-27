@@ -1,11 +1,12 @@
-// Funktionsområden and Projekt as records: create, rename, move, Ta bort,
-// Återställ, Radera, and the views that list them (overview, pages).
+// Funktionsområden and Projekt as records: Ta bort, Återställ, Radera, and the
+// views that list them (overview, pages). They are created, named, moved and
+// dated only by the Notion sync (./notion.ts, ADR 0003).
 import { datumVarningar, idagFrån, TOM_TIDSPLAN } from "../datum.js";
 import { DomainError } from "../errors.js";
 import type { Funktionsområde, FunktionsområdeId, Person, PersonId, Projekt, ProjektId } from "../types.js";
 import type { Kärna } from "./karna.js";
 import { avslutadTid, funktionsområdeStatus } from "../status.js";
-import { inteBorttaget, namnFrån, requireBekräftelse } from "./regler.js";
+import { inteBorttaget, requireBekräftelse } from "./regler.js";
 import {
   borttagenEnsam,
   borttagenVy,
@@ -20,7 +21,7 @@ import {
 } from "./vyer.js";
 
 export function struktur(k: Kärna) {
-  const { storage, now, newId, signatur, requireFunktionsområde, requireProjekt } = k;
+  const { storage, now, signatur, requireFunktionsområde, requireProjekt } = k;
 
   async function projektRad(p: Projekt, personer: Person[]): Promise<ProjektRad> {
     const logg = await storage.readHistorik(p.id);
@@ -61,6 +62,7 @@ export function struktur(k: Kärna) {
     return {
       id: fo.id,
       namn: fo.namn,
+      notionUrl: fo.notionUrl ?? null,
       borttagen: fo.borttagen ? borttagenVy(personer, fo.borttagen) : null,
       status: funktionsområdeStatus(projekt.map((p) => p.status)),
       stilla: projekt.reduce((n, p) => n + p.stilla, 0),
@@ -71,53 +73,6 @@ export function struktur(k: Kärna) {
   }
 
   return {
-    async createFunktionsområde(namn: string, vem: PersonId | null): Promise<Funktionsområde> {
-      await signatur(vem);
-      const fo: Funktionsområde = { id: newId(), namn: namnFrån(namn), skapad: now().toISOString() };
-      const all = await storage.listFunktionsområden();
-      await storage.saveFunktionsområden([...all, fo]);
-      return fo;
-    },
-
-    async createProjekt(
-      funktionsområdeId: FunktionsområdeId,
-      namn: string,
-      vem: PersonId | null,
-    ): Promise<Projekt> {
-      await signatur(vem);
-      const giltigt = namnFrån(namn);
-      inteBorttaget(await requireFunktionsområde(funktionsområdeId));
-      const p: Projekt = { id: newId(), namn: giltigt, funktionsområdeId, skapad: now().toISOString() };
-      await storage.saveProjekt(p);
-      return p;
-    },
-
-    async renameFunktionsområde(id: FunktionsområdeId, nyttNamn: string, vem: PersonId | null): Promise<void> {
-      await signatur(vem);
-      const namn = namnFrån(nyttNamn);
-      await requireFunktionsområde(id);
-      const all = await storage.listFunktionsområden();
-      await storage.saveFunktionsområden(all.map((f) => (f.id === id ? { ...f, namn } : f)));
-    },
-
-    async renameProjekt(id: ProjektId, namn: string, vem: PersonId | null): Promise<void> {
-      await signatur(vem);
-      const giltigt = namnFrån(namn);
-      const p = await requireProjekt(id);
-      await storage.saveProjekt({ ...p, namn: giltigt });
-    },
-
-    async moveProjekt(
-      id: ProjektId,
-      funktionsområdeId: FunktionsområdeId,
-      vem: PersonId | null,
-    ): Promise<void> {
-      await signatur(vem);
-      const p = await requireProjekt(id);
-      inteBorttaget(await requireFunktionsområde(funktionsområdeId));
-      await storage.saveProjekt({ ...p, funktionsområdeId });
-    },
-
     /** Ta bort: hides a Projekt (always allowed). It stays whole, Historik included, until Radera. */
     async taBortProjekt(id: ProjektId, vem: PersonId | null): Promise<void> {
       const signerad = await signatur(vem);
@@ -275,6 +230,7 @@ export function struktur(k: Kärna) {
       return {
         id: p.id,
         namn: p.namn,
+        notionUrl: p.notionUrl ?? null,
         funktionsområde: fo && { id: fo.id, namn: fo.namn },
         borttagen: p.borttagen ? borttagenVy(personer, p.borttagen) : null,
         datumVarningar: datumVarningar(tid.tidsplan, fo?.tidsplan ?? TOM_TIDSPLAN),

@@ -34,6 +34,9 @@ export type Funktionsområde = {
   /** Its dates, saved without Historik. Missing = none (records from before #38). */
   tidsplan?: Tidsplan;
   borttagen?: Borttagen;
+  /** Its page in Notion, which owns its namn and dates (ADR 0003). */
+  notionId?: string;
+  notionUrl?: string;
 };
 
 export type Projekt = {
@@ -46,6 +49,9 @@ export type Projekt = {
   startdatum?: Datum | null;
   /** Its Slutdatum, saved on it without Historik. Missing = none. */
   slutdatum?: Datum | null;
+  /** Its page in Notion, which owns its namn, Funktionsområde and dates (ADR 0003). */
+  notionId?: string;
+  notionUrl?: string;
   /**
    * Set while Borttagen. `medFunktionsområde`: it went with its
    * Funktionsområde and comes back with it; otherwise it was taken away on its own.

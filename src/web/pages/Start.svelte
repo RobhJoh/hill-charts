@@ -36,7 +36,7 @@
   load();
 
   /** "5 pågående · 3 stilla · 1 över tid", naming the Projekt that need attention. */
-  const status = $derived(översikt ? samladStatus(översikt) : undefined);
+  const status = $derived(översikt ? samladStatus(översikt, utan) : undefined);
 
   /** Each Borttaget Funktionsområde with every Projekt Radera would erase with it. */
   const borttagnaRader = $derived(

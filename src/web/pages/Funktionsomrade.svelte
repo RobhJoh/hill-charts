@@ -13,6 +13,7 @@
   import { signatur } from "../lib/signatur.svelte.js";
   import { funktionsområdeHref, projektHref } from "../lib/links.js";
   import { router } from "../lib/router.svelte.js";
+  import StillaAntal from "../components/StillaAntal.svelte";
   import Saknas from "./Saknas.svelte";
 
   let { id }: { id: string } = $props();
@@ -113,7 +114,7 @@
               <TaBort fråga="Ta bort {fo.namn} med {fo.projekt.length} Projekt?" ontabort={taBort} />
             </div>
             <div class="meta">
-              {fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<span class="stilla">{fo.stilla} stilla</span>{/if}
+              {fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}
             </div>
             <div class="tid">
               <Nedrakning nedräkning={fo.nedräkning} nästaMilstolpe={fo.nästaMilstolpe} />
@@ -161,8 +162,5 @@
   }
   .tid {
     margin-top: 14px;
-  }
-  .stilla {
-    color: var(--redtx);
   }
 </style>

@@ -6,6 +6,7 @@
   import { projektHref } from "../lib/links.js";
   import MiniHill from "./MiniHill.svelte";
   import Nedrakning from "./Nedrakning.svelte";
+  import StillaAntal from "./StillaAntal.svelte";
 
   let {
     projekt,
@@ -25,7 +26,7 @@
         <b>{p.namn}</b>
         <span class="meta">
           {#if p.avslutat}Avslutat ·{/if}
-          {p.scopes.length} Scopes{#if p.stilla > 0}{" · "}<span class="stilla">{p.stilla} stilla</span>{/if}
+          {p.scopes.length} Scopes{#if p.stilla > 0}{" · "}<StillaAntal antal={p.stilla} />{/if}
         </span>
         {#if !p.avslutat}<Nedrakning nedräkning={p.nedräkning} nästaMilstolpe={p.nästaMilstolpe} liten />{/if}
       </a>
@@ -71,9 +72,6 @@
     display: block;
     font-size: 13px;
     color: var(--dim);
-  }
-  .stilla {
-    color: var(--redtx);
   }
   .none {
     color: var(--dim);

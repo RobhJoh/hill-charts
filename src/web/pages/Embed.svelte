@@ -161,7 +161,7 @@
         />
       </div>
       {#if !smal}
-        <ul class="lista" aria-label="Scopes">
+        <ul class="lista" class:harstilla={projekt.scopes.some((s) => s.stilla)} aria-label="Scopes">
           {#each projekt.scopes as s (s.id)}
             <li>
               <button class:sel={s.id === valt} onclick={() => (valt = s.id)} aria-pressed={s.id === valt}>
@@ -169,6 +169,13 @@
                 <span class="sn" title={s.namn}>{s.namn}</span>
                 <span class="äg">{s.ägare.namn}{s.ägare.aktiv ? "" : " (inaktiv)"}</span>
                 <span class="l">{s.läge}</span>
+                {#if s.stilla}
+                  <span class="sd" title="Ingen rörelse på {s.stillaDagar} dagar"
+                    >{s.stillaDagar} d<span class="sr">, ingen rörelse på {s.stillaDagar} dagar</span></span
+                  >
+                {:else if projekt.scopes.some((s) => s.stilla)}
+                  <span></span>
+                {/if}
               </button>
             </li>
           {:else}
@@ -298,6 +305,13 @@
     text-align: left;
     font: 400 13px Barlow, system-ui, sans-serif;
   }
+  /* A Stilla Scope keeps its "26 d" in view: one more column, a little wider list. */
+  .lista.harstilla {
+    width: 262px;
+  }
+  .lista.harstilla button {
+    grid-template-columns: 7px minmax(0, 1fr) auto 26px 32px;
+  }
   .lista button:hover,
   .lista button.sel {
     background: var(--sel);
@@ -322,6 +336,19 @@
   .l {
     font-weight: 700;
     text-align: right;
+  }
+  .sd {
+    color: var(--redtx);
+    white-space: nowrap;
+    text-align: right;
+  }
+  .sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
   .tom {
     padding: 8px 12px;

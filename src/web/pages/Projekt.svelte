@@ -21,6 +21,7 @@
   import { tema } from "../lib/tema.svelte.js";
   import { funktionsområdeHref, projektHref } from "../lib/links.js";
   import { router } from "../lib/router.svelte.js";
+  import StillaAntal from "../components/StillaAntal.svelte";
   import Saknas from "./Saknas.svelte";
 
   let { id }: { id: string } = $props();
@@ -199,7 +200,7 @@
         <a href={projektHref(g)} class:avslutat={g.avslutat}>
           <MiniHill scopes={g.scopes} tema={tema.nu} width={160} height={46} />
           <span class="gnamn">{g.namn}</span>
-          {#if g.stilla > 0}<span class="stilla">{g.stilla} stilla</span>{/if}
+          {#if g.stilla > 0}<span class="stilla"><StillaAntal antal={g.stilla} /></span>{/if}
           {#if !g.avslutat}<Nedrakning nedräkning={g.nedräkning} nästaMilstolpe={g.nästaMilstolpe} liten />{/if}
         </a>
       {:else}

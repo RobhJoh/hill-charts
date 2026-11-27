@@ -7,7 +7,9 @@
   import ProjektCells from "../components/ProjektCells.svelte";
   import { api } from "../lib/api.js";
   import { signatur } from "../lib/signatur.svelte.js";
-  import { funktionsområdeHref } from "../lib/links.js";
+  import { funktionsområdeHref, projektHref } from "../lib/links.js";
+  import StillaAntal from "../components/StillaAntal.svelte";
+  import { samladStatus } from "../lib/stilla.js";
 
   let översikt = $state<Översikt | undefined>();
   let borttagna = $state<FunktionsområdeVy[]>([]);
@@ -23,7 +25,8 @@
   }
   load();
 
-  const antalProjekt = $derived(översikt?.reduce((n, fo) => n + fo.projekt.length, 0) ?? 0);
+  /** "5 pågående · 3 stilla · 1 över tid", naming the Projekt that need attention. */
+  const status = $derived(översikt ? samladStatus(översikt) : undefined);
 
   /** Each Borttaget Funktionsområde with every Projekt Radera would erase with it. */
   const borttagnaRader = $derived(
@@ -57,7 +60,18 @@
   <div class="pagehead">
     <div>
       <h1>Alla Funktionsområden</h1>
-      {#if översikt}<div class="meta">{antalProjekt} Projekt</div>{/if}
+      {#if status}
+        <p class="meta status">
+          {status.pågående} pågående{#if status.stilla > 0}{" · "}<StillaAntal antal={status.stilla} /> i
+            {#each status.stillaProjekt as p, i (p.id)}<a href={projektHref(p)}>{p.namn}</a
+              >{i < status.stillaProjekt.length - 1 ? ", " : ""}{/each}{/if}{#if status.överTid > 0}{" · "}<span
+              class="övertid">{status.överTid} över tid</span
+            >:
+            {#each status.överTidProjekt as p, i (p.id)}<a href={projektHref(p)}>{p.namn}</a
+              >{i < status.överTidProjekt.length - 1 ? ", " : ""}{/each}{/if}{#if status.stilla === 0 && status.överTid === 0}{" · "}inget
+            står still{/if}
+        </p>
+      {/if}
     </div>
     {#if !skapar}
       <!-- A plain outlined button: the rarest action here does not get the accent (Q1 c). -->
@@ -84,7 +98,7 @@
         <h2>
           <a href={funktionsområdeHref(fo)}>{fo.namn}</a>
           <span
-            >{fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<em class="stilla">{fo.stilla} stilla</em>{/if}</span
+            >{fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}</span
           >
         </h2>
         {#if fo.nedräkning || fo.nästaMilstolpe}
@@ -124,8 +138,13 @@
   .cd {
     margin: 4px 0 10px;
   }
-  .stilla {
-    font-style: normal;
+  .status {
+    margin: 0;
+  }
+  .status a {
+    color: inherit;
+  }
+  .övertid {
     color: var(--redtx);
   }
 </style>

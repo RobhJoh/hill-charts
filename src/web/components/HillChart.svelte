@@ -105,6 +105,10 @@
     }),
   );
 
+  /** The compact chart has no room for the note, so a Stilla star's label ends in "· 26 d". */
+  const stillaTillägg = (s: ScopeVy) =>
+    kompakt && s.stilla && pågående[s.id] === undefined ? ` · ${s.stillaDagar} d` : "";
+
   const placerade = $derived.by(() => {
     if (!etiketter) return new Map();
     // The selected star's label gets first pick, then left to right.
@@ -115,7 +119,7 @@
       ordning.map((t) => ({
         id: t.s.id,
         läge: t.läge,
-        text: etikettText({ namn: t.s.namn, läge: t.läge, märke: märken[t.s.id], vald: t.s.id === valt }),
+        text: `${etikettText({ namn: t.s.namn, läge: t.läge, märke: märken[t.s.id], vald: t.s.id === valt })}${stillaTillägg(t.s)}`,
       })),
       ruta,
     );
@@ -285,8 +289,8 @@
         <circle class="markerad" cx={x} cy={y} r="25" />
       {/if}
       {#if kompakt && s.stilla && pågående[s.id] === undefined}
-        <circle class="stillahalo" cx={x} cy={y} r="10" />
-        <circle class="stilla" cx={x} cy={y} r="10" />
+        <circle class="stillahalo" cx={x} cy={y} r="12.5" />
+        <circle class="stilla" cx={x} cy={y} r="12.5" />
       {:else if s.stilla && pågående[s.id] === undefined}
         <!-- Stuck: dashed red ring and a leader to the note, turned away from the frame's edges. -->
         {@const dx = x > 600 ? -1 : 1}
@@ -308,7 +312,9 @@
         <text class="sn" x={e.x} y={e.y} text-anchor={e.anchor}
           >{#if märken[s.id]}<tspan class="sm">{märken[s.id] + " "}</tspan>{/if}{#if s.id === valt}<tspan class="vm"
               >✦&nbsp;</tspan
-            >{/if}{s.namn} <tspan class="sm">{läge}</tspan></text>
+            >{/if}{s.namn} <tspan class="sm">{läge}</tspan>{#if stillaTillägg(s)}<tspan class="stillad"
+              >{stillaTillägg(s)}</tspan
+            >{/if}</text>
       {/if}
     </g>
   {/each}
@@ -402,6 +408,10 @@
     stroke: var(--red);
     stroke-width: 1.6;
     stroke-dasharray: 3 3;
+  }
+  .stillad {
+    font-weight: 500;
+    fill: var(--redtx);
   }
   polyline.stilla {
     stroke-dasharray: none;

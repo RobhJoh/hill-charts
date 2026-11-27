@@ -25,6 +25,9 @@ _Avoid_: Owner
 **Läge**: Where a Scope sits on the hill, from 0 (start of uphill) to 100 (bottom of downhill, done).
 _Avoid_: Position
 
+**Stilla**: A Scope whose Läge has not changed for more than 14 days. A Scope at Läge 100, or in an Avslutat Projekt, is never Stilla. Written "1 stilla" when counted and "stilla i 21 d" for one Scope; spelled out as "Ingen rörelse på 21 dagar" only on the Hill chart.
+_Avoid_: Fastnad, Inaktiv, Pausad
+
 **Uppdatering**: One recorded edit to a Projekt's Hill chart or its dates, such as a Scope changing Läge, a Scope being added, renamed or removed, or the Slutdatum or a Milstolpe changing. Records what changed, when, and the Signatur of whoever made it.
 _Avoid_: Move, Change
 

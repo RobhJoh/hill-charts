@@ -389,7 +389,6 @@
       {#if visning}
         {@const namn = (pid: string) => personer.find((p) => p.id === pid)?.namn ?? "Okänd"}
         {@const vy = visning.vy}
-        {@const datumSkiljer = vy.fältSkiljer.includes("startdatum") || vy.fältSkiljer.includes("slutdatum")}
         {@const samma = vy.sammaSomNu}
         <div class="visning" role="status" bind:this={visningRuta}>
           <span>
@@ -398,7 +397,7 @@
             {skillnaderMotNu(vy).join(" ")}
           </span>
           <span class="då">
-            <span class:skiljer={datumSkiljer}>
+            <span>
               {#if vy.tidsplan.startdatum || vy.tidsplan.slutdatum}
                 {vy.tidsplan.startdatum ? visaDatum(vy.tidsplan.startdatum) : "…"} –
                 {vy.tidsplan.slutdatum ? visaDatum(vy.tidsplan.slutdatum) : "…"}

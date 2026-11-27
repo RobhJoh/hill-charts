@@ -59,7 +59,7 @@ export function historik(k: Kärna) {
       const diagram = k.diagramVy(fram, personer, !!p.borttagen);
       return {
         ...diagram,
-        ...k.projektTidVy(fram, diagram.avslutat),
+        ...k.projektTidVy(p, fram, diagram.avslutat),
         skiljer,
         fältSkiljer,
         milstolparSkiljer,

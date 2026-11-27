@@ -3,7 +3,28 @@
 import type { ProjektFält, Uppdatering } from "./types.js";
 
 /** Projekt-level fields before any Uppdatering. */
-export const PROJEKT_START: ProjektFält = { avslutat: false, startdatum: null, slutdatum: null, milstolpar: [] };
+export const PROJEKT_START: ProjektFält = { avslutat: false, milstolpar: [] };
+
+/** Projekt-level fields an older Historik may hold: the dates, now kept on the Projekt (#73). */
+const GAMLA_FÄLT = new Set(["startdatum", "slutdatum"]);
+
+const utanGamlaFält = (fält: object): Partial<ProjektFält> =>
+  Object.fromEntries(Object.entries(fält).filter(([f]) => !GAMLA_FÄLT.has(f)));
+
+/**
+ * A Historik as the core reads it: date changes from before the dates moved
+ * onto the Projekt are dropped, and an Uppdatering left with no change at all
+ * is dropped with them. Milstolpar and everything else are kept.
+ */
+export function utanGamlaDatum(logg: readonly Uppdatering[]): Uppdatering[] {
+  return logg.flatMap((u) => {
+    if (!u.projekt) return [u];
+    const { projekt, ...resten } = u;
+    const efter = utanGamlaFält(projekt.efter);
+    if (Object.keys(efter).length > 0) return [{ ...resten, projekt: { före: utanGamlaFält(projekt.före), efter } }];
+    return u.ändringar.length > 0 ? [resten] : [];
+  });
+}
 
 /** Equality of two Projekt-level field values (deep, for Milstolpar). */
 export const fältLika = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);

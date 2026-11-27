@@ -1,6 +1,7 @@
 // Projekt-level fields: the Avslutat mark, dates (Appetit) and Milstolpar.
-// For a Projekt each change is an Uppdatering in its Historik; a
-// Funktionsområde's dates and Milstolpar are saved on it without Historik.
+// A Projekt's Avslutat mark and Milstolpar are Uppdateringar in its Historik;
+// its dates, and a Funktionsområde's dates and Milstolpar, are saved on the
+// record itself without Historik.
 import { datumFrån, iOrdning, nyaDatum, TOM_TIDSPLAN, ändraMilstolpe, type DatumInput } from "../datum.js";
 import { fältLika, projektFält } from "../status.js";
 import { UPPDATERING_TYP } from "../typer.js";
@@ -50,8 +51,9 @@ export function projektfält(k: Kärna) {
   }
 
   /**
-   * Changes the dates or Milstolpar of a Projekt (an Uppdatering in its
-   * Historik) or a Funktionsområde (saved without Historik; returns null).
+   * Changes the Milstolpar of a Projekt (an Uppdatering in its Historik) or
+   * the dates or Milstolpar of a Funktionsområde (saved without Historik;
+   * returns null).
    */
   async function ändraTidsplan(
     mål: Mål,
@@ -59,7 +61,9 @@ export function projektfält(k: Kärna) {
     ändra: (före: Tidsplan) => Partial<Tidsplan>,
     vem: PersonId | null,
   ): Promise<Uppdatering | null> {
-    if ("projekt" in mål) return ändraProjektFält(mål.projekt, typ, ändra, vem);
+    if ("projekt" in mål) {
+      return ändraProjektFält(mål.projekt, typ, (f) => ({ milstolpar: ändra({ ...TOM_TIDSPLAN, ...f }).milstolpar }), vem);
+    }
     await signatur(vem);
     const fo = await k.requireFunktionsområde(mål.funktionsområde);
     const före = fo.tidsplan ?? TOM_TIDSPLAN;
@@ -93,10 +97,18 @@ export function projektfält(k: Kärna) {
      * Sets a Projekt's or Funktionsområde's Startdatum and Slutdatum: two dates,
      * a Startdatum plus weeks, or a new Startdatum keeping the Appetit. A
      * Projekt's dates outside its Funktionsområde's only warn (`datumVarningar`).
-     * Projekt: the Uppdatering, or null when nothing changed. Funktionsområde: null.
+     * Both are saved on the record itself, without Historik (#73): always null.
      */
-    async setDatum(mål: Mål, input: DatumInput, vem: PersonId | null) {
-      return ändraTidsplan(mål, UPPDATERING_TYP.datum, (t) => nyaDatum(t, input), vem);
+    async setDatum(mål: Mål, input: DatumInput, vem: PersonId | null): Promise<null> {
+      if (!("projekt" in mål)) {
+        await ändraTidsplan(mål, UPPDATERING_TYP.datum, (t) => nyaDatum(t, input), vem);
+        return null;
+      }
+      await signatur(vem);
+      const p = await k.requireProjekt(mål.projekt);
+      const datum = nyaDatum({ startdatum: p.startdatum ?? null, slutdatum: p.slutdatum ?? null }, input);
+      await storage.saveProjekt({ ...p, ...datum });
+      return null;
     },
 
     /** Adds a Milstolpe (name and date). */

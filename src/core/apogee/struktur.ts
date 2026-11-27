@@ -24,7 +24,7 @@ export function struktur(k: Kärna) {
   async function projektRad(p: Projekt, personer: Person[]): Promise<ProjektRad> {
     const logg = await storage.readHistorik(p.id);
     const { scopes, avslutat, pågående } = k.diagramVy(logg, personer, !!p.borttagen);
-    const { nedräkning, nästaMilstolpe, överTid } = k.projektTidVy(logg, avslutat);
+    const { nedräkning, nästaMilstolpe, överTid } = k.projektTidVy(p, logg, avslutat);
     return {
       id: p.id,
       namn: p.namn,
@@ -258,7 +258,7 @@ export function struktur(k: Kärna) {
       const fo = await requireFunktionsområde(p.funktionsområdeId);
       const [logg, personer] = await Promise.all([storage.readHistorik(id), storage.listPersoner()]);
       const diagram = k.diagramVy(logg, personer, !!p.borttagen);
-      const tid = k.projektTidVy(logg, diagram.avslutat);
+      const tid = k.projektTidVy(p, logg, diagram.avslutat);
       return {
         id: p.id,
         namn: p.namn,

@@ -1,0 +1,198 @@
+[
+ {
+  "view": "start",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 983,
+  "file": "screens/start.desktop.jpg"
+ },
+ {
+  "view": "start",
+  "viewport": "phone",
+  "w": 390,
+  "h": 1487,
+  "file": "screens/start.phone.jpg"
+ },
+ {
+  "view": "start-signatur",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 983,
+  "file": "screens/start-signatur.desktop.jpg"
+ },
+ {
+  "view": "fo-plattform",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 900,
+  "file": "screens/fo-plattform.desktop.jpg"
+ },
+ {
+  "view": "fo-plattform",
+  "viewport": "phone",
+  "w": 390,
+  "h": 1081,
+  "file": "screens/fo-plattform.phone.jpg"
+ },
+ {
+  "view": "fo-ekonomi",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 900,
+  "file": "screens/fo-ekonomi.desktop.jpg"
+ },
+ {
+  "view": "projekt",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 997,
+  "file": "screens/projekt.desktop.jpg"
+ },
+ {
+  "view": "projekt",
+  "viewport": "phone",
+  "w": 390,
+  "h": 1470,
+  "file": "screens/projekt.phone.jpg"
+ },
+ {
+  "view": "projekt-dag",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 997,
+  "file": "screens/projekt-dag.desktop.jpg"
+ },
+ {
+  "view": "projekt-historik",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 2750,
+  "file": "screens/projekt-historik.desktop.jpg"
+ },
+ {
+  "view": "projekt-historik-visa",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 2750,
+  "file": "screens/projekt-historik-visa.desktop.jpg"
+ },
+ {
+  "view": "projekt-scope-vald",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 997,
+  "file": "screens/projekt-scope-vald.desktop.jpg"
+ },
+ {
+  "view": "projekt-scope-vald",
+  "viewport": "phone",
+  "w": 390,
+  "h": 1498,
+  "file": "screens/projekt-scope-vald.phone.jpg"
+ },
+ {
+  "view": "projekt-ny-scope",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 997,
+  "file": "screens/projekt-ny-scope.desktop.jpg"
+ },
+ {
+  "view": "projekt-badda-in",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 997,
+  "file": "screens/projekt-badda-in.desktop.jpg"
+ },
+ {
+  "view": "projekt-over-tid",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 953,
+  "file": "screens/projekt-over-tid.desktop.jpg"
+ },
+ {
+  "view": "projekt-avslutat",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 945,
+  "file": "screens/projekt-avslutat.desktop.jpg"
+ },
+ {
+  "view": "projekt-borttagen",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 900,
+  "file": "screens/projekt-borttagen.desktop.jpg"
+ },
+ {
+  "view": "projekt-saknas",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 900,
+  "file": "screens/projekt-saknas.desktop.jpg"
+ },
+ {
+  "view": "embed",
+  "viewport": "embed-bred",
+  "w": 720,
+  "h": 320,
+  "file": "screens/embed.embed-bred.jpg"
+ },
+ {
+  "view": "embed",
+  "viewport": "embed-smal",
+  "w": 400,
+  "h": 320,
+  "file": "screens/embed.embed-smal.jpg"
+ },
+ {
+  "view": "embed-dag",
+  "viewport": "embed-bred",
+  "w": 720,
+  "h": 320,
+  "file": "screens/embed-dag.embed-bred.jpg"
+ },
+ {
+  "view": "stjarnkarta",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 1019,
+  "file": "screens/stjarnkarta.desktop.jpg"
+ },
+ {
+  "view": "stjarnkarta",
+  "viewport": "phone",
+  "w": 390,
+  "h": 844,
+  "file": "screens/stjarnkarta.phone.jpg"
+ },
+ {
+  "view": "saknas",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 900,
+  "file": "screens/saknas.desktop.jpg"
+ },
+ {
+  "view": "personer",
+  "viewport": "desktop",
+  "w": 1440,
+  "h": 1483,
+  "file": "screens/personer.desktop.jpg"
+ },
+ {
+  "view": "personer",
+  "viewport": "phone",
+  "w": 390,
+  "h": 1724,
+  "file": "screens/personer.phone.jpg"
+ },
+ {
+  "view": "projekt-signatur-remsa",
+  "viewport": "phone",
+  "w": 390,
+  "h": 844,
+  "file": "screens/projekt-signatur-remsa.phone.jpg"
+ }
+]

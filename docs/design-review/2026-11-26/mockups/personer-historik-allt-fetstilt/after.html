@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lugnare Personer-historik</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  --bg: #081026; --panel: #0a1430; --chart: #0b1530; --line: #1f3160; --grid: #18284f;
+  --tx: #eef0f5; --mid: #aab6d4; --dim: #8f9cbd; --orbit: #7f92c2; --red: #e0503a; --redtx: #ff7a66;
+  --sel: #13224a; --star: #dfe6f5; --btn: #3a4d80; --halo: #0d1836;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { min-height: 100%; }
+body { background: var(--bg); color: var(--tx); font: 400 15px/1.4 Barlow, system-ui, sans-serif; font-variant-numeric: tabular-nums; overflow-x: hidden; }
+a { color: inherit; }
+button, input, select { font: 500 14px Barlow, system-ui, sans-serif; color: var(--tx); }
+button { background: none; border: 1px solid var(--btn); padding: 8px 14px; border-radius: 2px; cursor: pointer; }
+button.pr { background: var(--red); border-color: var(--red); color: #fff; }
+button.quiet { border-color: transparent; color: var(--dim); padding: 4px 8px; }
+input, select { background: var(--panel); border: 1px solid var(--btn); border-radius: 2px; padding: 8px 10px; }
+h1 { font: 600 36px/1.1 Barlow, system-ui, sans-serif; letter-spacing: -0.01em; }
+.meta { font-size: 14px; color: var(--dim); }
+.cap { font-weight: 600; font-size: 13px; color: var(--dim); }
+.page { max-width: 1240px; margin: 0 auto; padding: 36px 28px 80px; }
+.crumbs { font-size: 14px; color: var(--dim); margin-bottom: 6px; }
+.crumbs a { text-decoration: none; }
+
+.mockcap { font: 500 11px/1 Barlow, system-ui, sans-serif; letter-spacing: .04em; color: var(--dim); opacity: .75; padding: 6px 28px; border-bottom: 1px dashed var(--grid); }
+
+header { height: 56px; display: flex; align-items: center; gap: 32px; padding: 0 28px; border-bottom: 1px solid var(--line); background: var(--bg); }
+.mk { display: flex; align-items: center; gap: 10px; font: 700 22px Barlow, system-ui, sans-serif; text-decoration: none; }
+.right { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+.sig { display: flex; align-items: center; gap: 8px; }
+.sig select { padding: 4px 8px; max-width: 180px; }
+.nav { text-decoration: none; color: var(--mid); padding: 17px 0; }
+.nav[aria-current="page"] { color: var(--tx); box-shadow: inset 0 -2px 0 var(--red); }
+.gear { display: flex; color: var(--dim); padding: 6px; }
+.gear[aria-current="page"] { color: var(--tx); }
+@media (max-width: 900px) {
+  .page { padding: 24px 16px 64px; }
+  h1 { font-size: 28px; }
+  header { padding: 0 16px; }
+  .mockcap { padding: 6px 16px; }
+  .sig .cap { display: none; }
+}
+@media (max-width: 480px) {
+  header { gap: 12px; }
+  .mk { font-size: 19px; gap: 8px; }
+  .right { gap: 8px; }
+  .nav { line-height: 1.15; padding: 10px 0; }
+  .sig select { max-width: 112px; padding: 4px 6px; }
+  .right > button.quiet { padding: 4px 4px; }
+  .gear { padding: 4px; }
+}
+
+form.lagg { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; margin: 28px 0 8px; }
+form.lagg label { display: flex; flex-direction: column; gap: 6px; flex: 1 1 260px; max-width: 420px; }
+.toggle { margin-top: 20px; }
+.toggle.on { border-color: var(--btn); color: var(--tx); }
+ul.pers, ol.historik { list-style: none; padding: 0; margin-top: 16px; border-top: 1px solid var(--line); max-width: 640px; }
+ul.pers > li, ol.historik > li { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.namn { font-weight: 600; min-width: 180px; }
+.namn a { text-decoration: none; }
+.last { flex: 1 1 180px; display: flex; flex-direction: column; gap: 6px; max-width: 260px; }
+.last .stilla { color: var(--redtx); }
+.strip { position: relative; height: 14px; margin: 0 4px; border-bottom: 1px solid var(--grid); }
+.strip .dot { position: absolute; top: 3px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; }
+.strip .dot.stilla { outline: 1px dashed var(--red); outline-offset: 2px; }
+.inaktiv .namn { color: var(--dim); }
+.actions { display: flex; gap: 4px; }
+h2 { font: 600 20px Barlow, system-ui, sans-serif; margin-top: 48px; }
+.historik li { font-size: 14px; }
+
+.historik .vem { color: var(--mid); }
+.historik strong { font-weight: 600; }
+.historik .förra { color: var(--mid); }
+.historik .vad.ovanlig { display: inline-block; font-weight: 500; font-size: 13px; line-height: 1.2; color: var(--tx); border: 1px solid var(--btn); border-radius: 2px; padding: 1px 6px; margin: 0 2px; }
+
+</style>
+</head>
+<body>
+<div class="mockcap">Mockup · personer-historik-allt-fetstilt</div>
+<header>
+  <a class="mk" href="/">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M11 1 L12.6 9.4 L21 11 L12.6 12.6 L11 21 L9.4 12.6 L1 11 L9.4 9.4Z" fill="var(--red)"/></svg>
+    Apogee
+  </a>
+  <div class="right">
+    <a class="nav" href="/person/9p2wfr02el-anna-lind">Mina Scopes</a>
+    <label class="sig"><span class="cap">Signatur</span>
+      <select aria-label="Byt signatur"><option>Anna Lind</option><option>Bo Ek</option><option>Cecilia Holm</option><option>David Berg</option><option>Elin Sjö</option><option>Fredrik Nordin</option><option>Hana Kim</option></select>
+    </label>
+    <button class="quiet tema" title="Dag">Dag</button>
+    <a class="gear" href="/installningar/personer" title="Inställningar" aria-label="Inställningar" aria-current="page">
+      <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="6.6"/><path d="M12 2.4v3M12 18.6v3M2.4 12h3M18.6 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M5.2 18.8l2.1-2.1M16.7 7.3l2.1-2.1"/></svg>
+    </a>
+  </div>
+</header>
+<main>
+<div class="page">
+  <div class="crumbs">Inställningar</div>
+  <h1>Personer</h1>
+  <div class="meta">7 Personer, 1 inaktiva</div>
+  <form class="lagg"><label><span class="cap">Lägg till en Person</span><input maxlength="200" placeholder="Namn"></label><button class="pr">Lägg till</button></form>
+  <button type="button" class="quiet toggle on" aria-pressed="true">Visa inaktiva (1)</button>
+  <ul class="pers"><li><span class="namn"><a href="/person/9p2wfr02el-anna-lind" title="Stjärnkarta för Anna Lind">Anna Lind</a> <span class="meta">Din signatur</span></span><span class="last"><span class="meta">2 Scopes i 1 Projekt</span><span class="strip" aria-hidden="true"><span class="dot" style="left:85%;background:#b5d0ff"></span><span class="dot" style="left:10%;background:#ff9159"></span></span></span><span class="actions"><button type="button" class="quiet">Byt namn</button> <button type="button" class="quiet">Ta bort</button></span></li><li><span class="namn"><a href="/person/ueucqihuk8-bo-ek" title="Stjärnkarta för Bo Ek">Bo Ek</a></span><span class="last"><span class="meta">3 Scopes i 3 Projekt</span><span class="strip" aria-hidden="true"><span class="dot" style="left:55%;background:#f5eed4"></span><span class="dot" style="left:20%;background:#ffa865"></span><span class="dot" style="left:5%;background:#ff8553"></span></span></span><span class="actions"><button type="button" class="quiet">Byt namn</button> <button type="button" class="quiet">Ta bort</button></span></li><li><span class="namn"><a href="/person/bseqb92evb-cecilia-holm" title="Stjärnkarta för Cecilia Holm">Cecilia Holm</a></span><span class="last"><span class="meta">2 Scopes i 2 Projekt· <span class="stilla">1 stilla</span></span><span class="strip" aria-hidden="true"><span class="dot" style="left:60%;background:#eceadf"></span><span class="dot stilla" style="left:30%;background:#ffbf7e"></span></span></span><span class="actions"><button type="button" class="quiet">Byt namn</button> <button type="button" class="quiet">Ta bort</button></span></li><li><span class="namn"><a href="/person/3poj2r8pqn-david-berg" title="Stjärnkarta för David Berg">David Berg</a></span><span class="last"><span class="meta">3 Scopes i 2 Projekt· <span class="stilla">1 stilla</span></span><span class="strip" aria-hidden="true"><span class="dot" style="left:70%;background:#d9e3f4"></span><span class="dot" style="left:50%;background:#fff1c9"></span><span class="dot stilla" style="left:40%;background:#ffd8a3"></span></span></span><span class="actions"><button type="button" class="quiet">Byt namn</button> <button type="button" class="quiet">Ta bort</button></span></li><li><span class="namn"><a href="/person/xcty1vvfxx-elin-sjo" title="Stjärnkarta för Elin Sjö">Elin Sjö</a></span><span class="last"><span class="meta">4 Scopes i 3 Projekt· <span class="stilla">1 stilla</span></span><span class="strip" aria-hidden="true"><span class="dot" style="left:100%;background:#8fb8ff"></span><span class="dot stilla" style="left:45%;background:#ffe5b6"></span><span class="dot" style="left:5%;background:#ff8553"></span><span class="dot" style="left:0%;background:#ff7a4d"></span></span></span><span class="actions"><button type="button" class="quiet">Byt namn</button> <button type="button" class="quiet">Ta bort</button></span></li><li><span class="namn"><a href="/person/bgft5aqu1s-fredrik-nordin" title="Stjärnkarta för Fredrik Nordin">Fredrik Nordin</a></span><span class="last"><span class="meta">2 Scopes i 2 Projekt</span><span class="strip" aria-hidden="true"><span class="dot" style="left:95%;background:#9cc0ff"></span><span class="dot" style="left:25%;background:#ffb36b"></span></span></span><span class="actions"><button type="button" class="quiet">Byt namn</button> <button type="button" class="quiet">Ta bort</button></span></li><li class="inaktiv"><span class="namn">Gustav Öst <span class="meta">(inaktiv)</span></span><span class="actions"><button type="button" class="quiet">Återaktivera</button></span></li><li><span class="namn"><a href="/person/b9o7yeuzi4-hana-kim" title="Stjärnkarta för Hana Kim">Hana Kim</a></span><span class="last"><span class="meta">3 Scopes i 3 Projekt</span><span class="strip" aria-hidden="true"><span class="dot" style="left:71%;background:#d7e3f6"></span><span class="dot" style="left:8%;background:#ff8c57"></span><span class="dot" style="left:0%;background:#ff7a4d"></span></span></span><span class="actions"><button type="button" class="quiet">Byt namn</button> <button type="button" class="quiet">Ta bort</button></span></li></ul>
+  <h2>Personer-historik</h2>
+  <ol class="historik"><li class="ovanlig"><span><span class="vem">David Berg</span> <span class="vad ovanlig">tog bort</span> <strong>Gustav Öst</strong> <span class="meta">· Scopes till David Berg</span></span> <time class="meta" datetime="2026-11-20T14:00">20 nov. 2026 15:00</time></li><li class="ovanlig"><span><span class="vem">Fredrik Nordin</span> <span class="vad ovanlig">bytte namn på</span> <span class="förra">Fredrik Nord</span> → <strong>Fredrik Nordin</strong></span> <time class="meta" datetime="2026-11-18T14:00">18 nov. 2026 15:00</time></li><li><span><span class="vem">Anna Lind</span> <span class="vad">lade till</span> <strong>Hana Kim</strong></span> <time class="meta" datetime="2026-09-17T14:00">17 sep. 2026 16:00</time></li><li><span><span class="vem">Anna Lind</span> <span class="vad">lade till</span> <strong>Gustav Öst</strong></span> <time class="meta" datetime="2026-09-17T14:00">17 sep. 2026 16:00</time></li><li><span><span class="vem">Anna Lind</span> <span class="vad">lade till</span> <strong>Fredrik Nord</strong></span> <time class="meta" datetime="2026-09-17T14:00">17 sep. 2026 16:00</time></li><li><span><span class="vem">Anna Lind</span> <span class="vad">lade till</span> <strong>Elin Sjö</strong></span> <time class="meta" datetime="2026-09-17T14:00">17 sep. 2026 16:00</time></li><li><span><span class="vem">Anna Lind</span> <span class="vad">lade till</span> <strong>David Berg</strong></span> <time class="meta" datetime="2026-09-17T14:00">17 sep. 2026 16:00</time></li><li><span><span class="vem">Anna Lind</span> <span class="vad">lade till</span> <strong>Cecilia Holm</strong></span> <time class="meta" datetime="2026-09-17T14:00">17 sep. 2026 16:00</time></li><li><span><span class="vem">Anna Lind</span> <span class="vad">lade till</span> <strong>Bo Ek</strong></span> <time class="meta" datetime="2026-09-17T14:00">17 sep. 2026 16:00</time></li><li><span><span class="vem">Någon utan namn</span> <span class="vad">lade till</span> <strong>Anna Lind</strong></span> <time class="meta" datetime="2026-09-17T14:00">17 sep. 2026 16:00</time></li></ol>
+</div>
+</main>
+</body>
+</html>

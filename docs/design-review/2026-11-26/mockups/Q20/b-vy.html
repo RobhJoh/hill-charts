@@ -1,0 +1,57 @@
+<!doctype html><html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Q20 b Bara nedräkning</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#ffffff}
+body{font:400 15px/1.45 Barlow,system-ui,sans-serif;color:#37352f;font-variant-numeric:tabular-nums;overflow-x:hidden}
+.cap{font:500 12px/1.3 Barlow,system-ui,sans-serif;letter-spacing:.02em;color:#787774;padding:10px 16px;border-bottom:1px solid #ededec;background:#fbfbfa}
+.sida{max-width:1000px;margin:0 auto;padding:40px 32px 64px}
+.ntitel{font:700 34px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;color:#37352f;margin-bottom:6px}
+.nmeta{font:400 15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#787774;margin-bottom:24px;max-width:70ch}
+.ntext{font:400 16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#37352f;margin:22px 0 0;max-width:70ch}
+.ram{display:flex;flex-direction:column;gap:6px}
+.lbl{font:500 12px Barlow,system-ui,sans-serif;color:#8a8986}
+
+.ap{--bg:#ffffff;--panel:#f6f8fc;--line:#d3dbea;--grid:#e6ebf4;--tx:#0f1a3a;--mid:#4a5878;--dim:#5d6a88;--orbit:#8a9ac0;--red:#c44a1c;--redtx:#b8381f;--sel:#e6ecf8;--halo:#fff;
+  position:relative;display:flex;flex-direction:column;flex:none;background:var(--bg);color:var(--tx);font:400 14px/1.35 Barlow,system-ui,sans-serif;overflow:hidden;outline:1px solid rgba(55,53,47,.16);border-radius:3px}
+.ap header{display:flex;align-items:center;gap:14px;padding:9px 14px;border-bottom:1px solid var(--line);flex:none;position:relative}
+.ap .namn{flex:1;min-width:0}
+.ap .t{font:600 16px Barlow,system-ui,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ap .m{font-size:13px;color:var(--dim)}
+.ap .cd{display:inline-flex;flex-direction:column;gap:4px;min-width:150px;font-size:14px;color:var(--mid)}
+.ap .bar{display:block;height:4px;background:var(--grid)}
+.ap .fill{display:block;height:100%;background:var(--mid)}
+.ap .vem{display:flex;padding:5px;color:var(--dim)}
+.ap .öppna{display:inline-flex;align-items:center;gap:6px;font:600 13px Barlow,system-ui,sans-serif;color:var(--mid);white-space:nowrap;text-decoration:none}
+.ap .kropp{display:flex;flex:1;min-height:0}
+.ap .himmel{flex:1;min-width:0;position:relative}
+.ap .hill{display:block}
+.ap .hill .sn{font:600 13px Barlow,system-ui,sans-serif;fill:var(--tx);paint-order:stroke;stroke:var(--halo);stroke-width:4px;stroke-linejoin:round}
+.ap .hill .sm{font-weight:500;fill:var(--mid)}
+.ap .hill .ax{font:500 12px Barlow,system-ui,sans-serif;fill:var(--dim);letter-spacing:.01em}
+.ap .lista{width:230px;flex:none;list-style:none;margin:0;padding:4px 0;border-left:1px solid var(--line);background:var(--panel);overflow:hidden;font-size:13px}
+.ap .lista .rad{display:grid;grid-template-columns:7px minmax(0,1fr) auto 26px;align-items:center;gap:8px;padding:5px 12px;font:400 13px/1.2 Barlow,system-ui,sans-serif;color:var(--tx)}
+.ap .prick{width:7px;height:7px;border-radius:50%}
+.ap .sn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ap .äg{color:var(--dim);white-space:nowrap;max-width:70px;overflow:hidden;text-overflow:ellipsis}
+.ap .l{font-weight:700;text-align:right}
+
+.sida{max-width:880px}
+.mitt{display:flex;flex-direction:column;align-items:center;gap:6px;margin:8px 0}
+.w400{width:400px;height:320px}
+.ap header.ett{gap:10px;padding:0 12px}
+.ap .rad1{flex:1;min-width:0;display:flex;align-items:baseline;gap:0;white-space:nowrap;overflow:hidden}
+.ap .rad1 .t{font-size:15px;flex:0 1 auto;min-width:0}
+.ap .rad1 .nd{font-size:13px;color:var(--dim);flex:none}
+.ap .rad1 .nd.ensam{font-size:13px;color:var(--mid);font-weight:500}
+.ap .vem{padding:3px}
+.ap .hår{position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--grid)}
+.ap .hår span{display:block;height:100%;background:var(--mid)}
+.ap .himmel svg{width:100%;height:100%}
+@media (max-width:460px){
+ .sida{padding:24px 0 48px}
+ .sida>.ntitel,.sida>.nmeta,.sida>.ntext{padding:0 16px}
+ .mitt .lbl{padding:0 16px;align-self:flex-start}
+ .w400{width:100%;height:auto;border-radius:0}
+ .w400 .kropp{flex:none}
+ .w400 .himmel svg{height:auto}
+}
+</style></head><body><div class="cap">Mockup · Q20 b: Bara nedräkning</div><main class="sida"><h1 class="ntitel">Statusmöte · Ny inloggning</h1><p class="nmeta">Huvudet visar bara nedräkningen, utan stapel. Projektets namn står redan i Notion-sidans rubrik. Huvudet blir 24 px och kullen får 296 px.</p><div class="mitt"><span class="lbl">Smal embed · 400 × 320 · huvud 24 px, kulle 296 px</span><div class="ap w400"><header class="ett" style="height:24px"><div class="rad1"><span class="nd ensam">4 dagar kvar av 8 veckor</span></div><span class="vem"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.5 14c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5"/></svg></span><a class="öppna" href="#" style="font-size:12px"><svg width="11" height="11" viewBox="0 0 22 22" aria-hidden="true"><path d="M11 1 L12.6 9.4 L21 11 L12.6 12.6 L11 21 L9.4 12.6 L1 11 L9.4 9.4Z" fill="var(--red)"/></svg> Öppna ↗</a></header><div class="kropp"><div class="himmel"><svg class="hill" width="400" height="296" viewBox="0 0 400 296" role="img" aria-label="Hill chart för Ny inloggning"><line x1="18" y1="274" x2="382" y2="274" stroke="var(--line)"/><line x1="200" y1="24" x2="200" y2="274" stroke="var(--grid)" stroke-dasharray="2 3"/><path d="M18.0,274.0 L19.8,273.9 L21.6,273.8 L23.5,273.4 L25.3,273.0 L27.1,272.5 L28.9,271.8 L30.7,271.0 L32.6,270.1 L34.4,269.0 L36.2,267.9 L38.0,266.6 L39.8,265.2 L41.7,263.7 L43.5,262.1 L45.3,260.4 L47.1,258.5 L48.9,256.6 L50.8,254.5 L52.6,252.4 L54.4,250.1 L56.2,247.8 L58.0,245.3 L59.9,242.8 L61.7,240.1 L63.5,237.4 L65.3,234.6 L67.1,231.7 L69.0,228.7 L70.8,225.6 L72.6,222.5 L74.4,219.3 L76.2,216.0 L78.1,212.6 L79.9,209.2 L81.7,205.7 L83.5,202.2 L85.3,198.6 L87.2,195.0 L89.0,191.3 L90.8,187.6 L92.6,183.9 L94.4,180.1 L96.3,176.3 L98.1,172.4 L99.9,168.6 L101.7,164.7 L103.5,160.8 L105.4,156.8 L107.2,152.9 L109.0,149.0 L110.8,145.1 L112.6,141.2 L114.5,137.2 L116.3,133.3 L118.1,129.4 L119.9,125.6 L121.7,121.7 L123.6,117.9 L125.4,114.1 L127.2,110.4 L129.0,106.7 L130.8,103.0 L132.7,99.4 L134.5,95.8 L136.3,92.3 L138.1,88.8 L139.9,85.4 L141.8,82.0 L143.6,78.7 L145.4,75.5 L147.2,72.4 L149.0,69.3 L150.9,66.3 L152.7,63.4 L154.5,60.6 L156.3,57.9 L158.1,55.2 L160.0,52.7 L161.8,50.2 L163.6,47.9 L165.4,45.6 L167.2,43.5 L169.1,41.4 L170.9,39.5 L172.7,37.6 L174.5,35.9 L176.3,34.3 L178.2,32.8 L180.0,31.4 L181.8,30.1 L183.6,29.0 L185.4,27.9 L187.3,27.0 L189.1,26.2 L190.9,25.5 L192.7,25.0 L194.5,24.6 L196.4,24.2 L198.2,24.1 L200.0,24.0 L201.8,24.1 L203.6,24.2 L205.5,24.6 L207.3,25.0 L209.1,25.5 L210.9,26.2 L212.7,27.0 L214.6,27.9 L216.4,29.0 L218.2,30.1 L220.0,31.4 L221.8,32.8 L223.7,34.3 L225.5,35.9 L227.3,37.6 L229.1,39.5 L230.9,41.4 L232.8,43.5 L234.6,45.6 L236.4,47.9 L238.2,50.2 L240.0,52.7 L241.9,55.2 L243.7,57.9 L245.5,60.6 L247.3,63.4 L249.1,66.3 L251.0,69.3 L252.8,72.4 L254.6,75.5 L256.4,78.7 L258.2,82.0 L260.1,85.4 L261.9,88.8 L263.7,92.3 L265.5,95.8 L267.3,99.4 L269.2,103.0 L271.0,106.7 L272.8,110.4 L274.6,114.1 L276.4,117.9 L278.3,121.7 L280.1,125.6 L281.9,129.4 L283.7,133.3 L285.5,137.2 L287.4,141.2 L289.2,145.1 L291.0,149.0 L292.8,152.9 L294.6,156.8 L296.5,160.8 L298.3,164.7 L300.1,168.6 L301.9,172.4 L303.7,176.3 L305.6,180.1 L307.4,183.9 L309.2,187.6 L311.0,191.3 L312.8,195.0 L314.7,198.6 L316.5,202.2 L318.3,205.7 L320.1,209.2 L321.9,212.6 L323.8,216.0 L325.6,219.3 L327.4,222.5 L329.2,225.6 L331.0,228.7 L332.9,231.7 L334.7,234.6 L336.5,237.4 L338.3,240.1 L340.1,242.8 L342.0,245.3 L343.8,247.8 L345.6,250.1 L347.4,252.4 L349.2,254.5 L351.1,256.6 L352.9,258.5 L354.7,260.4 L356.5,262.1 L358.3,263.7 L360.2,265.2 L362.0,266.6 L363.8,267.9 L365.6,269.0 L367.4,270.1 L369.3,271.0 L371.1,271.8 L372.9,272.5 L374.7,273.0 L376.5,273.4 L378.4,273.8 L380.2,273.9 L382.0,274.0" fill="none" stroke="var(--orbit)" stroke-width="1.3"/><g><circle cx="327.4" cy="222.5" r="9.4" fill="#4976cf" opacity=".13"/><circle cx="327.4" cy="222.5" r="3.9" fill="#4976cf"/><text class="sn" x="313.4" y="212.5" text-anchor="end">BankID-flöde <tspan class="sm">85</tspan></text></g><g><circle cx="276.4" cy="117.9" r="14.2" fill="#6c8ab8" opacity=".13"/><circle cx="276.4" cy="117.9" r="5.9" fill="#6c8ab8"/><text class="sn" x="264.4" y="143.9" text-anchor="end">Tillgänglighetsgranskning <tspan class="sm">71</tspan></text></g><g><circle cx="218.2" cy="30.1" r="9.4" fill="#b39c40" opacity=".13"/><circle cx="218.2" cy="30.1" r="3.9" fill="#b39c40"/><text class="sn" x="204.2" y="20.1" text-anchor="end">Lösenordsåterställning <tspan class="sm">55</tspan></text></g><g><circle cx="127.2" cy="110.4" r="9.4" fill="#db8f1d" opacity=".13"/><circle cx="127.2" cy="110.4" r="3.9" fill="#db8f1d"/><circle cx="127.2" cy="110.4" r="10" fill="none" stroke="var(--red)" stroke-width="1.1" stroke-dasharray="3 3"/><text class="sn" x="141.2" y="100.4" text-anchor="start">Sessionshantering <tspan class="sm">30</tspan></text></g><g><circle cx="54.4" cy="250.1" r="9.4" fill="#dc621f" opacity=".13"/><circle cx="54.4" cy="250.1" r="3.9" fill="#dc621f"/><text class="sn" x="68.4" y="240.1" text-anchor="start">Felmeddelanden <tspan class="sm">10</tspan></text></g></svg></div></div></div></div><p class="ntext">Sessionshantering har stått still i 26 dagar. Vi tar den först på mötet.</p></main></body></html>

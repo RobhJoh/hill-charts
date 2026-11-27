@@ -1,0 +1,178 @@
+/* Stjärnatlas tokens (see the prototype/stjarnatlas branch): `natt` is the
+   default, `dag` overrides it under [data-theme="dag"] (set by tema.svelte.ts).
+   Red only for selection, stuck and the primary action. Scope colours come
+   from the Läge ramp in lib/hill.ts, never from here. */
+:root {
+  --bg: #081026;
+  --panel: #0a1430;
+  --chart: #0b1530;
+  --line: #1f3160;
+  --grid: #18284f;
+  --tx: #eef0f5;
+  --mid: #aab6d4;
+  --dim: #8f9cbd;
+  --orbit: #7f92c2;
+  --red: #e0503a;
+  --redtx: #ff7a66;
+  --sel: #13224a;
+  --star: #dfe6f5;
+  --btn: #3a4d80;
+  --halo: #0d1836;
+  --chart-ground: radial-gradient(ellipse at 50% 60%, #11204a 0%, var(--chart) 55%, var(--bg) 100%);
+  color-scheme: dark;
+}
+
+:root[data-theme="dag"] {
+  --bg: #eef2f9;
+  --panel: #f6f8fc;
+  --chart: #ffffff;
+  --line: #d3dbea;
+  --grid: #e6ebf4;
+  --tx: #0f1a3a;
+  --mid: #4a5878;
+  --dim: #5d6a88;
+  --orbit: #8a9ac0;
+  --red: #c8402b;
+  --redtx: #b8381f;
+  --sel: #e6ecf8;
+  --star: #9aa8c7;
+  --btn: #b9c4dc;
+  --halo: #ffffff;
+  --chart-ground: var(--chart);
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+html,
+body {
+  min-height: 100%;
+}
+body {
+  background: var(--bg);
+  color: var(--tx);
+  font: 400 15px/1.4 Barlow, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+::selection {
+  background: var(--red);
+  color: #fff;
+}
+a {
+  color: inherit;
+}
+button,
+input,
+select {
+  font: 500 14px Barlow, system-ui, sans-serif;
+  color: var(--tx);
+}
+button {
+  background: none;
+  border: 1px solid var(--btn);
+  padding: 8px 14px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+button:hover {
+  border-color: var(--mid);
+}
+button.pr {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+button.quiet {
+  border-color: transparent;
+  color: var(--dim);
+  padding: 4px 8px;
+}
+button.quiet:hover {
+  color: var(--tx);
+  border-color: var(--line);
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+input,
+select {
+  background: var(--panel);
+  border: 1px solid var(--btn);
+  border-radius: 2px;
+  padding: 8px 10px;
+}
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--mid);
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+h1 {
+  font: 600 36px/1.1 Barlow, system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+.meta {
+  font-size: 14px;
+  color: var(--dim);
+}
+.cap {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--dim);
+}
+.page {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 36px 28px 80px;
+}
+.crumbs {
+  font-size: 14px;
+  color: var(--dim);
+  margin-bottom: 6px;
+}
+.crumbs a {
+  text-decoration: none;
+}
+.crumbs a:hover {
+  color: var(--tx);
+}
+.titlerow {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.pagehead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.empty {
+  margin-top: 32px;
+  color: var(--dim);
+}
+.error {
+  color: var(--redtx);
+  font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .page {
+    padding: 24px 16px 64px;
+  }
+  h1 {
+    font-size: 28px;
+  }
+}

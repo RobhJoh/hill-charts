@@ -14,6 +14,27 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
+## Status while implementing a spec
+
+When implementing a spec's tickets on an integration branch:
+
+- **Work starts**: `gh issue edit <n> --add-assignee @me`; board Status → **In progress** (the spec issue too, when its first ticket starts).
+- **Implementer reports done, merge pending**: board Status → **In review**.
+- **Merged into the integration branch**: `gh issue comment <n> --body "Merged into \`<integration-branch>\` at <commit>."`, then `gh issue close <n>`. Don't wait for the integration branch to reach `main`; closing unblocks dependent tickets. The board moves closed issues to **Done**.
+- **Newly unblocked** (every blocker closed) but not yet started: board Status → **Ready**. Blocked tickets stay in **Backlog**.
+
+### Project board
+
+Tickets are tracked on the GitHub Project **Apogee v.1.0.0** (user project 1, owner `RobhJoh`); `gh` needs the `project` scope (`gh auth refresh -s project`). Status options: Backlog, Ready, In progress, In review, Done. Look up ids rather than hard-coding them:
+
+```sh
+gh project field-list 1 --owner RobhJoh --format json --jq '.fields[] | select(.name=="Status")'   # field id + option ids
+gh project item-list 1 --owner RobhJoh --limit 200 --format json --jq '.items[] | select(.content.number==<n>) | .id'   # item id
+gh project item-edit --project-id <project-id> --id <item-id> --field-id <status-field-id> --single-select-option-id <option-id>
+```
+
+The project id comes from `gh project list --owner RobhJoh --format json`.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_

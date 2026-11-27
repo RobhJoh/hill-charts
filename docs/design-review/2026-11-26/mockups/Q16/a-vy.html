@@ -1,0 +1,129 @@
+<!doctype html><html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Q16 a</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap"><style>
+:root{--bg:#081026;--panel:#0a1430;--chart:#0b1530;--line:#1f3160;--grid:#18284f;--tx:#eef0f5;--mid:#aab6d4;--dim:#8f9cbd;--orbit:#7f92c2;--red:#f0602e;--redtx:#ff8a5c;--onred:#081026;--sel:#13224a;--star:#dfe6f5;--btn:#3a4d80;--halo:#0d1836;color-scheme:dark}
+*{box-sizing:border-box;margin:0}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--tx);font:400 15px/1.4 Barlow,system-ui,sans-serif;font-variant-numeric:tabular-nums;overflow-x:hidden}
+a{color:inherit}
+button,select{font:500 14px Barlow,system-ui,sans-serif;color:var(--tx)}
+button{background:none;border:1px solid var(--btn);padding:8px 14px;border-radius:2px;cursor:pointer}
+button:hover{border-color:var(--mid)}
+button.pr{background:var(--red);border-color:var(--red);color:var(--onred);font-weight:600}
+button.quiet{border-color:transparent;color:var(--dim);padding:4px 8px}
+button.quiet:hover{color:var(--tx);border-color:var(--line)}
+select{background:var(--panel);border:1px solid var(--btn);border-radius:2px;padding:4px 8px;max-width:180px}
+h1{font:600 36px/1.1 Barlow,system-ui,sans-serif;letter-spacing:-.01em}
+.meta{font-size:14px;color:var(--dim)}
+.cap{font-weight:600;font-size:13px;color:var(--dim)}
+.page{max-width:1240px;margin:0 auto;padding:36px 28px 80px}
+.crumbs{font-size:14px;color:var(--dim);margin-bottom:6px}
+.crumbs a{text-decoration:none}
+.titlerow{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.pagehead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.stilla{color:var(--redtx);font-style:normal}
+.mockcap{font:500 11px/1.3 Barlow,system-ui,sans-serif;letter-spacing:.04em;color:var(--dim);opacity:.75;padding:5px 28px;background:var(--panel);border-bottom:1px solid var(--grid)}
+header{height:56px;display:flex;align-items:center;gap:32px;padding:0 28px;border-bottom:1px solid var(--line);background:var(--bg)}
+.mk{display:flex;align-items:center;gap:10px;font:700 22px Barlow,system-ui,sans-serif;text-decoration:none}
+.right{margin-left:auto;display:flex;align-items:center;gap:18px;min-width:0}
+.sig{display:flex;align-items:center;gap:8px}
+.nav{text-decoration:none;color:var(--mid);padding:17px 0;white-space:nowrap}
+.gear{display:flex;color:var(--dim);padding:6px}
+/* Nedrakning */
+.ned{display:flex;align-items:center;flex-wrap:wrap;gap:6px 18px;font-size:14px;color:var(--mid)}
+.ned.liten{font-size:13px;gap:2px 10px;color:var(--dim)}
+.ned .cd{display:inline-flex;flex-direction:column;gap:4px;min-width:150px}
+.ned.liten .cd{min-width:0}
+.ned .over{color:var(--redtx);font-weight:600}
+.ned .bar{display:block;height:4px;background:var(--grid)}
+.ned.liten .bar{height:3px}
+.ned .fill{display:block;height:100%;background:var(--mid)}
+.ned .fill.over{background:var(--red)}
+.ned .ms{white-space:nowrap}
+/* ProjektCells */
+.cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));border-left:1px solid var(--line)}
+.cells.stor{grid-template-columns:repeat(auto-fill,minmax(310px,1fr))}
+.cell{display:block;padding:14px 16px 12px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);text-decoration:none;color:var(--tx)}
+.cell svg{display:block;max-width:100%;height:auto}
+.cell:hover{background:var(--sel)}
+.cell.avslutat{opacity:.55}
+.cell b{display:block;font-weight:600}
+.cell .meta{display:block;font-size:13px}
+/* Start sections */
+.start section{margin-top:40px}
+.start h2{font:600 18px Barlow,system-ui,sans-serif;display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:6px}
+.start h2 a{text-decoration:none}
+.start h2 span{font:400 14px Barlow,system-ui,sans-serif;color:var(--dim)}
+.start .fcd{margin:4px 0 10px}
+/* Funktionsomrade */
+.fo section.celler{margin-top:32px}
+.fo .tid{margin-top:14px}
+.tidsplan{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px;margin-top:10px;font-size:14px}
+.tidsplan .dim{color:var(--dim)}
+.borttagna{margin-top:56px}
+.borttagna h2{font:600 15px Barlow,system-ui,sans-serif;color:var(--dim);border-bottom:1px solid var(--line);padding-bottom:8px}
+.borttagna ul{list-style:none;padding:0}
+.borttagna li{border-bottom:1px solid var(--line);padding:10px 0}
+.borttagna .rad{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.borttagna .namn{display:block;font-weight:600}
+.borttagna .meta{font-size:13px}
+.borttagna .knappar{display:flex;gap:8px}
+@media (max-width:900px){
+ .page{padding:24px 16px 64px}
+ h1{font-size:28px}
+ header{padding:0 16px;gap:12px}
+ .mockcap{padding:5px 16px}
+ .sig .cap{display:none}
+ .right{gap:10px}
+ .sig select{max-width:116px}
+}
+@media (max-width:480px){
+ .mk{font-size:20px;gap:8px}
+ .right{gap:6px}
+ .nav{white-space:normal;line-height:1.15;padding:0;font-size:14px;max-width:56px}
+ .sig select{max-width:104px}
+ header button.quiet{padding:4px 6px}
+ .gear{padding:4px}
+}
+
+.mer{position:relative;align-self:center}
+.mer summary{list-style:none;cursor:pointer;color:var(--dim);font:500 14px Barlow,system-ui,sans-serif;padding:4px 8px;border:1px solid transparent;border-radius:2px;display:inline-flex;align-items:center;gap:6px}
+.mer summary::-webkit-details-marker{display:none}
+.mer summary:hover,.mer[open] summary{color:var(--tx);border-color:var(--line)}
+.mer summary svg{transition:transform .15s}
+.mer[open] summary svg{transform:rotate(180deg)}
+.meny{position:absolute;top:calc(100% + 6px);left:0;z-index:3;min-width:200px;background:var(--panel);border:1px solid var(--line);border-radius:2px;padding:6px 0;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.meny button{display:block;width:100%;text-align:left;border:none;border-radius:0;padding:8px 16px;color:var(--mid);font-weight:500}
+.meny button:hover{background:var(--sel);color:var(--tx)}
+.meny hr{border:none;border-top:1px solid var(--line);margin:6px 0}
+
+.titlerow button.quiet{align-self:center}
+.hd-tel{display:none}
+.tel-meny{position:relative}
+.ini{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 10px 0 4px;border:1px solid var(--btn);border-radius:17px;background:var(--panel);color:var(--tx);font:600 13px Barlow,system-ui,sans-serif;cursor:pointer}
+.ini .bub{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--sel);border:1px solid var(--line);font:700 12px/1 Barlow,system-ui,sans-serif;letter-spacing:.02em}
+.ini[aria-expanded="true"]{border-color:var(--mid)}
+.ini[aria-expanded="true"] svg{transform:rotate(180deg)}
+.anv{position:absolute;top:calc(100% + 8px);right:-44px;z-index:5;width:250px;background:var(--panel);border:1px solid var(--line);border-radius:2px;padding:6px 0;box-shadow:0 12px 32px rgba(0,0,0,.5)}
+.anv .vem{padding:8px 16px 10px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.anv .vem small{display:block;font:600 12px Barlow,system-ui,sans-serif;color:var(--dim)}
+.anv .vem b{font:600 15px Barlow,system-ui,sans-serif}
+.anv a,.anv .tema{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;color:var(--mid);text-decoration:none;font:500 15px Barlow,system-ui,sans-serif}
+.anv a:hover{background:var(--sel);color:var(--tx)}
+.anv hr{border:none;border-top:1px solid var(--line);margin:6px 0}
+.seg{display:inline-flex;border:1px solid var(--btn);border-radius:2px;overflow:hidden}
+.seg span{padding:4px 12px;font:500 13px Barlow,system-ui,sans-serif;color:var(--dim)}
+.seg span.på{background:var(--sel);color:var(--tx)}
+@media (max-width:480px){
+ .hd{display:none}
+ .hd-tel{display:flex;height:56px;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg)}
+ .hd-tel .mk{font-size:20px;gap:8px}
+ .hd-tel .höger{margin-left:auto;display:flex;align-items:center;gap:8px}
+ .hd-tel .gear{padding:6px}
+ .hd-tel.två{flex-direction:column;align-items:stretch;height:auto;padding:0}
+ .hd-tel.två .r1{display:flex;align-items:center;height:52px;padding:0 16px}
+ .hd-tel.två .r2{display:flex;align-items:center;gap:10px;height:40px;padding:0 16px;border-top:1px solid var(--grid);font-size:14px}
+ .r2 .namnknapp{display:inline-flex;align-items:center;gap:6px;color:var(--tx);font:600 14px Barlow,system-ui,sans-serif;background:none;border:none;padding:0}
+ .r2 .namnknapp small{font:600 12px Barlow,system-ui,sans-serif;color:var(--dim);margin-right:2px}
+ .r2 .pkt{color:var(--dim)}
+ .r2 a{color:var(--mid);text-decoration:none}
+}
+</style></head><body><div class="mockcap">Mockup · Q16 a: Initialer som meny (telefon: menyn visas öppen)</div><header class="hd"><a class="mk" href="#"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M11 1 L12.6 9.4 L21 11 L12.6 12.6 L11 21 L9.4 12.6 L1 11 L9.4 9.4Z" fill="var(--red)"/></svg>Apogee</a><div class="right"><a class="nav" href="#">Mina Scopes</a><label class="sig"><span class="cap">Signatur</span><select aria-label="Byt signatur"><option>Anna Lind</option></select></label><button class="quiet">Dag</button><a class="gear" href="#" aria-label="Inställningar"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="6.6"/><path d="M12 2.4v3M12 18.6v3M2.4 12h3M18.6 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M5.2 18.8l2.1-2.1M16.7 7.3l2.1-2.1"/></svg></a></div></header><header class="hd-tel"><a class="mk" href="#"><svg width="20" height="20" viewBox="0 0 22 22" aria-hidden="true"><path d="M11 1 L12.6 9.4 L21 11 L12.6 12.6 L11 21 L9.4 12.6 L1 11 L9.4 9.4Z" fill="var(--red)"/></svg>Apogee</a><div class="höger"><div class="tel-meny"><button class="ini" aria-haspopup="menu" aria-expanded="true" aria-label="Anna Lind, öppna meny"><span class="bub">AL</span><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button><div class="anv" role="menu"><div class="vem"><small>Signatur</small><b>Anna Lind</b></div><a href="#" role="menuitem">Mina Scopes</a><a href="#" role="menuitem">Byt Signatur</a><hr><div class="tema"><span>Tema</span><span class="seg"><span class="på">Natt</span><span>Dag</span></span></div></div></div><a class="gear" href="#" aria-label="Inställningar"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="6.6"/><path d="M12 2.4v3M12 18.6v3M2.4 12h3M18.6 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M5.2 18.8l2.1-2.1M16.7 7.3l2.1-2.1"/></svg></a></div></header><main><div class="page fo"><div class="crumbs"><a href="#">Alla Funktionsområden</a></div><div class="pagehead"><div><div class="titlerow"><h1>Plattform</h1><button class="quiet">Byt namn</button><button class="quiet">Kopiera länk</button><button class="quiet">Ta bort</button></div><div class="meta">3 Projekt · <span class="stilla">1 stilla</span></div><div class="tid"><span class="ned"><span class="cd"><span class="text">22 dagar kvar av 108 dagar</span><span class="bar" aria-hidden="true"><span class="fill" style="width:80%"></span></span></span></span><div class="tidsplan"><span>1 sep. 2026 – 18 dec. 2026 <span class="dim">· Appetit 108 dagar</span></span><span><button class="quiet">Ändra datum</button><button class="quiet">Ny Milstolpe</button></span></div></div></div><button class="pr">Nytt Projekt</button></div><section class="celler"><div class="cells stor"><a class="cell" href="#"><svg width="270" height="75" viewBox="0 0 270 75" aria-hidden="true"><path d="M6.0,63.0 L16.3,62.2 L26.6,60.0 L37.0,56.5 L47.3,51.9 L57.6,46.4 L67.9,40.5 L78.2,34.5 L88.6,28.8 L98.9,23.7 L109.2,19.6 L119.5,16.7 L129.8,15.2 L140.2,15.2 L150.5,16.7 L160.8,19.6 L171.1,23.7 L181.4,28.8 L191.8,34.5 L202.1,40.5 L212.4,46.4 L222.7,51.9 L233.0,56.5 L243.4,60.0 L253.7,62.2 L264.0,63.0" fill="none" stroke="var(--orbit)" stroke-width=".8" opacity=".7"/><circle cx="264.0" cy="63.0" r="3.9" fill="#8fb8ff"/><circle cx="251.1" cy="61.8" r="3.9" fill="#9cc0ff"/><circle cx="186.6" cy="31.6" r="3.9" fill="#d9e3f4"/><circle cx="109.2" cy="19.6" r="6.0" fill="none" stroke="var(--red)" stroke-width=".8" stroke-dasharray="2 1.5"/><circle cx="109.2" cy="19.6" r="2.7" fill="#ffd8a3"/></svg><b>Betalningar v2</b><span class="meta">4 Scopes · <span class="stilla">1 stilla</span></span><span class="ned liten"><span class="cd"><span class="text over">Över tid · 11 dagar</span><span class="bar" aria-hidden="true"><span class="fill over" style="width:100%"></span></span></span></span></a><a class="cell avslutat" href="#"><svg width="270" height="75" viewBox="0 0 270 75" aria-hidden="true"><path d="M6.0,63.0 L16.3,62.2 L26.6,60.0 L37.0,56.5 L47.3,51.9 L57.6,46.4 L67.9,40.5 L78.2,34.5 L88.6,28.8 L98.9,23.7 L109.2,19.6 L119.5,16.7 L129.8,15.2 L140.2,15.2 L150.5,16.7 L160.8,19.6 L171.1,23.7 L181.4,28.8 L191.8,34.5 L202.1,40.5 L212.4,46.4 L222.7,51.9 L233.0,56.5 L243.4,60.0 L253.7,62.2 L264.0,63.0" fill="none" stroke="var(--orbit)" stroke-width=".8" opacity=".7"/><circle cx="186.6" cy="31.6" r="3.9" fill="#d9e3f4"/><circle cx="96.3" cy="24.9" r="3.9" fill="#ffcc91"/></svg><b>Gammal API-gateway</b><span class="meta">Avslutat · 2 Scopes</span></a><a class="cell" href="#"><svg width="270" height="75" viewBox="0 0 270 75" aria-hidden="true"><path d="M6.0,63.0 L16.3,62.2 L26.6,60.0 L37.0,56.5 L47.3,51.9 L57.6,46.4 L67.9,40.5 L78.2,34.5 L88.6,28.8 L98.9,23.7 L109.2,19.6 L119.5,16.7 L129.8,15.2 L140.2,15.2 L150.5,16.7 L160.8,19.6 L171.1,23.7 L181.4,28.8 L191.8,34.5 L202.1,40.5 L212.4,46.4 L222.7,51.9 L233.0,56.5 L243.4,60.0 L253.7,62.2 L264.0,63.0" fill="none" stroke="var(--orbit)" stroke-width=".8" opacity=".7"/><circle cx="135.0" cy="15.0" r="3.9" fill="#fff1c9"/><circle cx="70.5" cy="39.0" r="3.9" fill="#ffb36b"/><circle cx="18.9" cy="61.8" r="3.9" fill="#ff8553"/></svg><b>Loggning och övervakning</b><span class="meta">3 Scopes</span></a></div></section><section class="borttagna"><h2>Borttagna Projekt</h2><ul><li><div class="rad"><div><span class="namn">Testprojekt</span><span class="meta">Borttagen av Bo Ek · 21 nov. 2026 15:00</span></div><div class="knappar"><button class="quiet">Återställ</button><button class="quiet">Radera</button></div></div></li></ul></section></div></main></body></html>

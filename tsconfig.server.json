@@ -1,0 +1,12 @@
+{
+  // Compiles the Node side (core, storage adapters, server) to dist/node.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist/node",
+    "lib": ["ES2023"]
+  },
+  "include": ["src/core/**/*.ts", "src/storage/**/*.ts", "src/server/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.contract.ts"]
+}

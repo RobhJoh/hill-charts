@@ -8,6 +8,7 @@
   import { signatur } from "../lib/signatur.svelte.js";
   import { funktionsområdeHref, projektHref } from "../lib/links.js";
   import StillaAntal from "../components/StillaAntal.svelte";
+  import NotionStatus from "../components/NotionStatus.svelte";
   import { samladStatus } from "../lib/stilla.js";
   import { STATUS_ORD } from "../lib/avslutat.js";
   import { visaTid } from "../lib/historik.js";
@@ -112,7 +113,7 @@
         <h2>
           <a href={funktionsområdeHref(fo)}>{fo.namn}<span class="pil" aria-hidden="true">›</span></a>
           <span
-            >{STATUS_ORD[fo.status]} · {fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}</span
+            >{STATUS_ORD[fo.status]}<NotionStatus status={fo.notionStatus} före=" · " /> · {fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}</span
           >
         </h2>
         {#if fo.nedräkning || fo.nästaMilstolpe}

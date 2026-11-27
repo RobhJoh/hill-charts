@@ -17,6 +17,7 @@
   import { funktionsområdeHref } from "../lib/links.js";
   import { router } from "../lib/router.svelte.js";
   import StillaAntal from "../components/StillaAntal.svelte";
+  import NotionStatus from "../components/NotionStatus.svelte";
   import Saknas from "./Saknas.svelte";
 
   let { id }: { id: string } = $props();
@@ -118,7 +119,7 @@
             </div>
           {/if}
           <div class="meta">
-            {STATUS_ORD[fo.status]} · {fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}
+            {STATUS_ORD[fo.status]}<NotionStatus status={fo.notionStatus} före=" · " /> · {fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}
           </div>
           <div class="tid">
             <Nedrakning nedräkning={fo.nedräkning} nästaMilstolpe={fo.nästaMilstolpe} />

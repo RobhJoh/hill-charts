@@ -62,10 +62,27 @@ export function följProjekt(url: string, alt: FöljAlternativ): Följning {
     stäng() {
       stängd = true;
       clearTimeout(timer);
-      ws?.close();
+      const socket = ws;
       ws = undefined;
+      if (!socket) return;
+      socket.onmessage = null;
+      // Closing a socket that is still connecting makes the browser warn; let it
+      // open (or fail) first, then close it without telling the page.
+      if (socket.readyState === 0) {
+        socket.onopen = () => socket.close();
+        socket.onerror = null;
+      } else socket.close();
     },
   };
+}
+
+/**
+ * The Projekt a page should follow live: only once its first fetch has
+ * succeeded, and only while it is Pågående (an Avslutat Projekt is read-only,
+ * a missing one has nothing to follow).
+ */
+export function liveMål(projekt: { id: string; avslutat: boolean } | undefined): string | undefined {
+  return projekt && !projekt.avslutat ? projekt.id : undefined;
 }
 
 /**

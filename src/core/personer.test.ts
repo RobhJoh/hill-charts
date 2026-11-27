@@ -1,20 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { createApogee } from "./index.js";
 import { createMemoryStorage } from "../storage/memory.js";
+import { createMemoryNotion } from "../notion/minne.js";
+import { notionStruktur } from "./test-struktur.js";
 
 /** An Apogee with a Funktionsområde, a Projekt and two active Personer, Anna and Bo. */
 async function setup(storage = createMemoryStorage()) {
   let n = 0;
+  const källa = createMemoryNotion();
   const apogee = createApogee({
     storage,
+    notion: källa,
     now: () => new Date("2026-11-24T10:00:00Z"),
     newId: () => `id${++n}`,
   });
+  const notion = notionStruktur(apogee, källa, storage);
   const anna = (await apogee.createPerson("Anna", null)).id;
   const bo = (await apogee.createPerson("Bo", anna)).id;
-  const fo = (await apogee.createFunktionsområde("Ekonomi", anna)).id;
-  const projekt = (await apogee.createProjekt(fo, "Kassan", anna)).id;
-  const nyttProjekt = async (namn: string) => (await apogee.createProjekt(fo, namn, anna)).id;
+  const projekt = await notion.projekt("Kassan", "Ekonomi");
+  const fo = await notion.funktionsområdeId("Ekonomi");
+  const nyttProjekt = async (namn: string) => (await notion.projekt(namn, "Ekonomi"));
   const scope = async (namn: string, ägare: string, läge = 0, p = projekt) => {
     const { id } = await apogee.addScope(p, { namn, ägare }, anna);
     if (läge) await apogee.moveScope(p, id, läge, anna);
@@ -22,12 +27,12 @@ async function setup(storage = createMemoryStorage()) {
   };
   const ägare = async (p = projekt) =>
     Object.fromEntries((await apogee.getProjekt(p)).scopes.map((s) => [s.namn, s.ägare.namn]));
-  return { apogee, storage, anna, bo, fo, projekt, nyttProjekt, scope, ägare };
+  return { apogee, storage, notion, anna, bo, fo, projekt, nyttProjekt, scope, ägare };
 }
 
 describe("renaming a Person", () => {
   it("changes the name everywhere, Historik included, and writes no Uppdatering", async () => {
-    const { apogee, anna, bo, projekt, scope } = await setup();
+    const { apogee, notion, anna, bo, projekt, scope } = await setup();
     await scope("Prislista", bo);
     const före = await apogee.historik(projekt);
 
@@ -39,14 +44,14 @@ describe("renaming a Person", () => {
   });
 
   it("keeps names unique ignoring case, but a Person may change the case of their own name", async () => {
-    const { apogee, anna, bo } = await setup();
+    const { apogee, notion, anna, bo } = await setup();
     await expect(apogee.renamePerson(bo, " anna ", anna)).rejects.toMatchObject({ code: "finns-redan" });
     await apogee.renamePerson(bo, "BO", anna);
     expect((await apogee.listPersoner()).map((p) => p.namn)).toEqual(["Anna", "BO"]);
   });
 
   it("needs an active Signatur, a valid name and a known Person", async () => {
-    const { apogee, anna, bo } = await setup();
+    const { apogee, notion, anna, bo } = await setup();
     await expect(apogee.renamePerson(bo, "Bosse", null)).rejects.toMatchObject({ code: "signatur" });
     await expect(apogee.renamePerson(bo, "  ", anna)).rejects.toMatchObject({ code: "ogiltig" });
     await expect(apogee.renamePerson("okänd", "Bosse", anna)).rejects.toMatchObject({ code: "finns-inte" });
@@ -55,7 +60,7 @@ describe("renaming a Person", () => {
 
 describe("removing a Person (handover)", () => {
   it("hands their Scopes in each Pågående Projekt to the new Ägare in one Uppdatering per Projekt", async () => {
-    const { apogee, storage, anna, bo, projekt, nyttProjekt, scope, ägare } = await setup();
+    const { apogee, notion, storage, anna, bo, projekt, nyttProjekt, scope, ägare } = await setup();
     const cia = (await apogee.createPerson("Cia", anna)).id;
     const a = await scope("Prislista", bo, 30);
     const b = await scope("Kvitton", bo, 60);
@@ -82,7 +87,7 @@ describe("removing a Person (handover)", () => {
   });
 
   it("leaves Scopes in Avslutade Projekt with the removed Person, shown as inaktiv", async () => {
-    const { apogee, anna, bo, nyttProjekt, scope } = await setup();
+    const { apogee, notion, anna, bo, nyttProjekt, scope } = await setup();
     const klart = await nyttProjekt("Lager");
     await scope("Inventering", bo, 100, klart);
     await scope("Räkning", anna, 100, klart);
@@ -95,7 +100,7 @@ describe("removing a Person (handover)", () => {
   });
 
   it("hands over their Scopes in an Inte påbörjat Projekt too", async () => {
-    const { apogee, anna, bo, projekt, scope, ägare } = await setup();
+    const { apogee, notion, anna, bo, projekt, scope, ägare } = await setup();
     await scope("Prislista", bo);
     expect((await apogee.getProjekt(projekt)).status).toBe("inte påbörjat");
 
@@ -105,7 +110,7 @@ describe("removing a Person (handover)", () => {
   });
 
   it("leaves Scopes in Borttagna Projekt with the removed Person, even while still in progress", async () => {
-    const { apogee, anna, bo, projekt, scope } = await setup();
+    const { apogee, notion, anna, bo, projekt, scope } = await setup();
     await scope("Prislista", bo, 30);
     await apogee.taBortProjekt(projekt, anna);
     const före = await apogee.historik(projekt);
@@ -118,7 +123,7 @@ describe("removing a Person (handover)", () => {
   });
 
   it("an inaktiv Person can no longer sign or be chosen as Ägare", async () => {
-    const { apogee, anna, bo, projekt, scope } = await setup();
+    const { apogee, notion, anna, bo, projekt, scope } = await setup();
     const s = await scope("Prislista", anna);
     await apogee.removePerson(bo, anna, anna);
     await expect(apogee.moveScope(projekt, s, 40, bo)).rejects.toMatchObject({ code: "signatur" });
@@ -127,7 +132,7 @@ describe("removing a Person (handover)", () => {
   });
 
   it("needs an active Signatur and a new Ägare who is another active Person", async () => {
-    const { apogee, anna, bo } = await setup();
+    const { apogee, notion, anna, bo } = await setup();
     const cia = (await apogee.createPerson("Cia", anna)).id;
     await apogee.removePerson(cia, anna, anna);
     await expect(apogee.removePerson(bo, anna, null)).rejects.toMatchObject({ code: "signatur" });
@@ -140,7 +145,7 @@ describe("removing a Person (handover)", () => {
   });
 
   it("merges a duplicate: the duplicate's Scopes go to the Person kept", async () => {
-    const { apogee, anna, scope, ägare } = await setup();
+    const { apogee, notion, anna, scope, ägare } = await setup();
     const dubblett = (await apogee.createPerson("Anna S", anna)).id;
     await scope("Prislista", dubblett, 50);
     await apogee.removePerson(dubblett, anna, anna);
@@ -150,7 +155,7 @@ describe("removing a Person (handover)", () => {
 
 describe("an inaktiv Ägare brought back", () => {
   it("Ångra of a handover is allowed and shows the Scope's Ägare as inaktiv until a new one is picked", async () => {
-    const { apogee, anna, bo, projekt, scope } = await setup();
+    const { apogee, notion, anna, bo, projekt, scope } = await setup();
     const s = await scope("Prislista", bo, 30);
     const [överlämning] = await apogee.removePerson(bo, anna, anna);
 
@@ -164,7 +169,7 @@ describe("an inaktiv Ägare brought back", () => {
 
 describe("reactivating a Person", () => {
   it("makes them active again; handed-over Scopes stay with their new Ägare", async () => {
-    const { apogee, anna, bo, projekt, scope, ägare } = await setup();
+    const { apogee, notion, anna, bo, projekt, scope, ägare } = await setup();
     const s = await scope("Prislista", bo, 30);
     await apogee.removePerson(bo, anna, anna);
 
@@ -176,7 +181,7 @@ describe("reactivating a Person", () => {
   });
 
   it("needs an active Signatur and an inaktiv Person", async () => {
-    const { apogee, anna, bo } = await setup();
+    const { apogee, notion, anna, bo } = await setup();
     await expect(apogee.reactivatePerson(bo, anna)).rejects.toMatchObject({ code: "ogiltig" });
     await apogee.removePerson(bo, anna, anna);
     await expect(apogee.reactivatePerson(bo, bo)).rejects.toMatchObject({ code: "signatur" });
@@ -184,7 +189,7 @@ describe("reactivating a Person", () => {
   });
 
   it("adding a name an inaktiv Person has is refused so that Återaktivera can be offered instead", async () => {
-    const { apogee, anna, bo } = await setup();
+    const { apogee, notion, anna, bo } = await setup();
     await apogee.removePerson(bo, anna, anna);
     const inaktiv = { id: bo, namn: "Bo", aktiv: false };
     await expect(apogee.createPerson("bo", anna)).rejects.toMatchObject({ code: "finns-inaktiv", person: inaktiv });
@@ -195,7 +200,7 @@ describe("reactivating a Person", () => {
 
 describe("Personer-historik", () => {
   it("records who changed which Person, what, when, and the old and new name", async () => {
-    const { apogee, anna, bo } = await setup();
+    const { apogee, notion, anna, bo } = await setup();
     await apogee.renamePerson(bo, "Bosse", anna);
     await apogee.removePerson(bo, anna, anna);
     await apogee.reactivatePerson(bo, anna);
@@ -211,7 +216,7 @@ describe("Personer-historik", () => {
   });
 
   it("records nothing for a refused change", async () => {
-    const { apogee, anna, bo } = await setup();
+    const { apogee, notion, anna, bo } = await setup();
     await expect(apogee.renamePerson(bo, "Anna", anna)).rejects.toThrow();
     await expect(apogee.removePerson(bo, bo, anna)).rejects.toThrow();
     expect(await apogee.personerHistorik()).toHaveLength(2);

@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 import { createApogee, type Uppdatering } from "../core/index.js";
 import { createMemoryStorage } from "../storage/memory.js";
+import { createMemoryNotion } from "../notion/minne.js";
+import { notionStruktur } from "../core/test-struktur.js";
 import { följProjekt } from "../web/lib/live.js";
 import { startServer, type RunningServer } from "./http.js";
 
@@ -18,8 +20,11 @@ afterEach(async () => {
 /** A server with one Person and two Projekt, `a` and `b`. */
 async function start() {
   let n = 0;
+  const storage = createMemoryStorage();
+  const källa = createMemoryNotion();
   const apogee = createApogee({
-    storage: createMemoryStorage(),
+    storage,
+    notion: källa,
     now: () => new Date("2026-11-24T10:00:00Z"),
     newId: () => `id${++n}`,
   });
@@ -29,9 +34,9 @@ async function start() {
   running.push(server);
   const host = `127.0.0.1:${server.address.port}`;
   const vem = (await apogee.createPerson("Anna", null)).id;
-  const fo = await apogee.createFunktionsområde("Kassa", vem);
-  const a = (await apogee.createProjekt(fo.id, "Alfa", vem)).id;
-  const b = (await apogee.createProjekt(fo.id, "Beta", vem)).id;
+  const notion = notionStruktur(apogee, källa, storage);
+  const a = await notion.projekt("Alfa", "Kassa");
+  const b = await notion.projekt("Beta", "Kassa");
 
   const api = async (method: string, path: string, body?: unknown) => {
     const res = await fetch(`http://${host}${path}`, {

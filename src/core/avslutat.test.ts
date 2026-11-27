@@ -1,15 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { createApogee } from "./index.js";
 import { createMemoryStorage } from "../storage/memory.js";
+import { createMemoryNotion } from "../notion/minne.js";
+import { notionStruktur } from "./test-struktur.js";
 
 /** An Apogee with a Funktionsområde, a Projekt and one active Person, Anna. */
 async function setup(storage = createMemoryStorage()) {
   let n = 0;
   let klocka = new Date("2026-11-24T10:00:00Z");
-  const apogee = createApogee({ storage, now: () => klocka, newId: () => `id${++n}` });
+  const källa = createMemoryNotion();
+  const apogee = createApogee({ storage, notion: källa, now: () => klocka, newId: () => `id${++n}` });
+  const notion = notionStruktur(apogee, källa, storage);
   const anna = (await apogee.createPerson("Anna", null)).id;
-  const fo = (await apogee.createFunktionsområde("Ekonomi", anna)).id;
-  const projekt = (await apogee.createProjekt(fo, "Kassan", anna)).id;
+  const projekt = await notion.projekt("Kassan", "Ekonomi");
+  const fo = await notion.funktionsområdeId("Ekonomi");
   const senare = (ms: number) => {
     klocka = new Date(klocka.getTime() + ms);
   };
@@ -19,18 +23,18 @@ async function setup(storage = createMemoryStorage()) {
     return id;
   };
   const status = async (p = projekt) => (await apogee.getProjekt(p)).status;
-  return { apogee, storage, anna, fo, projekt, senare, scope, status };
+  return { apogee, storage, notion, anna, fo, projekt, senare, scope, status };
 }
 
 describe("Projekt status, derived from Läge alone", () => {
   it("a Projekt with no Scopes is Inte påbörjat, never Avslutat", async () => {
-    const { apogee, projekt, status } = await setup();
+    const { apogee, notion, projekt, status } = await setup();
     expect(await status()).toBe("inte påbörjat");
     expect((await apogee.getProjekt(projekt)).avslutat).toBe(false);
   });
 
   it("all Scopes at 0 is Inte påbörjat, one above 0 Pågående, all at 100 Avslutat, one back from 100 Pågående", async () => {
-    const { apogee, anna, projekt, status, scope } = await setup();
+    const { apogee, notion, anna, projekt, status, scope } = await setup();
     const a = await scope("Prislista");
     const b = await scope("Kvitton");
     expect(await status()).toBe("inte påbörjat");
@@ -65,9 +69,9 @@ describe("Projekt status, derived from Läge alone", () => {
 
 describe("Funktionsområde status, derived from its Projekt that are not Borttagna", () => {
   it("is Inte påbörjat when all are, Avslutat when all are, otherwise Pågående", async () => {
-    const { apogee, anna, fo, projekt, scope } = await setup();
+    const { apogee, notion, anna, fo, projekt, scope } = await setup();
     const status = async () => (await apogee.getFunktionsområde(fo)).status;
-    const bokslut = (await apogee.createProjekt(fo, "Bokslut", anna)).id;
+    const bokslut = (await notion.projekt("Bokslut", "Ekonomi"));
     expect(await status()).toBe("inte påbörjat");
     const a = await scope("Prislista", 100);
     expect(await status()).toBe("pågående"); // Kassan Avslutat, Bokslut Inte påbörjat
@@ -81,9 +85,9 @@ describe("Funktionsområde status, derived from its Projekt that are not Borttag
   });
 
   it("does not count Borttagna Projekt", async () => {
-    const { apogee, anna, fo, scope } = await setup();
+    const { apogee, notion, anna, fo, scope } = await setup();
     const status = async () => (await apogee.getFunktionsområde(fo)).status;
-    const bokslut = (await apogee.createProjekt(fo, "Bokslut", anna)).id;
+    const bokslut = (await notion.projekt("Bokslut", "Ekonomi"));
     await scope("Arkiv", 40, bokslut);
     expect(await status()).toBe("pågående");
     await apogee.taBortProjekt(bokslut, anna);
@@ -95,7 +99,7 @@ const DAG = 86_400_000;
 
 describe("Stilla Scopes", () => {
   it("a Scope is Stilla once strictly more than 14 days (14 × 24 h) pass without a Läge change", async () => {
-    const { apogee, projekt, senare, scope } = await setup();
+    const { apogee, notion, projekt, senare, scope } = await setup();
     await scope("Prislista", 30);
     const stilla = async () => {
       const [s] = (await apogee.getProjekt(projekt)).scopes;
@@ -111,7 +115,7 @@ describe("Stilla Scopes", () => {
   });
 
   it("renaming or a new Ägare is not movement; a Läge change is", async () => {
-    const { apogee, anna, projekt, senare, scope } = await setup();
+    const { apogee, notion, anna, projekt, senare, scope } = await setup();
     const a = await scope("Prislista", 30);
     senare(20 * DAG);
     await apogee.renameScope(projekt, a, "Priser", anna);
@@ -121,7 +125,7 @@ describe("Stilla Scopes", () => {
   });
 
   it("a Scope at Läge 100 is never Stilla", async () => {
-    const { apogee, projekt, senare, scope } = await setup();
+    const { apogee, notion, projekt, senare, scope } = await setup();
     await scope("Prislista", 100);
     await scope("Kvitton", 50);
     senare(30 * DAG);
@@ -132,7 +136,7 @@ describe("Stilla Scopes", () => {
   });
 
   it("Scopes in an Inte påbörjat Projekt become Stilla after 14 days too", async () => {
-    const { apogee, projekt, senare, scope } = await setup();
+    const { apogee, notion, projekt, senare, scope } = await setup();
     await scope("Prislista");
     await scope("Kvitton");
     senare(14 * DAG + 1);
@@ -144,8 +148,8 @@ describe("Stilla Scopes", () => {
 
 describe("the overview", () => {
   it("shows each Projekt as a mini chart with its status and Stilla count, and the count per Funktionsområde", async () => {
-    const { apogee, anna, fo, projekt, senare, scope } = await setup();
-    const klar = (await apogee.createProjekt(fo, "Bokslut", anna)).id;
+    const { apogee, notion, anna, fo, projekt, senare, scope } = await setup();
+    const klar = (await notion.projekt("Bokslut", "Ekonomi"));
     await scope("Prislista", 70);
     await scope("Kvitton", 20);
     await scope("Moms", 100);
@@ -186,11 +190,11 @@ describe("when a Projekt became Avslutat (the date in the Avslutade list)", () =
     (await apogee.overview())[0]!.projekt.map((p) => [p.namn, p.avslutad]);
 
   it("is the time of the Uppdatering that moved its last Scope to Läge 100", async () => {
-    const { apogee, anna, fo, projekt, senare, scope } = await setup();
+    const { apogee, notion, anna, fo, projekt, senare, scope } = await setup();
     const a = await scope("Prislista", 50);
     senare(DAG);
     await apogee.moveScope(projekt, a, 100, anna);
-    const b = (await apogee.createProjekt(fo, "Bokslut", anna)).id;
+    const b = (await notion.projekt("Bokslut", "Ekonomi"));
     const arkiv = await scope("Arkiv", 30, b);
     senare(DAG);
     await apogee.moveScope(b, arkiv, 100, anna);
@@ -203,7 +207,7 @@ describe("when a Projekt became Avslutat (the date in the Avslutade list)", () =
   });
 
   it("is null while not Avslutat, and starts over when it is opened and closed again", async () => {
-    const { apogee, anna, projekt, senare, scope } = await setup();
+    const { apogee, notion, anna, projekt, senare, scope } = await setup();
     const a = await scope("Prislista", 100);
     senare(DAG);
     await apogee.moveScope(projekt, a, 90, anna);
@@ -215,7 +219,7 @@ describe("when a Projekt became Avslutat (the date in the Avslutade list)", () =
   });
 
   it("is null for a Projekt with no Scopes, and once its only Scope at 100 is removed", async () => {
-    const { apogee, anna, projekt, scope } = await setup();
+    const { apogee, notion, anna, projekt, scope } = await setup();
     expect(await avslutad(apogee)).toEqual([["Kassan", null]]);
     const a = await scope("Prislista", 100);
     expect(await avslutad(apogee)).toEqual([["Kassan", "2026-11-24T10:00:00.000Z"]]);

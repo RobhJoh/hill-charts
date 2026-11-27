@@ -6,7 +6,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createApogee } from "../core/index.js";
 import type { Storage } from "../core/index.js";
 import { createMemoryStorage } from "../storage/memory.js";
-import { startServer, type RunningServer } from "./http.js";
+import { createMemoryNotion } from "../notion/minne.js";
+import { notionStruktur } from "../core/test-struktur.js";
+import { createWriteQueue, startServer, type RunningServer } from "./http.js";
 
 const running: RunningServer[] = [];
 afterEach(async () => {
@@ -23,8 +25,10 @@ async function webDir() {
 /** A server over `storage`, with no Personer added. */
 async function startTom(storage: Storage = createMemoryStorage()) {
   let n = 0;
+  const källa = createMemoryNotion();
   const apogee = createApogee({
     storage,
+    notion: källa,
     now: () => new Date("2026-11-24T10:00:00Z"),
     newId: () => `id${++n}`,
   });
@@ -45,7 +49,9 @@ async function startTom(storage: Storage = createMemoryStorage()) {
     const text = await res.text();
     return { status: res.status, headers: res.headers, body: text ? JSON.parse(text) : undefined };
   };
-  return { base, apiAs, server, apogee };
+  /** The structure is ticked in a fake Notion and synced (`notion.projekt(...)`). */
+  const notion = notionStruktur(apogee, källa, storage);
+  return { base, apiAs, server, apogee, källa, notion };
 }
 
 /** A server with one Person, `vem`; `api` signs every call as them. */
@@ -81,10 +87,10 @@ describe("Personer and Signatur", () => {
   });
 
   it("renames, removes with handover, reactivates, and lists the Personer-historik", async () => {
-    const { api, apiAs, vem } = await start();
+    const { api, apiAs, vem, notion } = await start();
     const bo = (await api("POST", "/api/personer", { namn: "Bo" })).body.id;
-    const fo = (await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" })).body.id;
-    const p = (await api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Kassan" })).body.id;
+    const p = await notion.projekt("Kassan", "Ekonomi");
+    const fo = await notion.funktionsområdeId("Ekonomi");
     await api("POST", `/api/projekt/${p}/scopes`, { namn: "Prislista", ägare: bo });
 
     const bytt = await api("PATCH", `/api/personer/${bo}`, { namn: "Bosse" });
@@ -108,36 +114,35 @@ describe("Personer and Signatur", () => {
     expect(historik.body.map((h: { typ: string }) => h.typ)).toEqual(["ny", "ny", "byt namn", "ta bort", "återaktivera"]);
   });
 
-  it("rejects every write to Funktionsområden and Projekt without a valid, active Signatur", async () => {
-    const storage = createMemoryStorage();
-    const { api, apiAs } = await start(storage);
-    await storage.savePersoner([
-      ...(await storage.listPersoner()),
-      { id: "inaktiv", namn: "Bo", aktiv: false, skapad: "2026-01-01T00:00:00.000Z" },
-    ]);
-    const fo = await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" });
-    const p = await api("POST", "/api/projekt", { funktionsområdeId: fo.body.id, namn: "Fakturering" });
-    for (const vem of [null, "", "okänd", "inaktiv"]) {
+  it("rejects every write to what Notion owns, signed or not: create, rename, move and dates", async () => {
+    const { api, apiAs, notion } = await start();
+    const p = await notion.projekt("Fakturering", "Ekonomi");
+    const fo = await notion.funktionsområdeId("Ekonomi");
+    const datum = { startdatum: null, slutdatum: "2026-12-01" };
+    for (const vem of [null, (await api("GET", "/api/personer")).body[0].id]) {
       const writes = [
         await apiAs(vem, "POST", "/api/funktionsomraden", { namn: "X" }),
-        await apiAs(vem, "PATCH", `/api/funktionsomraden/${fo.body.id}`, { namn: "X" }),
-        await apiAs(vem, "POST", "/api/projekt", { funktionsområdeId: fo.body.id, namn: "X" }),
-        await apiAs(vem, "PATCH", `/api/projekt/${p.body.id}`, { namn: "X" }),
+        await apiAs(vem, "PATCH", `/api/funktionsomraden/${fo}`, { namn: "X" }),
+        await apiAs(vem, "PUT", `/api/funktionsomraden/${fo}/datum`, datum),
+        await apiAs(vem, "POST", "/api/projekt", { funktionsområdeId: fo, namn: "X" }),
+        await apiAs(vem, "PATCH", `/api/projekt/${p}`, { namn: "X" }),
+        await apiAs(vem, "PATCH", `/api/projekt/${p}`, { funktionsområdeId: fo }),
+        await apiAs(vem, "PUT", `/api/projekt/${p}/datum`, datum),
       ];
-      expect(writes.map((w) => w.status), String(vem)).toEqual([403, 403, 403, 403]);
+      for (const w of writes) expect(w).toMatchObject({ status: 405, body: { fel: "notion" } });
     }
     expect((await api("GET", "/api/oversikt")).body).toMatchObject([
-      { id: fo.body.id, namn: "Ekonomi", projekt: [{ id: p.body.id, namn: "Fakturering" }] },
+      { id: fo, namn: "Ekonomi", tidsplan: { slutdatum: null }, projekt: [{ id: p, namn: "Fakturering" }] },
     ]);
   });
 });
 
 describe("Stjärnkarta and Personer index", () => {
   it("serves a Person's Stjärnkarta and the Personer index; 404 for an inaktiv Person", async () => {
-    const { api, vem } = await start();
+    const { api, vem, notion } = await start();
     const bo = (await api("POST", "/api/personer", { namn: "Bo" })).body.id;
-    const fo = (await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" })).body.id;
-    const p = (await api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Kassan" })).body.id;
+    const p = await notion.projekt("Kassan", "Ekonomi");
+    const fo = await notion.funktionsområdeId("Ekonomi");
     const scope = (await api("POST", `/api/projekt/${p}/scopes`, { namn: "Prislista", ägare: bo })).body.id;
     await api("PATCH", `/api/projekt/${p}/scopes/${scope}`, { läge: 40 });
 
@@ -163,53 +168,37 @@ describe("Stjärnkarta and Personer index", () => {
 });
 
 describe("JSON API", () => {
-  it("creates, renames and moves Funktionsområden and Projekt", async () => {
-    const { api } = await start();
-
-    const ku = await api("POST", "/api/funktionsomraden", { namn: "Kundupplevelse" });
-    expect(ku.status).toBe(201);
-    const pl = await api("POST", "/api/funktionsomraden", { namn: "Plattfrom" });
-    expect((await api("PATCH", `/api/funktionsomraden/${pl.body.id}`, { namn: "Plattform" })).status).toBe(204);
-
-    const p = await api("POST", "/api/projekt", { funktionsområdeId: ku.body.id, namn: "Inlogning" });
-    expect(p.status).toBe(201);
-    expect((await api("PATCH", `/api/projekt/${p.body.id}`, { namn: "Inloggning" })).status).toBe(204);
-    expect(
-      (await api("PATCH", `/api/projekt/${p.body.id}`, { funktionsområdeId: pl.body.id })).status,
-    ).toBe(204);
-
+  it("serves the structure synced from Notion, with links to its pages in Notion", async () => {
+    const { api, notion } = await start();
+    const p = await notion.projekt("Inloggning", "Plattform");
+    const pl = await notion.funktionsområdeId("Plattform");
     expect((await api("GET", "/api/oversikt")).body).toMatchObject([
-      { id: ku.body.id, namn: "Kundupplevelse", projekt: [] },
-      { id: pl.body.id, namn: "Plattform", projekt: [{ id: p.body.id, namn: "Inloggning" }] },
+      { id: pl, namn: "Plattform", notionUrl: "https://www.notion.so/notion-Plattform", projekt: [{ id: p, namn: "Inloggning" }] },
     ]);
-    expect((await api("GET", `/api/funktionsomraden/${pl.body.id}`)).body).toMatchObject({
-      id: pl.body.id,
-      namn: "Plattform",
-      projekt: [{ id: p.body.id, namn: "Inloggning" }],
-    });
-    expect((await api("GET", `/api/projekt/${p.body.id}`)).body).toMatchObject({
-      id: p.body.id,
+    expect((await api("GET", `/api/projekt/${p}`)).body).toMatchObject({
+      id: p,
       namn: "Inloggning",
-      funktionsområde: { id: pl.body.id, namn: "Plattform" },
+      notionUrl: "https://www.notion.so/notion-Inloggning",
+      funktionsområde: { id: pl, namn: "Plattform" },
       scopes: [],
     });
   });
 
   it("answers 404 for unknown ids and routes, 400 for invalid input", async () => {
-    const { api } = await start();
+    const { api, notion } = await start();
     expect((await api("GET", "/api/projekt/saknas")).status).toBe(404);
     expect((await api("GET", "/api/funktionsomraden/saknas")).status).toBe(404);
     expect((await api("GET", "/api/finns-inte")).status).toBe(404);
-    expect((await api("POST", "/api/funktionsomraden", { namn: "  " })).status).toBe(400);
-    expect((await api("POST", "/api/funktionsomraden", {})).status).toBe(400);
-    const res = await api("POST", "/api/projekt", { funktionsområdeId: "saknas", namn: "X" });
+    expect((await api("POST", "/api/personer", { namn: "  " })).status).toBe(400);
+    expect((await api("POST", "/api/personer", {})).status).toBe(400);
+    const res = await api("POST", "/api/projekt/saknas/scopes", { namn: "X", ägare: (await api("GET", "/api/personer")).body[0].id });
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ fel: "finns-inte", meddelande: expect.any(String) });
   });
 
   it("rejects a body that is not JSON", async () => {
-    const { base } = await start();
-    const res = await fetch(`${base}/api/funktionsomraden`, {
+    const { base, notion } = await start();
+    const res = await fetch(`${base}/api/personer`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: "{namn:",
@@ -220,20 +209,69 @@ describe("JSON API", () => {
   it("serializes concurrent writes so none is lost", async () => {
     // Slow storage widens the window in which unserialized read-modify-write
     // commands would overwrite each other.
-    const { api } = await start(createMemoryStorage({ latencyMs: 5 }));
-    const namn = Array.from({ length: 20 }, (_, i) => `Område ${String(i).padStart(2, "0")}`);
-    const results = await Promise.all(
-      namn.map((n) => api("POST", "/api/funktionsomraden", { namn: n })),
-    );
+    const { api, notion } = await start(createMemoryStorage({ latencyMs: 5 }));
+    const namn = Array.from({ length: 20 }, (_, i) => `Person ${String(i).padStart(2, "0")}`);
+    const results = await Promise.all(namn.map((n) => api("POST", "/api/personer", { namn: n })));
     expect(results.map((r) => r.status)).toEqual(namn.map(() => 201));
-    expect((await api("GET", "/api/oversikt")).body.map((f: { namn: string }) => f.namn)).toEqual(namn);
+    expect((await api("GET", "/api/personer")).body.map((p: { namn: string }) => p.namn)).toEqual([...namn, "Testare"]);
+  });
+});
+
+describe("Hämta från Notion", () => {
+  it("syncs now, waiting for the result, and reports when Apogee last fetched", async () => {
+    const { api, apiAs, källa } = await start();
+    expect(await api("GET", "/api/notion/synk")).toEqual(expect.objectContaining({ status: 200, body: { senastHämtat: null } }));
+
+    källa.projekt({ notionId: "n1", namn: "Sökindex" });
+    const synk = await apiAs(null, "POST", "/api/notion/synk");
+    expect(synk).toMatchObject({ status: 200, body: { senastHämtat: "2026-11-24T10:00:00.000Z" } });
+    expect((await api("GET", "/api/utan-funktionsomrade")).body).toMatchObject({ projekt: [{ namn: "Sökindex" }] });
+    expect((await api("GET", "/api/notion/synk")).body).toEqual({ senastHämtat: "2026-11-24T10:00:00.000Z" });
+  });
+
+  it("answers 502 when Notion cannot be reached, and changes nothing", async () => {
+    const { api, källa } = await start();
+    källa.projekt({ notionId: "n1", namn: "Sökindex" });
+    källa.misslyckas(new Error("Notion svarar inte"));
+    expect(await api("POST", "/api/notion/synk")).toMatchObject({ status: 502, body: { fel: "notion" } });
+    expect((await api("GET", "/api/utan-funktionsomrade")).body).toBeNull();
+    expect((await api("GET", "/api/notion/synk")).body).toEqual({ senastHämtat: null });
+  });
+
+  it("runs the sync's writes in turn with other writes, so none is lost", async () => {
+    const storage = createMemoryStorage({ latencyMs: 2 });
+    const skrivkö = createWriteQueue();
+    const källa = createMemoryNotion();
+    let n = 0;
+    const apogee = createApogee({ storage, notion: källa, skrivkö, now: () => new Date("2026-11-24T10:00:00Z"), newId: () => `id${++n}` });
+    const server = await startServer({ apogee, skrivkö, webDir: await webDir(), port: 0 });
+    running.push(server);
+    const notion = notionStruktur(apogee, källa, storage);
+    const vem = (await apogee.createPerson("Testare", null)).id;
+    await notion.projekt("Kassan", "Ekonomi");
+    const fo = await notion.funktionsområdeId("Ekonomi");
+    const url = `http://127.0.0.1:${(server.address as AddressInfo).port}/api/funktionsomraden/${fo}/milstolpar`;
+    const post = (i: number) =>
+      fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json", "apogee-signatur": vem },
+        body: JSON.stringify({ namn: `M${i}`, datum: "2026-12-01" }),
+      });
+    await Promise.all([
+      ...[0, 1, 2].map(post),
+      notion.ändraFunktionsområde("Ekonomi", { namn: "Ekonomi 2" }),
+      ...[3, 4, 5].map(post),
+    ]);
+    const vy = await apogee.getFunktionsområde(fo);
+    expect(vy.namn).toBe("Ekonomi 2");
+    expect(vy.tidsplan.milstolpar).toHaveLength(6);
   });
 });
 
 describe("Utan funktionsområde", () => {
   it("lists Projekt with no Funktionsområde, or null when there are none", async () => {
     const storage = createMemoryStorage();
-    const { api } = await start(storage);
+    const { api, notion } = await start(storage);
     expect((await api("GET", "/api/utan-funktionsomrade")).body).toBeNull();
     await storage.saveProjekt({ id: "p1", namn: "Sökindex", skapad: "2026-11-01T10:00:00.000Z" });
     const svar = await api("GET", "/api/utan-funktionsomrade");
@@ -245,9 +283,7 @@ describe("Utan funktionsområde", () => {
 describe("Scopes", () => {
   async function medProjekt() {
     const s = await start();
-    const fo = await s.api("POST", "/api/funktionsomraden", { namn: "Ekonomi" });
-    const p = await s.api("POST", "/api/projekt", { funktionsområdeId: fo.body.id, namn: "Kassan" });
-    return { ...s, projekt: p.body.id as string };
+    return { ...s, projekt: await s.notion.projekt("Kassan", "Ekonomi") };
   }
 
   it("adds, moves, renames, hands over and removes a Scope, each one Uppdatering", async () => {
@@ -313,8 +349,7 @@ describe("Scopes", () => {
 
   it("serializes concurrent drops so every one is in the Historik", async () => {
     const s = await start(createMemoryStorage({ latencyMs: 2 }));
-    const fo = await s.api("POST", "/api/funktionsomraden", { namn: "Ekonomi" });
-    const projekt = (await s.api("POST", "/api/projekt", { funktionsområdeId: fo.body.id, namn: "K" })).body.id;
+    const projekt = await s.notion.projekt("K", "Ekonomi");
     const scopes = `/api/projekt/${projekt}/scopes`;
     const id = (await s.api("POST", scopes, { namn: "Prislista", ägare: s.vem })).body.id;
     const lägen = Array.from({ length: 10 }, (_, i) => (i + 1) * 10);
@@ -329,9 +364,8 @@ describe("Scopes", () => {
 
 describe("Historik, Återställning and Ångra", () => {
   it("lists rows, previews, restores and undoes over HTTP; a blocked Ångra is 409", async () => {
-    const { api, apiAs, vem, base } = await start();
-    const fo = await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" });
-    const projekt = (await api("POST", "/api/projekt", { funktionsområdeId: fo.body.id, namn: "Kassan" })).body.id;
+    const { api, apiAs, vem, base, notion } = await start();
+    const projekt = await notion.projekt("Kassan", "Ekonomi");
     const p = `/api/projekt/${projekt}`;
     const id = (await api("POST", `${p}/scopes`, { namn: "Prislista", ägare: vem })).body.id;
     const flytt = (await api("PATCH", `${p}/scopes/${id}`, { läge: 40 })).body.uppdatering;
@@ -375,9 +409,9 @@ describe("Historik, Återställning and Ångra", () => {
 
 describe("status", () => {
   it("is derived from Läge and shown for Projekt and Funktionsområden; it cannot be marked or reopened", async () => {
-    const { api, vem } = await start();
-    const fo = (await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" })).body.id;
-    const projekt = (await api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Kassan" })).body.id;
+    const { api, vem, notion } = await start();
+    const projekt = await notion.projekt("Kassan", "Ekonomi");
+    const fo = await notion.funktionsområdeId("Ekonomi");
     const scope = (await api("POST", `/api/projekt/${projekt}/scopes`, { namn: "Prislista", ägare: vem })).body.id;
     expect((await api("GET", `/api/projekt/${projekt}`)).body).toMatchObject({ status: "inte påbörjat", avslutat: false });
 
@@ -393,9 +427,9 @@ describe("status", () => {
 
 describe("Ta bort and Radera", () => {
   it("takes a Projekt away, restores it, and erases it when its name is typed; signed", async () => {
-    const { api, apiAs } = await start();
-    const fo = (await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" })).body.id;
-    const projekt = (await api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Kassan" })).body.id;
+    const { api, apiAs, notion } = await start();
+    const projekt = await notion.projekt("Kassan", "Ekonomi");
+    const fo = await notion.funktionsområdeId("Ekonomi");
     const borttagen = `/api/projekt/${projekt}/borttagen`;
 
     expect((await apiAs(null, "POST", borttagen)).status).toBe(403);
@@ -417,9 +451,9 @@ describe("Ta bort and Radera", () => {
   });
 
   it("takes a Funktionsområde away only when none of its Projekt is Pågående, lists, restores and erases it", async () => {
-    const { api, vem } = await start();
-    const fo = (await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" })).body.id;
-    const projekt = (await api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Kassan" })).body.id;
+    const { api, vem, notion } = await start();
+    const projekt = await notion.projekt("Kassan", "Ekonomi");
+    const fo = await notion.funktionsområdeId("Ekonomi");
     const scope = (await api("POST", `/api/projekt/${projekt}/scopes`, { namn: "Prislista", ägare: vem })).body.id;
     await api("PATCH", `/api/projekt/${projekt}/scopes/${scope}`, { läge: 40 });
     const borttaget = `/api/funktionsomraden/${fo}/borttagen`;
@@ -448,14 +482,14 @@ describe("stable links (#40)", () => {
   /** A Funktionsområde "Kund & Säljstöd" holding a Projekt "Ny <kassa>". */
   async function seeded() {
     const s = await start();
-    const fo = (await s.api("POST", "/api/funktionsomraden", { namn: "Kund & Säljstöd" })).body.id as string;
-    const p = (await s.api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Ny <kassa>" })).body.id as string;
+    const p = await s.notion.projekt("Ny <kassa>", "Kund & Säljstöd");
+    const fo = await s.notion.funktionsområdeId("Kund & Säljstöd");
     const get = (path: string) => fetch(s.base + path, { redirect: "manual" });
     return { ...s, fo, p, get };
   }
 
   it("redirects a wrong, old or missing slug to the canonical URL, keeping the query", async () => {
-    const { api, fo, p, vem, get } = await seeded();
+    const { fo, p, vem, get, notion } = await seeded();
     for (const [path, canonical] of [
       [`/p/${p}`, `/p/${p}-ny-kassa`],
       [`/p/${p}-gammalt-namn`, `/p/${p}-ny-kassa`],
@@ -468,7 +502,7 @@ describe("stable links (#40)", () => {
     }
     expect((await get(`/p/${p}-fel?tema=dag`)).headers.get("location")).toBe(`/p/${p}-ny-kassa?tema=dag`);
 
-    await api("PATCH", `/api/projekt/${p}`, { namn: "Kassan" });
+    await notion.ändraProjekt("Ny <kassa>", { namn: "Kassan" });
     expect((await get(`/p/${p}-ny-kassa`)).headers.get("location")).toBe(`/p/${p}-kassan`);
     const canonical = await get(`/p/${p}-kassan`);
     expect(canonical.status).toBe(200);
@@ -508,7 +542,7 @@ describe("stable links (#40)", () => {
   });
 
   it("serves a robots.txt without Disallow, so crawlers see the noindex header instead", async () => {
-    const { base } = await start();
+    const { base, notion } = await start();
     const res = await fetch(`${base}/robots.txt`);
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toMatch(/^text\/plain/);
@@ -518,7 +552,7 @@ describe("stable links (#40)", () => {
   });
 
   it("serves a Borttagen Projekt or Funktionsområde as the 'borttaget' page, still at its canonical URL", async () => {
-    const { api, fo, p, get } = await seeded();
+    const { api, fo, p, get, notion } = await seeded();
     await api("POST", `/api/projekt/${p}/borttagen`);
     expect((await get(`/p/${p}`)).headers.get("location")).toBe(`/p/${p}-ny-kassa`);
     const projekt = await get(`/p/${p}-ny-kassa`);
@@ -527,8 +561,7 @@ describe("stable links (#40)", () => {
     expect(html).toContain("<title>Projektet är borttaget · Apogee</title>");
     expect(html).toContain('<meta property="og:description" content="Projektet är borttaget">');
 
-    await api("POST", `/api/projekt`, { funktionsområdeId: fo, namn: "Annat" });
-    const annat = (await api("GET", `/api/funktionsomraden/${fo}`)).body.projekt[0].id;
+    const annat = await notion.projekt("Annat", "Kund & Säljstöd");
     await api("POST", `/api/funktionsomraden/${fo}/borttagen`);
     const foHtml = await (await get(`/f/${fo}-kund-saljstod`)).text();
     expect(foHtml).toContain('<meta property="og:description" content="Funktionsområdet är borttaget">');
@@ -539,7 +572,7 @@ describe("stable links (#40)", () => {
 
 describe("the SPA", () => {
   it("serves index.html at the bare root and for every client route", async () => {
-    const { base } = await start();
+    const { base, notion } = await start();
     for (const path of ["/", "/installningar/personer", "/okand/sida"]) {
       const res = await fetch(base + path);
       expect(res.status, path).toBe(200);
@@ -549,28 +582,26 @@ describe("the SPA", () => {
   });
 
   it("serves built assets with their content type", async () => {
-    const { base } = await start();
+    const { base, notion } = await start();
     const res = await fetch(`${base}/app.js`);
     expect(res.headers.get("content-type")).toMatch(/^text\/javascript/);
     expect(await res.text()).toBe("console.log('apogee')");
   });
 
   it("never serves files outside the web directory", async () => {
-    const { base } = await start();
+    const { base, notion } = await start();
     const res = await fetch(`${base}/..%2Fpackage.json`);
     expect(await res.text()).toContain("<title>Apogee</title>");
   });
 });
 
 describe("dates and Milstolpar", () => {
-  it("are set on a Projekt and a Funktionsområde; only a Projekt's Milstolpar are Uppdateringar", async () => {
-    const { api, apiAs } = await start();
-    const fo = (await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" })).body.id;
-    const p = (await api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Kassan" })).body.id;
+  it("dates come from Notion; Milstolpar are set on a Projekt and a Funktionsområde, only a Projekt's as Uppdateringar", async () => {
+    const { api, apiAs, notion } = await start();
+    const p = await notion.projekt("Kassan", "Ekonomi", { startdatum: "2026-11-02", slutdatum: "2026-12-14" });
+    await notion.ändraFunktionsområde("Ekonomi", { slutdatum: "2026-12-07" });
+    const fo = await notion.funktionsområdeId("Ekonomi");
 
-    const datum = await api("PUT", `/api/projekt/${p}/datum`, { startdatum: "2026-11-02", veckor: 6 });
-    expect(datum.status).toBe(200);
-    expect(datum.body).toEqual({ uppdatering: null });
     const m = await api("POST", `/api/projekt/${p}/milstolpar`, { namn: "Beta", datum: "2026-12-01" });
     expect(m.status).toBe(201);
     const ändrad = await api("PATCH", `/api/projekt/${p}/milstolpar/${m.body.id}`, { namn: "Betaversion" });
@@ -582,8 +613,6 @@ describe("dates and Milstolpar", () => {
     });
     expect((await api("DELETE", `/api/projekt/${p}/milstolpar/${m.body.id}`)).status).toBe(200);
 
-    const foDatum = await api("PUT", `/api/funktionsomraden/${fo}/datum`, { startdatum: null, slutdatum: "2026-12-07" });
-    expect(foDatum.body).toEqual({ uppdatering: null });
     const foM = await api("POST", `/api/funktionsomraden/${fo}/milstolpar`, { namn: "Release", datum: "2026-12-05" });
     expect(foM.status).toBe(201);
     expect((await api("GET", `/api/funktionsomraden/${fo}`)).body.tidsplan).toEqual({
@@ -593,17 +622,17 @@ describe("dates and Milstolpar", () => {
     });
     expect((await api("GET", `/api/projekt/${p}`)).body.datumVarningar).toEqual(["slutar efter Funktionsområdet"]);
 
-    expect((await api("PUT", `/api/projekt/${p}/datum`, { startdatum: "nej", slutdatum: null })).status).toBe(400);
-    expect((await api("PUT", `/api/projekt/${p}/datum`, { slutdatum: "2026-12-01" })).status).toBe(400);
-    expect((await apiAs(null, "PUT", `/api/funktionsomraden/${fo}/datum`, { startdatum: null, slutdatum: null })).status).toBe(403);
+    expect((await api("POST", `/api/projekt/${p}/milstolpar`, { namn: "X", datum: "nej" })).status).toBe(400);
+    expect((await apiAs(null, "POST", `/api/funktionsomraden/${fo}/milstolpar`, { namn: "X", datum: "2026-12-01" })).status).toBe(403);
     expect((await api("DELETE", `/api/funktionsomraden/${fo}/milstolpar/okänd`)).status).toBe(404);
   });
 });
 
 describe("headers on every response (ADR 0002)", () => {
   it("are noindex, no-referrer, framable by Notion, and never X-Frame-Options", async () => {
-    const { base, api } = await start();
-    const fo = await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" });
+    const { base, notion } = await start();
+    await notion.projekt("Kassan", "Ekonomi");
+    const fo = await notion.funktionsområdeId("Ekonomi");
     const responses = [
       await fetch(`${base}/`),
       await fetch(`${base}/p/x-y`),
@@ -612,7 +641,7 @@ describe("headers on every response (ADR 0002)", () => {
       await fetch(`${base}/api/projekt/saknas`),
       await fetch(`${base}/api/finns-inte`),
       await fetch(`${base}/api/funktionsomraden`, { method: "POST", body: "nope" }),
-      await fetch(`${base}/api/funktionsomraden/${fo.body.id}`, {
+      await fetch(`${base}/api/funktionsomraden/${fo}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ namn: "Ekonomi 2" }),
@@ -636,8 +665,8 @@ describe("headers on every response (ADR 0002)", () => {
 describe("the Notion embed (#43)", () => {
   async function seeded() {
     const s = await start();
-    const fo = (await s.api("POST", "/api/funktionsomraden", { namn: "Kund" })).body.id as string;
-    const p = (await s.api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Ny <kassa>" })).body.id as string;
+    const p = await s.notion.projekt("Ny <kassa>", "Kund");
+    const fo = await s.notion.funktionsområdeId("Kund");
     const get = (path: string) => fetch(s.base + path, { redirect: "manual" });
     return { ...s, fo, p, get };
   }

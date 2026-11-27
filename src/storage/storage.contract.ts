@@ -129,6 +129,16 @@ export function storageContract(name: string, makeFixture: () => Promise<Storage
       }
     });
 
+    it("keeps the Notion id and page URL of a Projekt and a Funktionsområde across a reopen", async () => {
+      const fixture = await makeFixture();
+      const notion = { notionId: "n1", notionUrl: "https://www.notion.so/n1" };
+      await fixture.storage.saveProjekt({ ...projekt("p1", "Sökindex"), ...notion });
+      await fixture.storage.saveFunktionsområden([{ ...fo("f1", "Ekonomi"), ...notion }]);
+      const s = fixture.reopen();
+      expect(await s.getProjekt("p1")).toMatchObject(notion);
+      expect(await s.listFunktionsområden()).toMatchObject([notion]);
+    });
+
     it("keeps each Projekt's Historik separate and in append order", async () => {
       const { storage } = await makeFixture();
       await storage.saveProjekt(projekt("p1", "Sökindex"));

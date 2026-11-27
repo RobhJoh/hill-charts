@@ -2,19 +2,24 @@
   // The countdown ("22 dagar kvar av 6 veckor") with its Appetit bar, and the
   // next Milstolpe beside it. Red when Över tid. Renders nothing without dates.
   import type { Nedräkning, NästaMilstolpe } from "../../core/index.js";
+  import { appetitNästanSlut } from "../lib/datum.js";
 
   let {
     nedräkning,
     nästaMilstolpe = null,
     liten = false,
+    varnaSlut = false,
   }: {
     nedräkning: Nedräkning | null;
     nästaMilstolpe?: NästaMilstolpe | null;
     /** Compact form for lists. */
     liten?: boolean;
+    /** Fill the last ~15% of the Appetit in the accent (the embed). */
+    varnaSlut?: boolean;
   } = $props();
 
   const över = $derived(nedräkning?.läge === "över tid");
+  const slut = $derived(varnaSlut && appetitNästanSlut(nedräkning));
 </script>
 
 {#if nedräkning || nästaMilstolpe}
@@ -24,7 +29,7 @@
         <span class="text" class:över>{nedräkning.text}</span>
         {#if nedräkning.andel !== null}
           <span class="bar" aria-hidden="true">
-            <span class="fill" class:över style:width="{Math.round(nedräkning.andel * 100)}%"></span>
+            <span class="fill" class:över class:slut style:width="{Math.round(nedräkning.andel * 100)}%"></span>
           </span>
         {/if}
       </span>
@@ -73,7 +78,8 @@
     height: 100%;
     background: var(--mid);
   }
-  .fill.över {
+  .fill.över,
+  .fill.slut {
     background: var(--red);
   }
   .milstolpe {

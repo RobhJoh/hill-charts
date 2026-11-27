@@ -1,8 +1,8 @@
 <script lang="ts">
   import { felText } from "../lib/fel.js";
   // The Notion embed (#43), variant B "Himmel + lista" of prototype/embed:
-  // the Projekt's Hill chart in the `dag` theme beside a compact Scope list,
-  // filling whatever box Notion gives it. Editing is drag only (plus the
+  // the Projekt's Hill chart beside a compact Scope list, filling whatever box
+  // Notion gives it. Its theme follows the computer's (Q2 b), or ?tema. Editing is drag only (plus the
   // keyboard on a focused star). Outward links are plain anchors with
   // target=_blank: window.open fails in Notion's desktop app.
   //
@@ -14,6 +14,8 @@
   import HillChart from "../components/HillChart.svelte";
   import Nedrakning from "../components/Nedrakning.svelte";
   import { api, ApiError } from "../lib/api.js";
+  import { embedTema } from "../lib/embedtema.js";
+  import { appetitNästanSlut } from "../lib/datum.js";
   import { lägeFärg } from "../lib/hill.js";
   import { projektHref } from "../lib/links.js";
   import { följLive, senasteLaddning } from "../lib/live.js";
@@ -22,19 +24,28 @@
 
   let { id }: { id: string } = $props();
 
-  tema.visa("dag");
+  const mörk = matchMedia("(prefers-color-scheme: dark)");
+  const följTema = () => tema.visa(embedTema(location.search, mörk.matches));
+  följTema();
+  $effect(() => {
+    mörk.addEventListener("change", följTema);
+    return () => mörk.removeEventListener("change", följTema);
+  });
 
   let projekt = $state<ProjektVy | undefined>();
   let saknas = $state(false);
   let fel = $state("");
   let valt = $state<string | null>(null);
   let bredd = $state(0);
+  let himmelHöjd = $state(0);
   /** The Signatur strip opened from the header's person icon (no edit held). */
   let byter = $state(false);
   let vald = $state("");
 
   /** Under ~520px: no list, all star labels, short link. */
   const smal = $derived(bredd > 0 && bredd < 520);
+  /** A tall embed has room for every star's label beside the list too. */
+  const hög = $derived(himmelHöjd >= 420);
   const länk = $derived(projekt ? location.origin + projektHref(projekt) : location.origin);
   const visaStrip = $derived(signatur.frågar || byter);
 
@@ -115,18 +126,34 @@
     </div>
   {:else if projekt}
     <header>
-      <div class="namn">
-        <div class="t" title={projekt.namn}>{projekt.namn}</div>
-        <div class="m">
-          {#if smal}
-            <Nedrakning nedräkning={projekt.nedräkning} nästaMilstolpe={projekt.nästaMilstolpe} liten />
+      {#if smal}
+        <!-- Narrow (Q20 a): name and countdown on one row, the Appetit as a 2px hairline under it. -->
+        <div class="rad1" title={projekt.namn}>
+          <span class="t">{projekt.namn}</span>
+          {#if projekt.nedräkning}
+            <span class="nd" class:över={projekt.nedräkning.läge === "över tid"}>&nbsp;· {projekt.nedräkning.text}</span>
           {:else if projekt.nästaMilstolpe}
-            ◆ {projekt.nästaMilstolpe.text}
+            <span class="nd ensam">&nbsp;· ◆ {projekt.nästaMilstolpe.text}</span>
           {/if}
         </div>
-      </div>
-      {#if !smal && projekt.nedräkning}
-        <div class="cd"><Nedrakning nedräkning={projekt.nedräkning} /></div>
+        {#if projekt.nedräkning?.andel != null}
+          <span class="hår" aria-hidden="true">
+            <span
+              class:larm={projekt.nedräkning.läge === "över tid" || appetitNästanSlut(projekt.nedräkning)}
+              style:width="{Math.round(projekt.nedräkning.andel * 100)}%"
+            ></span>
+          </span>
+        {/if}
+      {:else}
+        <div class="namn">
+          <div class="t" title={projekt.namn}>{projekt.namn}</div>
+          <div class="m">
+            {#if projekt.nästaMilstolpe}◆ {projekt.nästaMilstolpe.text}{/if}
+          </div>
+        </div>
+        {#if projekt.nedräkning}
+          <div class="cd"><Nedrakning nedräkning={projekt.nedräkning} varnaSlut /></div>
+        {/if}
       {/if}
       <button
         class="vem"
@@ -148,13 +175,13 @@
     </header>
 
     <div class="kropp">
-      <div class="himmel">
+      <div class="himmel" bind:clientHeight={himmelHöjd}>
         <HillChart
           namn={projekt.namn}
           scopes={projekt.scopes}
-          tema="dag"
+          tema={tema.nu}
           kompakt
-          etiketter={smal ? true : "valt"}
+          etiketter={smal || hög ? true : "valt"}
           {valt}
           onvälj={(v) => (valt = v)}
           onflytta={flytta}
@@ -165,7 +192,7 @@
           {#each projekt.scopes as s (s.id)}
             <li>
               <button class:sel={s.id === valt} onclick={() => (valt = s.id)} aria-pressed={s.id === valt}>
-                <span class="prick" style:background={lägeFärg(s.läge, "dag")}></span>
+                <span class="prick" style:background={lägeFärg(s.läge, tema.nu)}></span>
                 <span class="sn" title={s.namn}>{s.namn}</span>
                 <span class="äg">{s.ägare.namn}{s.ägare.aktiv ? "" : " (inaktiv)"}</span>
                 <span class="l">{s.läge}</span>
@@ -213,10 +240,12 @@
 </div>
 
 <style>
-  .ap {
-    /* Inherits the dag tokens from app.css; the one deliberate deviation is
-       the white of Notion's page behind the embed. */
+  /* Inherits the theme's tokens from app.css; the one deliberate deviation is
+     the white of Notion's light page behind the embed in dag. */
+  :global(:root[data-theme="dag"]) .ap {
     --bg: #ffffff;
+  }
+  .ap {
     position: fixed;
     inset: 0;
     display: flex;
@@ -227,12 +256,63 @@
     overflow: hidden;
   }
   header {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 14px;
     padding: 9px 14px;
     border-bottom: 1px solid var(--line);
     flex: none;
+  }
+  .smal header {
+    height: 32px;
+    gap: 10px;
+    padding: 0 12px;
+  }
+  .rad1 {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .rad1 .t {
+    font-size: 15px;
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .nd {
+    flex: none;
+    font-size: 13px;
+    color: var(--dim);
+  }
+  .nd.ensam {
+    color: var(--mid);
+    font-weight: 500;
+  }
+  .nd.över {
+    color: var(--redtx);
+    font-weight: 600;
+  }
+  .hår {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: var(--grid);
+  }
+  .hår span {
+    display: block;
+    height: 100%;
+    background: var(--mid);
+  }
+  .hår span.larm {
+    background: var(--red);
+  }
+  .smal .vem {
+    padding: 3px;
   }
   .namn {
     flex: 1;

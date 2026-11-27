@@ -107,6 +107,9 @@ select {
   border-radius: 2px;
   padding: 8px 10px;
 }
+input::placeholder {
+  color: var(--dim);
+}
 input:focus,
 select:focus {
   outline: none;

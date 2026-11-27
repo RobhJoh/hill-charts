@@ -230,6 +230,18 @@ describe("JSON API", () => {
   });
 });
 
+describe("Utan funktionsområde", () => {
+  it("lists Projekt with no Funktionsområde, or null when there are none", async () => {
+    const storage = createMemoryStorage();
+    const { api } = await start(storage);
+    expect((await api("GET", "/api/utan-funktionsomrade")).body).toBeNull();
+    await storage.saveProjekt({ id: "p1", namn: "Sökindex", skapad: "2026-11-01T10:00:00.000Z" });
+    const svar = await api("GET", "/api/utan-funktionsomrade");
+    expect(svar.status).toBe(200);
+    expect(svar.body).toMatchObject({ projekt: [{ id: "p1", namn: "Sökindex" }] });
+  });
+});
+
 describe("Scopes", () => {
   async function medProjekt() {
     const s = await start();

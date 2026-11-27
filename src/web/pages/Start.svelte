@@ -1,6 +1,6 @@
 <script lang="ts">
   import { felText } from "../lib/fel.js";
-  import type { FunktionsområdeVy, Översikt } from "../../core/index.js";
+  import type { FunktionsområdeVy, UtanFunktionsområdeVy, Översikt } from "../../core/index.js";
   import Borttagna from "../components/Borttagna.svelte";
   import NamnForm from "../components/NamnForm.svelte";
   import Nedrakning from "../components/Nedrakning.svelte";
@@ -12,13 +12,18 @@
   import { samladStatus } from "../lib/stilla.js";
 
   let översikt = $state<Översikt | undefined>();
+  let utan = $state<UtanFunktionsområdeVy | null>(null);
   let borttagna = $state<FunktionsområdeVy[]>([]);
   let loadError = $state("");
   let skapar = $state(false);
 
   async function load() {
     try {
-      [översikt, borttagna] = await Promise.all([api.overview(), api.borttagnaFunktionsområden()]);
+      [översikt, utan, borttagna] = await Promise.all([
+        api.overview(),
+        api.utanFunktionsområde(),
+        api.borttagnaFunktionsområden(),
+      ]);
     } catch (e) {
       loadError = felText(e, "Kunde inte läsa in");
     }
@@ -90,7 +95,7 @@
 
   {#if loadError}
     <p class="error">{loadError}</p>
-  {:else if översikt && översikt.length === 0}
+  {:else if översikt && översikt.length === 0 && !utan}
     <p class="empty">Inga Funktionsområden ännu. Skapa det första för att samla Projekt i det.</p>
   {:else if översikt}
     {#each översikt as fo (fo.id)}
@@ -107,6 +112,16 @@
         <ProjektCells projekt={fo.projekt} />
       </section>
     {/each}
+    {#if utan}
+      <!-- Not a Funktionsområde: no page, dates, status or Över tid of its own (GLOSSARY). -->
+      <section>
+        <h2>
+          <span class="utan">Utan funktionsområde</span>
+          <span>{utan.projekt.length} Projekt</span>
+        </h2>
+        <ProjektCells projekt={utan.projekt} />
+      </section>
+    {/if}
   {/if}
 
   <Borttagna rubrik="Borttagna Funktionsområden" rader={borttagnaRader} onåterställ={återställ} onradera={radera} />
@@ -127,6 +142,10 @@
   }
   h2 a {
     text-decoration: none;
+  }
+  h2 span.utan {
+    font: inherit;
+    color: var(--tx);
   }
   h2 a:hover {
     text-decoration: underline;

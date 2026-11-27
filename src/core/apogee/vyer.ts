@@ -60,10 +60,16 @@ export type BorttagenVy = { vem: PersonVy; tid: string };
 /** A row in "Borttagna Projekt". */
 export type BorttagetProjekt = { id: ProjektId; namn: string; borttagen: BorttagenVy };
 export type Översikt = FunktionsområdeVy[];
+/**
+ * Utan funktionsområde: the shown Projekt that belong to no Funktionsområde.
+ * Not a Funktionsområde: no dates, status or Över tid of its own.
+ */
+export type UtanFunktionsområdeVy = { projekt: ProjektRad[] };
 export type ProjektVy = {
   id: ProjektId;
   namn: string;
-  funktionsområde: { id: FunktionsområdeId; namn: string };
+  /** Its Funktionsområde; null when it has none (Utan funktionsområde). */
+  funktionsområde: { id: FunktionsområdeId; namn: string } | null;
   /** Who took it away and when (on its own or with its Funktionsområde); null while shown. */
   borttagen: BorttagenVy | null;
   /** Quiet warnings such as "slutar efter Funktionsområdet"; never block saving. */

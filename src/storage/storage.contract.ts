@@ -117,6 +117,18 @@ export function storageContract(name: string, makeFixture: () => Promise<Storage
       expect(await fixture.reopen().getProjekt("p1")).toMatchObject({ startdatum: null, slutdatum: null });
     });
 
+    it("keeps a Projekt without a Funktionsområde, also across a reopen", async () => {
+      const fixture = await makeFixture();
+      const utan: Projekt = { id: "p1", namn: "Sökindex", skapad: "2026-11-24T10:00:00.000Z" };
+      await fixture.storage.saveProjekt(utan);
+      await fixture.storage.saveProjekt(projekt("p2", "Betaltjänst"));
+      await fixture.storage.saveProjekt({ ...projekt("p2", "Betaltjänst"), funktionsområdeId: undefined });
+      for (const s of [fixture.storage, fixture.reopen()]) {
+        expect(await s.getProjekt("p1")).toEqual(utan);
+        expect((await s.getProjekt("p2"))?.funktionsområdeId).toBeUndefined();
+      }
+    });
+
     it("keeps each Projekt's Historik separate and in append order", async () => {
       const { storage } = await makeFixture();
       await storage.saveProjekt(projekt("p1", "Sökindex"));

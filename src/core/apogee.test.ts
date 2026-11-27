@@ -190,7 +190,7 @@ describe("unknown ids", () => {
     await expect(apogee.createProjekt("saknas", "X", vem)).rejects.toMatchObject(finnsInte);
     await expect(apogee.moveProjekt("saknas", fo.id, vem)).rejects.toMatchObject(finnsInte);
     await expect(apogee.moveProjekt(p.id, "saknas", vem)).rejects.toMatchObject(finnsInte);
-    expect((await apogee.getProjekt(p.id)).funktionsområde.id).toBe(fo.id);
+    expect((await apogee.getProjekt(p.id)).funktionsområde?.id).toBe(fo.id);
   });
 });
 
@@ -216,6 +216,6 @@ describe("renaming a Funktionsområde", () => {
     await apogee.renameFunktionsområde(fo.id, "HR & Personal", vem);
     expect((await apogee.getFunktionsområde(fo.id)).namn).toBe("HR & Personal");
     expect((await apogee.overview()).map((f) => f.namn)).toEqual(["HR & Personal"]);
-    expect((await apogee.getProjekt(p.id)).funktionsområde.namn).toBe("HR & Personal");
+    expect((await apogee.getProjekt(p.id)).funktionsområde?.namn).toBe("HR & Personal");
   });
 });

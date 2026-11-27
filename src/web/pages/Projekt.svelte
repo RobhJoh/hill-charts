@@ -78,10 +78,19 @@
       if (router.route.sida === "projekt" && location.pathname !== href) {
         router.navigate(href + location.search + location.hash, { replace: true });
       }
-      const fo = await api.getFunktionsområde(svar.funktionsområde.id).catch(() => undefined);
-      if (aktuell() && fo) {
-        grannar = ordnaGrannar(fo.projekt, id);
-        foBorttaget = !!fo.borttagen;
+      // Its neighbours: the other Projekt in its Funktionsområde, or under Utan funktionsområde.
+      if (svar.funktionsområde) {
+        const fo = await api.getFunktionsområde(svar.funktionsområde.id).catch(() => undefined);
+        if (aktuell() && fo) {
+          grannar = ordnaGrannar(fo.projekt, id);
+          foBorttaget = !!fo.borttagen;
+        }
+      } else {
+        const utan = await api.utanFunktionsområde().catch(() => undefined);
+        if (aktuell() && utan !== undefined) {
+          grannar = ordnaGrannar(utan?.projekt ?? [], id);
+          foBorttaget = false;
+        }
       }
     },
     fel(e) {
@@ -196,7 +205,7 @@
     const p = projekt;
     if (!p) return;
     await signatur.signera((vem) => api.taBortProjekt(id, vem));
-    router.navigate(funktionsområdeHref(p.funktionsområde));
+    router.navigate(p.funktionsområde ? funktionsområdeHref(p.funktionsområde) : "/");
   }
 
   // --- Dates and Milstolpar (#38): Uppdateringar in the Historik ---
@@ -246,12 +255,15 @@
       onåterställ={foBorttaget ? undefined : återställProjekt}
       lista={foBorttaget
         ? { href: "/", text: "Till Borttagna Funktionsområden" }
-        : { href: funktionsområdeHref(projekt.funktionsområde), text: `Till Borttagna Projekt i ${projekt.funktionsområde.namn}` }}
+        : projekt.funktionsområde
+          ? { href: funktionsområdeHref(projekt.funktionsområde), text: `Till Borttagna Projekt i ${projekt.funktionsområde.namn}` }
+          : { href: "/", text: "Till Alla Funktionsområden" }}
     />
   {:else if projekt}
+    {@const grupp = projekt.funktionsområde ? `i ${projekt.funktionsområde.namn}` : "utan funktionsområde"}
     <div class="projekt">
-    <nav class="grannar" aria-label="Andra Projekt i {projekt.funktionsområde.namn}">
-      <div class="cap">Andra Projekt i {projekt.funktionsområde.namn}</div>
+    <nav class="grannar" aria-label="Andra Projekt {grupp}">
+      <div class="cap">Andra Projekt {grupp}</div>
       {#each grannar as g (g.id)}
         {#if g.avslutat}
           <!-- Avslutat (Q12 a): no mini chart, a light-blue ✦ and the word, in full contrast. -->
@@ -278,7 +290,11 @@
       <nav class="crumbs" aria-label="Brödsmulor">
         <a href="/">Alla Funktionsområden</a>
         <span aria-hidden="true">/</span>
-        <a href={funktionsområdeHref(projekt.funktionsområde)}>{projekt.funktionsområde.namn}</a>
+        {#if projekt.funktionsområde}
+          <a href={funktionsområdeHref(projekt.funktionsområde)}>{projekt.funktionsområde.namn}</a>
+        {:else}
+          <span>Utan funktionsområde</span>
+        {/if}
       </nav>
 
       {#if läge === "byt namn"}
@@ -376,7 +392,7 @@
             <select bind:value={flyttaTill} required>
               <option value="" disabled>Välj …</option>
               {#each funktionsområden as fo (fo.id)}
-                <option value={fo.id} disabled={fo.id === projekt.funktionsområde.id}>{fo.namn}</option>
+                <option value={fo.id} disabled={fo.id === projekt.funktionsområde?.id}>{fo.namn}</option>
               {/each}
             </select>
           </label>

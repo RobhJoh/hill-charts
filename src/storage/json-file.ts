@@ -110,7 +110,7 @@ export function createJsonFileStorage(dir: string): Storage {
 // ---------- format versions ----------
 
 /** The format version written by this code. */
-export const FORMAT_VERSION = 1;
+export const FORMAT_VERSION = 2;
 
 /*
  * Upgrading on read: each document kind has one step per older version,
@@ -136,6 +136,13 @@ function upgrade(raw: unknown, steps: Record<number, (doc: unknown) => Doc>): Do
   return doc as Doc;
 }
 
+/**
+ * Version 1 → 2: a Projekt keeps its own Startdatum and Slutdatum (#73).
+ * Nothing is moved: the dates an older Historik held are ignored on read, and
+ * a Projekt without them simply has none. The documents only change version.
+ */
+const tillVersion2 = (doc: unknown): Doc => ({ ...(doc as Doc), formatVersion: 2 });
+
 function versionOf(doc: unknown): number {
   if (doc && typeof doc === "object" && "formatVersion" in doc) {
     return Number((doc as Doc).formatVersion);
@@ -146,18 +153,20 @@ function versionOf(doc: unknown): number {
 function upgradeFunktionsområden(raw: unknown): Funktionsområde[] {
   const doc = upgrade(raw, {
     0: (bare) => ({ formatVersion: 1, funktionsområden: bare }),
+    1: tillVersion2,
   });
   return doc.funktionsområden as Funktionsområde[];
 }
 
 function upgradePersoner(raw: unknown): Person[] {
   // Personer arrived in format version 1, so there is nothing older to upgrade.
-  return upgrade(raw, {}).personer as Person[];
+  return upgrade(raw, { 1: tillVersion2 }).personer as Person[];
 }
 
 function upgradeProjekt(raw: unknown): Projekt {
   const doc = upgrade(raw, {
     0: (bare) => ({ formatVersion: 1, projekt: bare }),
+    1: tillVersion2,
   });
   return doc.projekt as Projekt;
 }

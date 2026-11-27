@@ -33,15 +33,6 @@ export function beskrivProjekt(projekt: HistorikRad<PersonVy>["projekt"]): strin
   const delar: string[] = [];
   if (projekt.efter.avslutat === true) delar.push("markerade Projektet Avslutat");
   if (projekt.efter.avslutat === false) delar.push("öppnade Projektet igen");
-  for (const fält of ["startdatum", "slutdatum"] as const) {
-    if (!(fält in projekt.efter)) continue;
-    const före = projekt.före[fält] ?? null;
-    const efter = projekt.efter[fält] ?? null;
-    const namn = fält === "startdatum" ? "Startdatum" : "Slutdatum";
-    if (efter === null) delar.push(`tog bort ${namn}`);
-    else if (före === null) delar.push(`satte ${namn} ${visaDatum(efter)}`);
-    else delar.push(`flyttade ${namn} ${visaDatum(före)} → ${visaDatum(efter)}`);
-  }
   if (projekt.efter.milstolpar) delar.push(...beskrivMilstolpar(projekt.före.milstolpar ?? [], projekt.efter.milstolpar));
   return delar;
 }
@@ -72,11 +63,6 @@ export const beskrivAlla = (rad: HistorikRad<PersonVy>, namn: Namn): string[] =>
 export function beskrivRad(rad: HistorikRad<PersonVy>, namn: Namn): string {
   if (rad.typ === UPPDATERING_TYP.återställning) return "återställde diagrammet";
   if (rad.typ === UPPDATERING_TYP.ångra) return "ångrade en Uppdatering";
-  const p = rad.projekt;
-  if (p?.efter.startdatum && p.efter.slutdatum && rad.ändringar.length === 0) {
-    const verb = p.före.startdatum && p.före.slutdatum ? "flyttade" : "satte";
-    return `${verb} datumen till ${visaDatum(p.efter.startdatum)} – ${visaDatum(p.efter.slutdatum)}`;
-  }
   if (rad.typ === UPPDATERING_TYP.överlämning && rad.ändringar[0]?.före && rad.ändringar[0].efter) {
     const { före, efter } = rad.ändringar[0];
     const n = rad.ändringar.length;
@@ -106,9 +92,6 @@ export function skillnaderMotNu(
   }
   if (vy.fältSkiljer.includes("avslutat")) {
     delar.push(`Projektet var ${vy.markeradAvslutat ? "markerat Avslutat" : "inte markerat Avslutat"} då.`);
-  }
-  if (vy.fältSkiljer.includes("startdatum") || vy.fältSkiljer.includes("slutdatum")) {
-    delar.push("Datumen skiljer sig från nu.");
   }
   if (vy.milstolparSkiljer.length > 0) {
     delar.push(`${antal(vy.milstolparSkiljer.length, "Milstolpe", "Milstolpar")} skiljer sig från nu.`);

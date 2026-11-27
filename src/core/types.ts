@@ -42,6 +42,10 @@ export type Projekt = {
   /** The one Funktionsområde it belongs to; absent = none (listed under Utan funktionsområde). */
   funktionsområdeId?: FunktionsområdeId;
   skapad: string; // ISO timestamp
+  /** Its Startdatum, saved on it without Historik. Missing = none. */
+  startdatum?: Datum | null;
+  /** Its Slutdatum, saved on it without Historik. Missing = none. */
+  slutdatum?: Datum | null;
   /**
    * Set while Borttagen. `medFunktionsområde`: it went with its
    * Funktionsområde and comes back with it; otherwise it was taken away on its own.
@@ -92,15 +96,15 @@ export type Ändring = { scopeId: ScopeId; före: ScopeValues | null; efter: Sco
 
 /**
  * Projekt-level fields recorded in the Historik, as for Scopes: marked
- * Avslutat, the dates and the Milstolpar. Compare with `fältLika` (Milstolpar
- * is an array).
+ * Avslutat and the Milstolpar. The dates are on the Projekt itself (#73).
+ * Compare with `fältLika` (Milstolpar is an array).
  */
 export type ProjektFält = {
   /** Marked Avslutat (not the derived status; see status.ts). */
   avslutat: boolean;
-} & Tidsplan;
+} & Pick<Tidsplan, "milstolpar">;
 
-/** One recorded edit to a Projekt's Hill chart or its dates (see spec #31). */
+/** One recorded edit to a Projekt's Hill chart or its Milstolpar (see spec #31). */
 export type Uppdatering = {
   id: UppdateringId;
   typ: string;

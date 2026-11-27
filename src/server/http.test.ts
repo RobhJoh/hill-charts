@@ -567,14 +567,14 @@ describe("the SPA", () => {
 });
 
 describe("dates and Milstolpar", () => {
-  it("are set on a Projekt (as Uppdateringar) and a Funktionsområde (without)", async () => {
+  it("are set on a Projekt and a Funktionsområde; only a Projekt's Milstolpar are Uppdateringar", async () => {
     const { api, apiAs } = await start();
     const fo = (await api("POST", "/api/funktionsomraden", { namn: "Ekonomi" })).body.id;
     const p = (await api("POST", "/api/projekt", { funktionsområdeId: fo, namn: "Kassan" })).body.id;
 
     const datum = await api("PUT", `/api/projekt/${p}/datum`, { startdatum: "2026-11-02", veckor: 6 });
     expect(datum.status).toBe(200);
-    expect(datum.body.uppdatering).toMatchObject({ typ: "datum", projekt: { efter: { slutdatum: "2026-12-14" } } });
+    expect(datum.body).toEqual({ uppdatering: null });
     const m = await api("POST", `/api/projekt/${p}/milstolpar`, { namn: "Beta", datum: "2026-12-01" });
     expect(m.status).toBe(201);
     const ändrad = await api("PATCH", `/api/projekt/${p}/milstolpar/${m.body.id}`, { namn: "Betaversion" });

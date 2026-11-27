@@ -191,10 +191,10 @@ export function tidVy(tidsplan: Tidsplan, avslutat: boolean, idag: Datum): TidVy
   };
 }
 
-/** A Projekt's dates, Milstolpar and countdown from its Historik. */
-export function projektTidVy(logg: Uppdatering[], avslutat: boolean, idag: Datum): TidVy {
-  const { startdatum, slutdatum, milstolpar } = projektFält(logg);
-  return tidVy({ startdatum, slutdatum, milstolpar }, avslutat, idag);
+/** A Projekt's dates (kept on the Projekt), Milstolpar (from its Historik) and countdown. */
+export function projektTidVy(p: Projekt, logg: Uppdatering[], avslutat: boolean, idag: Datum): TidVy {
+  const { milstolpar } = projektFält(logg);
+  return tidVy({ startdatum: p.startdatum ?? null, slutdatum: p.slutdatum ?? null, milstolpar }, avslutat, idag);
 }
 
 /** A Projekt's Hill chart and status from its Historik, against `nu`. */

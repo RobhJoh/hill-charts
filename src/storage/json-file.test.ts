@@ -1,4 +1,4 @@
-import { appendFile, mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -83,6 +83,26 @@ describe("JSON files: format versions", () => {
     expect(await storage.listFunktionsområden()).toEqual([fo]);
     expect(await storage.getProjekt("p1")).toEqual(projekt);
     expect(await storage.listProjekt()).toEqual([projekt]);
+  });
+
+  it("writes format version 2, where a Projekt carries its own dates", async () => {
+    const dir = await tempDir();
+    await createJsonFileStorage(dir).saveProjekt({ ...projekt, startdatum: "2026-11-02", slutdatum: "2026-12-14" });
+    const doc = JSON.parse(await readFile(join(dir, "projekt", "p1.json"), "utf8"));
+    expect(doc).toEqual({ formatVersion: 2, projekt: { ...projekt, startdatum: "2026-11-02", slutdatum: "2026-12-14" } });
+  });
+
+  it("reads version 1 documents, whose Projekt have no dates of their own", async () => {
+    const dir = await tempDir();
+    await mkdir(join(dir, "projekt"));
+    await writeFile(join(dir, "funktionsomraden.json"), JSON.stringify({ formatVersion: 1, funktionsområden: [fo] }));
+    await writeFile(join(dir, "personer.json"), JSON.stringify({ formatVersion: 1, personer: [] }));
+    await writeFile(join(dir, "projekt", "p1.json"), JSON.stringify({ formatVersion: 1, projekt }));
+
+    const storage = createJsonFileStorage(dir);
+    expect(await storage.listFunktionsområden()).toEqual([fo]);
+    expect(await storage.listPersoner()).toEqual([]);
+    expect(await storage.getProjekt("p1")).toEqual(projekt);
   });
 
   it("an upgraded document saved again reads back the same after a restart", async () => {

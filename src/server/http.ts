@@ -324,8 +324,8 @@ export function createHandler({ apogee, webDir, publicUrl }: ServerOptions) {
   }
 
   /**
-   * Dates and Milstolpar of a Projekt (Uppdateringar) or Funktionsområde
-   * (saved without Historik; `uppdatering` is always null):
+   * Dates and Milstolpar of a Projekt (Milstolpar as Uppdateringar) or Funktionsområde
+   * (saved without Historik). Dates are never Uppdateringar (`uppdatering: null`):
    *   PUT    /api/{projekt|funktionsomraden}/:id/datum                  DatumInput → 200 { uppdatering }
    *   POST   /api/{projekt|funktionsomraden}/:id/milstolpar             { namn, datum } → 201 { id, uppdatering }
    *   PATCH  /api/{projekt|funktionsomraden}/:id/milstolpar/:mid        { namn?, datum? } → 200 { uppdatering }

@@ -4,6 +4,7 @@ import { idagFrån } from "../datum.js";
 import { DomainError } from "../errors.js";
 import type { Storage } from "../storage.js";
 import type { Funktionsområde, FunktionsområdeId, Person, PersonId, Projekt, ProjektId, Uppdatering, UppdateringId } from "../types.js";
+import { utanGamlaDatum } from "../status.js";
 import { requireSignatur } from "./regler.js";
 import { diagramVy, projektTidVy, type DiagramVy, type TidVy } from "./vyer.js";
 
@@ -17,8 +18,15 @@ export type ApogeeDeps = {
 
 export type Kärna = ReturnType<typeof skapaKärna>;
 
-/** `storage` must already announce Uppdateringar (see live.ts). */
-export function skapaKärna({ storage, now, newId }: ApogeeDeps) {
+/**
+ * `lagring` must already announce Uppdateringar (see live.ts). Every Historik
+ * is read without the dates an older Historik held (`utanGamlaDatum`).
+ */
+export function skapaKärna({ storage: lagring, now, newId }: ApogeeDeps) {
+  const storage: Storage = {
+    ...lagring,
+    readHistorik: async (projektId) => utanGamlaDatum(await lagring.readHistorik(projektId)),
+  };
   return {
     storage,
     now,
@@ -61,9 +69,9 @@ export function skapaKärna({ storage, now, newId }: ApogeeDeps) {
       return diagramVy(logg, personer, borttagen, now());
     },
 
-    /** A Projekt's dates, Milstolpar and countdown from its Historik, against today. */
-    projektTidVy(logg: Uppdatering[], avslutat: boolean): TidVy {
-      return projektTidVy(logg, avslutat, idagFrån(now()));
+    /** A Projekt's dates, Milstolpar (from its Historik) and countdown, against today. */
+    projektTidVy(p: Projekt, logg: Uppdatering[], avslutat: boolean): TidVy {
+      return projektTidVy(p, logg, avslutat, idagFrån(now()));
     },
   };
 }

@@ -104,6 +104,10 @@
     }),
   );
 
+  /** The compact chart has no room for the note, so a Stilla star's label ends in "· 26 d". */
+  const stillaTillägg = (s: ScopeVy) =>
+    kompakt && s.stilla && pågående[s.id] === undefined ? ` · ${s.stillaDagar} d` : "";
+
   const placerade = $derived.by(() => {
     if (!etiketter) return new Map();
     // The selected star's label gets first pick, then left to right.
@@ -114,7 +118,7 @@
       ordning.map((t) => ({
         id: t.s.id,
         läge: t.läge,
-        text: `${märken[t.s.id] ? märken[t.s.id] + " " : ""}${t.s.namn} ${t.läge}`,
+        text: `${märken[t.s.id] ? märken[t.s.id] + " " : ""}${t.s.namn} ${t.läge}${stillaTillägg(t.s)}`,
       })),
       ruta,
     );
@@ -284,7 +288,7 @@
         <circle class="markerad" cx={x} cy={y} r="25" />
       {/if}
       {#if kompakt && s.stilla && pågående[s.id] === undefined}
-        <circle class="stilla" cx={x} cy={y} r="10" />
+        <circle class="stilla kompakt" cx={x} cy={y} r="12.5" />
       {:else if s.stilla && pågående[s.id] === undefined}
         <!-- Stuck: dashed red ring and a leader to the note, turned away from the frame's edges. -->
         {@const dx = x > 600 ? -1 : 1}
@@ -303,7 +307,9 @@
           <line class="ledare" x1={e.ledare.x1} y1={e.ledare.y1} x2={e.ledare.x2} y2={e.ledare.y2} />
         {/if}
         <text class="sn" x={e.x} y={e.y} text-anchor={e.anchor}
-          >{#if märken[s.id]}<tspan class="sm">{märken[s.id] + " "}</tspan>{/if}{s.namn} <tspan class="sm">{läge}</tspan></text>
+          >{#if märken[s.id]}<tspan class="sm">{märken[s.id] + " "}</tspan>{/if}{s.namn} <tspan class="sm">{läge}</tspan>{#if stillaTillägg(s)}<tspan class="stillad"
+              >{stillaTillägg(s)}</tspan
+            >{/if}</text>
       {/if}
     </g>
   {/each}
@@ -386,6 +392,13 @@
     stroke: var(--red);
     stroke-width: 1.1;
     stroke-dasharray: 3 3;
+  }
+  circle.stilla.kompakt {
+    stroke-width: 1.4;
+  }
+  .stillad {
+    font-weight: 500;
+    fill: var(--redtx);
   }
   polyline.stilla {
     stroke-dasharray: none;

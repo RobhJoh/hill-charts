@@ -6,6 +6,7 @@
   // Each Person shows their load (story 78) and links to their Stjärnkarta.
   import { PERSON_HÄNDELSE_TYP, type PersonHändelse, type PersonRad, type PersonVy } from "../../core/index.js";
   import { api, ApiError } from "../lib/api.js";
+  import StillaAntal from "../components/StillaAntal.svelte";
   import { lägeFärg } from "../lib/hill.js";
   import { personHref } from "../lib/links.js";
   import { tema } from "../lib/tema.svelte.js";
@@ -204,7 +205,7 @@
               <span class="last">
                 <span class="meta">
                   {rad.räkning.scopes} Scopes i {rad.räkning.projekt} Projekt{#if rad.räkning.stilla}
-                    · <span class="stilla">{rad.räkning.stilla} stilla</span>{/if}
+                    · <StillaAntal antal={rad.räkning.stilla} />{/if}
                 </span>
                 <span class="strip" aria-hidden="true">
                   {#each rad.lägen as l, i (i)}
@@ -335,9 +336,6 @@
     flex-direction: column;
     gap: 6px;
     max-width: 260px;
-  }
-  .last .stilla {
-    color: var(--redtx);
   }
   .strip {
     position: relative;

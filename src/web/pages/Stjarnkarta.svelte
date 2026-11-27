@@ -16,6 +16,7 @@
   import { följLive, senasteLaddning } from "../lib/live.js";
   import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
   import { tema } from "../lib/tema.svelte.js";
+  import { STILLA_FÖRKLARING, stillaI } from "../lib/stilla.js";
   import Saknas from "./Saknas.svelte";
 
   let { id }: { id: string } = $props();
@@ -121,7 +122,9 @@
     <div class="summa">
       <div><b>{r.scopes}</b><span>Scopes</span></div>
       <div><b>{r.projekt}</b><span>Projekt</span></div>
-      <div class:röd={r.stilla > 0}><b>{r.stilla}</b><span>stilla &gt; 14 d</span></div>
+      <div class:röd={r.stilla > 0} title={STILLA_FÖRKLARING}>
+        <b>{r.stilla}</b><span>stilla<span class="sr">: {STILLA_FÖRKLARING.toLowerCase()}</span></span>
+      </div>
       {#if r.avslutade}<div><b>{r.avslutade}</b><span>avslutade</span></div>{/if}
     </div>
 
@@ -175,7 +178,7 @@
                       >{s.namn}</button
                     >
                     <b>{s.läge}</b>
-                    {#if s.stilla}<span class="stilla" title="Ingen rörelse på {s.stillaDagar} dagar">{s.stillaDagar} d</span>{/if}
+                    {#if s.stilla}<span class="stilla" title="Ingen rörelse på {s.stillaDagar} dagar">{stillaI(s.stillaDagar)}</span>{/if}
                   </li>
                 {/each}
               </ul>
@@ -297,6 +300,14 @@
   .stilla {
     color: var(--redtx);
     font-size: 13px;
+  }
+  .sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
   .länk {
     background: none;

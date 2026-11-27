@@ -49,6 +49,15 @@ describe("app.css tokens (#48: accent and contrast)", () => {
     });
   }
 
+  it("has the light-blue klar for the ✦ before an Avslutat Projekt, readable on the background (#57)", () => {
+    const natt = tokens(css, "natt");
+    const dag = tokens(css, "dag");
+    expect(natt["--klar"]).toBe("#8fc7ff");
+    expect(dag["--klar"]).toBe("#2f6fb8");
+    expect(kontrast(natt["--klar"]!, natt["--bg"]!)).toBeGreaterThanOrEqual(4.5);
+    expect(kontrast(dag["--klar"]!, dag["--bg"]!)).toBeGreaterThanOrEqual(4.5);
+  });
+
   it("uses the DESIGN.md accent (Q13 a)", () => {
     expect(tokens(css, "natt")["--red"]).toBe("#f0602e");
     expect(tokens(css, "natt")["--red-on"]).toBe("#081026");

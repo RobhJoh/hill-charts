@@ -3,7 +3,7 @@
   // Dates are entered as two dates or as Startdatum plus weeks; moving the
   // Startdatum in the form moves the Slutdatum too, keeping the Appetit.
   import { dagarMellan, plusDagar, type DatumInput, type Milstolpe, type Tidsplan } from "../../core/index.js";
-  import { visaDatum } from "../lib/datum.js";
+  import { datumKnapp, visaDatum } from "../lib/datum.js";
   import { Avbruten } from "../lib/signatur.svelte.js";
 
   let {
@@ -103,7 +103,7 @@
       <span class="dim">Inga datum</span>
     {/if}
     {#each varningar as v (v)}<span class="varning">{v}</span>{/each}
-    <button class="quiet" onclick={öppnaDatum}>Ändra datum</button>
+    <button class="quiet" onclick={öppnaDatum}>{datumKnapp(tidsplan)}</button>
     <button class="quiet" onclick={() => öppnaMilstolpe()}>Ny Milstolpe</button>
   </div>
 

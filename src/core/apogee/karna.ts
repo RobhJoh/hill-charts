@@ -57,8 +57,8 @@ export function skapaKärna({ storage, now, newId }: ApogeeDeps) {
     },
 
     /** A Projekt's Hill chart and status from its Historik, against the clock's "now". */
-    diagramVy(logg: Uppdatering[], personer: Person[], borttagen: boolean): DiagramVy {
-      return diagramVy(logg, personer, borttagen, now());
+    diagramVy(logg: Uppdatering[], personer: Person[]): DiagramVy {
+      return diagramVy(logg, personer, now());
     },
 
     /** A Projekt's dates, Milstolpar and countdown from its Historik, against today. */

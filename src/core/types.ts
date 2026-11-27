@@ -90,14 +90,11 @@ export type ScopeValues = {
 export type Ändring = { scopeId: ScopeId; före: ScopeValues | null; efter: ScopeValues | null };
 
 /**
- * Projekt-level fields recorded in the Historik, as for Scopes: marked
- * Avslutat, the dates and the Milstolpar. Compare with `fältLika` (Milstolpar
- * is an array).
+ * Projekt-level fields recorded in the Historik, as for Scopes: the dates and
+ * the Milstolpar. Compare with `fältLika` (Milstolpar is an array). Older
+ * Historik may also hold an Avslutat mark, which is no longer read.
  */
-export type ProjektFält = {
-  /** Marked Avslutat (not the derived status; see status.ts). */
-  avslutat: boolean;
-} & Tidsplan;
+export type ProjektFält = Tidsplan;
 
 /** One recorded edit to a Projekt's Hill chart or its dates (see spec #31). */
 export type Uppdatering = {

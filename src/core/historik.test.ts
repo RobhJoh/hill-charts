@@ -229,19 +229,19 @@ describe("Visa", () => {
   });
 });
 
-describe("Projekt-level Uppdateringar (Avslutat)", () => {
-  it("Ångra of Markera Avslutat reopens; blocked when Avslutat has changed since", async () => {
+describe("Projekt-level Uppdateringar", () => {
+  it("Ångra of a date change reverts it; blocked when the date has changed since", async () => {
     const { apogee, anna, erik, projekt } = await setup();
-    const markera = await apogee.markAvslutat(projekt, anna);
-    const u = await apogee.ångra(projekt, markera!.id, erik);
-    expect(u).toMatchObject({ typ: "ångra", ändringar: [], projekt: { före: { avslutat: true }, efter: { avslutat: false } } });
-    expect(await apogee.getProjekt(projekt)).toMatchObject({ markeradAvslutat: false });
+    const datum = await apogee.setDatum({ projekt }, { startdatum: null, slutdatum: "2026-12-14" }, anna);
+    const u = await apogee.ångra(projekt, datum!.id, erik);
+    expect(u).toMatchObject({ typ: "ångra", ändringar: [], projekt: { före: { slutdatum: "2026-12-14" }, efter: { slutdatum: null } } });
+    expect((await apogee.getProjekt(projekt)).tidsplan.slutdatum).toBeNull();
 
-    const igen = await apogee.markAvslutat(projekt, anna);
-    await apogee.reopenProjekt(projekt, erik);
+    const igen = await apogee.setDatum({ projekt }, { startdatum: null, slutdatum: "2026-12-14" }, anna);
+    await apogee.setDatum({ projekt }, { startdatum: null, slutdatum: "2026-12-21" }, erik);
     await expect(apogee.ångra(projekt, igen!.id, anna)).rejects.toMatchObject({
       code: "krock",
-      message: expect.stringMatching(/Projektet.*avslutat/),
+      message: expect.stringMatching(/Projektet.*slutdatum/),
     });
   });
 
@@ -249,24 +249,34 @@ describe("Projekt-level Uppdateringar (Avslutat)", () => {
     const { apogee, anna, erik, projekt, s2, diagram } = await setup();
     const före = (await apogee.historik(projekt)).at(-1)!;
     await apogee.moveScope(projekt, s2, 90, erik);
-    await apogee.markAvslutat(projekt, erik);
+    await apogee.setDatum({ projekt }, { startdatum: null, slutdatum: "2026-12-14" }, erik);
     const innan = await diagram();
 
     const åter = await apogee.återställHit(projekt, före.id, anna);
-    expect(åter!.projekt).toEqual({ före: { avslutat: true }, efter: { avslutat: false } });
-    expect(await apogee.getProjekt(projekt)).toMatchObject({ markeradAvslutat: false });
+    expect(åter!.projekt).toEqual({ före: { slutdatum: "2026-12-14" }, efter: { slutdatum: null } });
+    expect((await apogee.getProjekt(projekt)).tidsplan.slutdatum).toBeNull();
     expect((await diagram()).find(([id]) => id === s2)![2]).toBe(38);
 
     await apogee.ångra(projekt, åter!.id, anna);
-    expect(await apogee.getProjekt(projekt)).toMatchObject({ markeradAvslutat: true });
+    expect((await apogee.getProjekt(projekt)).tidsplan.slutdatum).toBe("2026-12-14");
     expect(await diagram()).toEqual(innan);
   });
 
-  it("Visa shows whether the Projekt was marked Avslutat at that point", async () => {
-    const { apogee, anna, projekt } = await setup();
-    const markera = await apogee.markAvslutat(projekt, anna);
-    await apogee.reopenProjekt(projekt, anna);
-    expect(await apogee.förhandsvisa(projekt, markera!.id)).toMatchObject({ markeradAvslutat: true, avslutat: true });
+  it("an Avslutat mark left in an older Historik is ignored: status follows Läge alone", async () => {
+    const { apogee, storage, anna, projekt } = await setup();
+    const legacy = (id: string, avslutat: boolean) => ({
+      id,
+      typ: avslutat ? "avslutat" : "öppna igen",
+      vem: anna,
+      tid: "2026-11-25T10:00:00.000Z",
+      ändringar: [],
+      projekt: { före: { avslutat: !avslutat }, efter: { avslutat } },
+    });
+    await storage.appendUppdatering(projekt, legacy("gammal1", true) as never);
+    expect(await apogee.getProjekt(projekt)).toMatchObject({ status: "pågående", avslutat: false });
+    expect(await apogee.förhandsvisa(projekt, "gammal1")).toMatchObject({ status: "pågående", fältSkiljer: [], sammaSomNu: true });
+    await storage.appendUppdatering(projekt, legacy("gammal2", false) as never);
+    expect(await apogee.återställHit(projekt, "gammal1", anna)).toBeNull();
   });
 });
 

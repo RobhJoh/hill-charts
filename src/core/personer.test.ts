@@ -82,18 +82,26 @@ describe("removing a Person (handover)", () => {
   });
 
   it("leaves Scopes in Avslutade Projekt with the removed Person, shown as inaktiv", async () => {
-    const { apogee, anna, bo, projekt, nyttProjekt, scope, ägare } = await setup();
-    await scope("Prislista", bo, 30);
-    await apogee.markAvslutat(projekt, anna);
+    const { apogee, anna, bo, nyttProjekt, scope } = await setup();
     const klart = await nyttProjekt("Lager");
     await scope("Inventering", bo, 100, klart);
-    const före = [await apogee.historik(projekt), await apogee.historik(klart)];
+    await scope("Räkning", anna, 100, klart);
+    const före = await apogee.historik(klart);
 
     expect(await apogee.removePerson(bo, anna, anna)).toEqual([]);
 
-    expect([await apogee.historik(projekt), await apogee.historik(klart)]).toEqual(före);
-    expect(await ägare()).toEqual({ Prislista: "Bo" });
+    expect(await apogee.historik(klart)).toEqual(före);
     expect((await apogee.getProjekt(klart)).scopes[0]!.ägare).toEqual({ id: bo, namn: "Bo", aktiv: false });
+  });
+
+  it("hands over their Scopes in an Inte påbörjat Projekt too", async () => {
+    const { apogee, anna, bo, projekt, scope, ägare } = await setup();
+    await scope("Prislista", bo);
+    expect((await apogee.getProjekt(projekt)).status).toBe("inte påbörjat");
+
+    expect(await apogee.removePerson(bo, anna, anna)).toHaveLength(1);
+
+    expect(await ägare()).toEqual({ Prislista: "Anna" });
   });
 
   it("leaves Scopes in Borttagna Projekt with the removed Person, even while still in progress", async () => {

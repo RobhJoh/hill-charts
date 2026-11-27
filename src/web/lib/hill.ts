@@ -361,3 +361,62 @@ export function etiketterSomFår(
   }
   return placeraEtiketter(med, box, allaHinder);
 }
+
+// ---------- the chart on a phone ----------
+
+/** Below this measured width (CSS px) the big chart draws in real pixels instead of scaling its viewBox down. */
+export const TELEFON_BREDD = 600;
+
+/** A star's invisible hit circle on a phone, in CSS px: 44 px across. */
+export const TELEFON_TRÄFF = 22;
+
+/** The phone box with `över` px of extra room above the grid for stacked labels. */
+function telefonRuta(bredd: number, över: number): Ruta {
+  const x0 = 16;
+  const w = bredd - 2 * x0;
+  // The big chart's proportions: the hill half as high as it is wide.
+  const ht = Math.round(w / 2);
+  const topp = 14 + över;
+  const bas = topp + ht;
+  // Under the baseline: ticks, the Läge numbers and the phase names.
+  return { bredd, höjd: bas + 56, x0, w, bas, ht, topp, tecken: 7.3 };
+}
+
+/**
+ * Whether every label is clear of the other labels and of the other stars'
+ * cores, and sits beside or above its own star: in a phone's narrow hill a
+ * label hung under its star lands between the slopes, far from it.
+ */
+function allaFria(etiketter: Etikett[], stjärnor: { id: string; läge: number }[], box: Ruta): boolean {
+  return etiketter.every((a) => {
+    const egen = stjärnor.find((s) => s.id === a.id);
+    if (egen && a.ruta.y >= punkt(egen.läge, box)[1]) return false;
+    return (
+      etiketter.every((b) => a === b || !krockar(a.ruta, b.ruta)) &&
+      stjärnor.every((s) => {
+        if (s.id === a.id) return true;
+        const [x, y] = punkt(s.läge, box);
+        return !krockar(a.ruta, { x: x - 7, y: y - 7, b: 14, h: 14 });
+      })
+    );
+  });
+}
+
+/**
+ * The Hill chart on a phone (Q9 a, Q17 b): a box in real pixels at the
+ * measured width, keeping grid and axis, with 13px labels. Every label is
+ * shown: crowded ones stack with leader lines, and the box grows taller above
+ * the grid, one label row at a time, until they all fit clear of each other.
+ */
+export function telefonDiagram(
+  bredd: number,
+  stjärnor: { id: string; läge: number; text: string }[],
+): { ruta: Ruta; etiketter: Etikett[] } {
+  let ruta = telefonRuta(bredd, 0);
+  let etiketter = placeraEtiketter(stjärnor, ruta);
+  for (let rader = 1; rader <= 20 && !allaFria(etiketter, stjärnor, ruta); rader++) {
+    ruta = telefonRuta(bredd, rader * RAD);
+    etiketter = placeraEtiketter(stjärnor, ruta);
+  }
+  return { ruta, etiketter };
+}

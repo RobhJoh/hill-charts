@@ -431,6 +431,14 @@
             väntar={signatur.hållen?.scopeId}
           />
         </div>
+        {#if !stängt}
+          <!-- Right under the chart (Q19 a); the arrow keys only where there is a keyboard-like pointer. -->
+          <p class="dra">
+            Dra en stjärna längs banan för att ändra dess Läge.<span class="tangenter">
+              Markera och använd piltangenterna (Shift = 10 steg).</span
+            >
+          </p>
+        {/if}
       {/if}
       {#if skrivFel}<p class="error" role="alert">{skrivFel}</p>{/if}
     </div>
@@ -656,6 +664,17 @@
     margin-top: 20px;
     border: 1px solid var(--line);
     background: var(--chart-ground);
+  }
+  .dra {
+    margin: 8px 0 0;
+    font-size: 14px;
+    color: var(--dim);
+  }
+  /* A touch screen has no arrow keys. */
+  @media not (any-pointer: fine) {
+    .tangenter {
+      display: none;
+    }
   }
   /* Three columns only from 1200 px: below that the side column would squeeze
      the Hill chart. Between 900 and 1200 px the other Projekt move under the

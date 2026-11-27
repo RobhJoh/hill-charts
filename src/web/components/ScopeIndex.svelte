@@ -248,8 +248,6 @@
   </div>
   {#if skrivskyddad}
     <p class="meta">Projektet är Avslutat, så stjärnorna står still. Välj Öppna igen för att flytta dem eller ändra Ägare.</p>
-  {:else}
-    <p class="meta">Dra en stjärna längs banan för att ändra dess Läge, eller markera den och använd piltangenterna.</p>
   {/if}
 </section>
 

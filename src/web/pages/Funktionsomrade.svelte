@@ -119,7 +119,7 @@
             </div>
           {/if}
           <div class="meta">
-            {STATUS_ORD[fo.status]}<NotionStatus status={fo.notionStatus} före=" · " /> · {fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}
+            {STATUS_ORD[fo.status]}<NotionStatus status={fo.notionStatus} före=" · " /> · {fo.projekt.length} Projekt{#if fo.funktionsansvarig}{" · "}Funktionsansvarig {fo.funktionsansvarig.namn}{fo.funktionsansvarig.aktiv ? "" : " (inaktiv)"}{/if}{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}
           </div>
           <div class="tid">
             <Nedrakning nedräkning={fo.nedräkning} nästaMilstolpe={fo.nästaMilstolpe} />

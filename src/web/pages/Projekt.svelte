@@ -11,6 +11,7 @@
   import { beskrivRad, skillnaderMotNu, UTAN_NAMN, visaTid } from "../lib/historik.js";
   import { visaDatum } from "../lib/datum.js";
   import AndraINotion from "../components/AndraINotion.svelte";
+  import { föreslagenÄgare } from "../lib/agare.js";
   import ScopeIndex from "../components/ScopeIndex.svelte";
   import TaBort from "../components/TaBort.svelte";
   import Borttaget from "../components/Borttaget.svelte";
@@ -273,7 +274,10 @@
                 ? "Datum och Milstolpar"
                 : "Milstolpar"}
           </button>
-          <!-- Namn, Funktionsområde and dates come from Notion (ADR 0003). -->
+          {#if projekt.projektledare}
+            <span class="ledare">Projektledare {projekt.projektledare.namn}{projekt.projektledare.aktiv ? "" : " (inaktiv)"}</span>
+          {/if}
+          <!-- Namn, Funktionsområde, dates and Projektledare come from Notion (ADR 0003). -->
           <AndraINotion url={projekt.notionUrl} />
         </div>
         <div class="primära">
@@ -387,6 +391,7 @@
         tema={tema.nu}
         {valt}
         bind:nyScope
+        förslag={föreslagenÄgare(projekt)}
         onvälj={(s) => (valt = s)}
         onlägg={läggTill}
         onbytnamn={(scopeId, namn) => redigera((vem) => api.changeScope(id, scopeId, { namn }, vem))}
@@ -407,6 +412,10 @@
 {/if}
 
 <style>
+  .ledare {
+    font-size: 14px;
+    color: var(--dim);
+  }
   .crumbs {
     display: flex;
     gap: 8px;

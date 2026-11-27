@@ -39,6 +39,8 @@ export type Funktionsområde = {
   notionUrl?: string;
   /** Notion-status: `Status` exactly as in Notion; drives nothing in Apogee. Missing = none. */
   notionStatus?: string | null;
+  /** Its Funktionsansvarig, from Notion; absent = none. */
+  funktionsansvarig?: PersonId;
 };
 
 export type Projekt = {
@@ -56,6 +58,8 @@ export type Projekt = {
   notionUrl?: string;
   /** Notion-status: `Status` exactly as in Notion; drives nothing in Apogee. Missing = none. */
   notionStatus?: string | null;
+  /** Its Projektledare, from Notion; absent = none. */
+  projektledare?: PersonId;
   /**
    * Set while Borttagen. `medFunktionsområde`: it went with its
    * Funktionsområde and comes back with it; otherwise it was taken away on its own.
@@ -69,6 +73,8 @@ export type Person = {
   namn: string;
   aktiv: boolean;
   skapad: string; // ISO timestamp
+  /** The Notion person it is linked to; once set, the link holds whatever either side is named. */
+  notionId?: string;
 };
 
 /** What happened to a Person, as recorded in the Personer-historik. */

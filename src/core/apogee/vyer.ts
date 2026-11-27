@@ -77,6 +77,8 @@ export type DiagramVy = {
   avslutat: boolean;
   /** Someone marked it Avslutat (it stays so until "Öppna igen"). */
   markeradAvslutat: boolean;
+  /** When and by whom it was marked Avslutat (the status line's quiet ending); null unless marked. */
+  avslutadAv: { tid: string; vem: PersonVy | null } | null;
   /** Neither Avslutat nor Borttagen. */
   pågående: boolean;
 };
@@ -204,5 +206,9 @@ export function diagramVy(logg: Uppdatering[], personer: Person[], borttagen: bo
       stilla: ärStilla(flyttad[scopeId]!, nu, s.läge, avslutat),
     }))
     .sort((a, b) => b.läge - a.läge || efterNamn(a, b));
-  return { scopes, avslutat, markeradAvslutat, pågående: ärPågående({ avslutat, borttagen }) };
+  const markering = markeradAvslutat ? logg.findLast((u) => u.projekt?.efter.avslutat === true) : undefined;
+  const avslutadAv = markering
+    ? { tid: markering.tid, vem: markering.vem === null ? null : ägareVy(personer, markering.vem) }
+    : null;
+  return { scopes, avslutat, markeradAvslutat, avslutadAv, pågående: ärPågående({ avslutat, borttagen }) };
 }

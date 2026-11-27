@@ -86,6 +86,26 @@ describe("Avslutat and Pågående", () => {
     expect(await status()).toEqual(AVSLUTAT_AV_LÄGE);
   });
 
+  it("a marked Projekt says when and by whom it was marked Avslutat, until Öppna igen", async () => {
+    const { apogee, anna, projekt, senare, scope } = await setup();
+    await scope("Prislista", 40);
+    expect((await apogee.getProjekt(projekt)).avslutadAv).toBeNull();
+    senare(DAG);
+    await apogee.markAvslutat(projekt, anna);
+    expect((await apogee.getProjekt(projekt)).avslutadAv).toEqual({
+      tid: "2026-11-25T10:00:00.000Z",
+      vem: { id: anna, namn: "Anna", aktiv: true },
+    });
+    await apogee.reopenProjekt(projekt, anna);
+    expect((await apogee.getProjekt(projekt)).avslutadAv).toBeNull();
+  });
+
+  it("a Projekt Avslutat only through Läge has no one who marked it", async () => {
+    const { apogee, projekt, scope } = await setup();
+    await scope("Prislista", 100);
+    expect((await apogee.getProjekt(projekt)).avslutadAv).toBeNull();
+  });
+
   it("marking a marked Projekt, or reopening an unmarked one, writes nothing", async () => {
     const { apogee, anna, projekt } = await setup();
     expect(await apogee.reopenProjekt(projekt, anna)).toBeNull();

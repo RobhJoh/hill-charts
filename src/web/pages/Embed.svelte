@@ -18,7 +18,7 @@
   import { appetitNästanSlut } from "../lib/datum.js";
   import { lägeFärg } from "../lib/hill.js";
   import { projektHref } from "../lib/links.js";
-  import { följLive, senasteLaddning } from "../lib/live.js";
+  import { följLive, liveMål, senasteLaddning } from "../lib/live.js";
   import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
   import { tema } from "../lib/tema.svelte.js";
 
@@ -64,7 +64,9 @@
 
   // Live sync: re-fetch on every Uppdatering and every (re)connect, also when
   // the page is visible again (mobile webviews drop sockets in the background).
-  $effect(() => följLive([id], () => void load()));
+  // Only once the first fetch succeeded and while the Projekt is Pågående.
+  const följId = $derived(liveMål(saknas ? undefined : projekt));
+  $effect(() => (följId ? följLive([följId], () => void load()) : undefined));
 
   async function flytta(scopeId: string, läge: number) {
     fel = "";

@@ -207,3 +207,41 @@ describe("the overview", () => {
     expect(await apogee.getFunktionsområde(fo)).toEqual(ekonomi);
   });
 });
+
+describe("when a Projekt became Avslutat (the date in the Avslutade list)", () => {
+  const avslutad = async (apogee: Awaited<ReturnType<typeof setup>>["apogee"]) =>
+    (await apogee.overview())[0]!.projekt.map((p) => [p.namn, p.avslutad]);
+
+  it("is the time of the Uppdatering that made it Avslutat, by Läge or by marking", async () => {
+    const { apogee, anna, fo, projekt, senare, scope } = await setup();
+    const a = await scope("Prislista", 50);
+    senare(DAG);
+    await apogee.moveScope(projekt, a, 100, anna); // Avslutat by Läge
+    const b = (await apogee.createProjekt(fo, "Bokslut", anna)).id;
+    await scope("Arkiv", 30, b);
+    senare(DAG);
+    await apogee.markAvslutat(b, anna); // marked Avslutat
+    senare(DAG);
+    await apogee.renameScope(projekt, a, "Priser", anna); // later edits do not move the date
+    expect(await avslutad(apogee)).toEqual([
+      ["Bokslut", "2026-11-26T10:00:00.000Z"],
+      ["Kassan", "2026-11-25T10:00:00.000Z"],
+    ]);
+  });
+
+  it("is null while Pågående, and starts over when it is opened and closed again", async () => {
+    const { apogee, anna, projekt, senare, scope } = await setup();
+    const a = await scope("Prislista", 100);
+    senare(DAG);
+    await apogee.moveScope(projekt, a, 90, anna);
+    expect(await avslutad(apogee)).toEqual([["Kassan", null]]);
+    senare(DAG);
+    await apogee.markAvslutat(projekt, anna);
+    expect(await avslutad(apogee)).toEqual([["Kassan", "2026-11-26T10:00:00.000Z"]]);
+  });
+
+  it("is null for a Projekt that never had a Scope (Avslutat without any Uppdatering)", async () => {
+    const { apogee } = await setup();
+    expect(await avslutad(apogee)).toEqual([["Kassan", null]]);
+  });
+});

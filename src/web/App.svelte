@@ -13,6 +13,7 @@
   import { laddaPersoner, signatur } from "./lib/signatur.svelte.js";
   import { tema } from "./lib/tema.svelte.js";
   import { initialer } from "./lib/initialer.js";
+  import { stängVidKlickUtanför } from "./lib/popover.js";
 
   const route = $derived(router.route);
 
@@ -29,6 +30,7 @@
   let menyÖppen = $state(false);
   let byter = $state(false);
   let menyRot = $state<HTMLElement>();
+  let menyPanel = $state<HTMLElement>();
 
   function stängMeny(fokusTillbaka = false) {
     menyÖppen = false;
@@ -42,16 +44,18 @@
     return () => stängMeny();
   });
 
-  function utanför(e: PointerEvent) {
-    if (menyÖppen && menyRot && !menyRot.contains(e.target as Node)) stängMeny();
-  }
+  // A press outside the initials button and the menu closes it, as Mer does.
+  $effect(() => {
+    if (!menyÖppen) return;
+    return stängVidKlickUtanför(() => [menyRot, menyPanel], () => stängMeny());
+  });
 
   function tangent(e: KeyboardEvent) {
     if (menyÖppen && e.key === "Escape") stängMeny(true);
   }
 </script>
 
-<svelte:window onpointerdown={utanför} onkeydown={tangent} />
+<svelte:window onkeydown={tangent} />
 
 {#if route.sida === "embed"}
   <!-- The Notion embed is its own small page: no site header, its own Signatur strip. -->
@@ -97,7 +101,7 @@
           </svg>
         </button>
         {#if menyÖppen}
-          <div class="panel" id="signaturmeny">
+          <div class="panel" id="signaturmeny" bind:this={menyPanel}>
             <div class="vem">
               <span class="cap">Signatur</span>
               <strong>{signatur.person.namn}</strong>

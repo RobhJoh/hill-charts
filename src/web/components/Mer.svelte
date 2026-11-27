@@ -18,7 +18,7 @@
   // "Mer" by the page heading (Q5 a, Q18 b): the rare actions behind one
   // button. Opens a menu; arrow keys move, Esc and a click outside close it.
   import { menyFokus } from "../lib/mer.js";
-  import { utanförRutan } from "../lib/popover.js";
+  import { stängVidKlickUtanför } from "../lib/popover.js";
 
   let { poster, höger = false }: { poster: MerPost[]; /** Open towards the left (button at the right). */ höger?: boolean } =
     $props();
@@ -83,12 +83,7 @@
   // A click anywhere outside closes the menu.
   $effect(() => {
     if (!öppen) return;
-    const utanför = (event: PointerEvent) => {
-      const rutor = [meny, knapp].flatMap((el) => (el ? [el.getBoundingClientRect()] : []));
-      if (rutor.every((ruta) => utanförRutan(ruta, event))) stäng(false);
-    };
-    document.addEventListener("pointerdown", utanför);
-    return () => document.removeEventListener("pointerdown", utanför);
+    return stängVidKlickUtanför(() => [meny, knapp], () => stäng(false));
   });
 </script>
 

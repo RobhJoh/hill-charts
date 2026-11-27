@@ -11,3 +11,25 @@ export function utanförRutan(ruta: Ruta, klick: Klick): boolean {
   const { clientX: x, clientY: y } = klick;
   return x < ruta.left || x > ruta.right || y < ruta.top || y > ruta.bottom;
 }
+
+/**
+ * Whether a press lands outside every one of these boxes (a dropdown's panel
+ * and the button that opens it). Meant for `pointerdown`, which always has
+ * `detail` 0, so the keyboard-click exemption of `utanförRutan` does not apply.
+ */
+export function utanförAlla(rutor: Ruta[], { clientX, clientY }: Klick): boolean {
+  return rutor.every((ruta) => utanförRutan(ruta, { clientX, clientY }));
+}
+
+/**
+ * Close a dropdown on a press outside the given elements (#56, #50): Mer and
+ * the header's Signatur menu share this. Returns the cleanup, for `$effect`.
+ */
+export function stängVidKlickUtanför(element: () => (Element | undefined)[], stäng: () => void): () => void {
+  const vid = (event: PointerEvent) => {
+    const rutor = element().flatMap((el) => (el ? [el.getBoundingClientRect()] : []));
+    if (utanförAlla(rutor, event)) stäng();
+  };
+  document.addEventListener("pointerdown", vid);
+  return () => document.removeEventListener("pointerdown", vid);
+}

@@ -13,7 +13,6 @@
   import AndraINotion from "../components/AndraINotion.svelte";
   import { föreslagenÄgare } from "../lib/agare.js";
   import ScopeIndex from "../components/ScopeIndex.svelte";
-  import TaBort from "../components/TaBort.svelte";
   import Borttaget from "../components/Borttaget.svelte";
   import KopieraLank from "../components/KopieraLank.svelte";
   import BaddaIn from "../components/BaddaIn.svelte";
@@ -48,7 +47,6 @@
   // --- Page head (Q5 a): the rare actions in Mer; dates and Milstolpar fold out ---
   let länk = $state<ReturnType<typeof KopieraLank>>();
   let bädda = $state<ReturnType<typeof BaddaIn>>();
-  let taBortÖppen = $state(false);
   let tidÖppen = $state(false);
 
   const mer = $derived.by((): MerPost[] => {
@@ -56,7 +54,6 @@
     return [
       { text: "Kopiera länk", gör: () => void länk?.kopiera() },
       { text: "Bädda in", gör: () => bädda?.öppna() },
-      { avdelare: true, text: "Ta bort", farlig: true, gör: () => (taBortÖppen = true) },
     ];
   });
 
@@ -175,20 +172,6 @@
     valt = nytt ?? null;
   }
 
-  /** Återställ a Borttaget Projekt from its own page (same command as in the Borttagna list). */
-  async function återställProjekt() {
-    await signatur.signera((vem) => api.återställProjekt(id, vem));
-    await load();
-  }
-
-  /** Ta bort: hides the Projekt; it is listed under Borttagna Projekt on its Funktionsområde page. */
-  async function taBortProjekt() {
-    const p = projekt;
-    if (!p) return;
-    await signatur.signera((vem) => api.taBortProjekt(id, vem));
-    router.navigate(p.funktionsområde ? funktionsområdeHref(p.funktionsområde) : "/");
-  }
-
   // --- Milstolpar (#38): Uppdateringar in the Historik; dates come from Notion ---
   const tidMål = $derived({ projekt: id });
 </script>
@@ -207,7 +190,6 @@
       rubrik="Projektet är borttaget"
       namn={projekt.namn}
       borttagen={projekt.borttagen}
-      onåterställ={foBorttaget ? undefined : återställProjekt}
       lista={foBorttaget
         ? { href: "/", text: "Till Borttagna Funktionsområden" }
         : projekt.funktionsområde
@@ -297,14 +279,6 @@
       <div class="utfall">
         <KopieraLank bind:this={länk} knapp={false} href={projektHref(projekt)} />
         <BaddaIn bind:this={bädda} knapp={false} namn={projekt.namn} href={projektHref(projekt)} />
-        {#if taBortÖppen}
-          <TaBort
-            bind:öppen={taBortÖppen}
-            knapp={false}
-            fråga="Ta bort {projekt.namn} med {projekt.scopes.length} {projekt.scopes.length === 1 ? 'Scope' : 'Scopes'}?"
-            ontabort={taBortProjekt}
-          />
-        {/if}
       </div>
       {#if tidÖppen}
       <!-- Under Visa the banner is the only time shown (now's dates are dimmed and inert). -->

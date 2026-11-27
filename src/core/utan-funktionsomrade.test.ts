@@ -64,17 +64,18 @@ describe("a Projekt without a Funktionsområde", () => {
     expect(await apogee.utanFunktionsområde()).toBeNull();
     await notion.projekt("Kassan", "Ekonomi");
     expect(await apogee.utanFunktionsområde()).toBeNull();
-    await utan("p1", "Sökindex");
-    await apogee.taBortProjekt("p1", anna);
+    await notion.projekt("Sökindex");
+    await notion.avbocka("Sökindex");
     expect(await apogee.utanFunktionsområde()).toBeNull();
   });
 
-  it("can be taken away and brought back", async () => {
-    const { apogee, anna, utan } = await setup();
-    await utan("p1", "Sökindex");
-    await apogee.taBortProjekt("p1", anna);
-    expect((await apogee.getProjekt("p1")).borttagen).not.toBeNull();
-    await apogee.återställProjekt("p1", anna);
-    expect((await apogee.getProjekt("p1")).borttagen).toBeNull();
+  it("is taken away and brought back by the Notion sync", async () => {
+    const { apogee, notion } = await setup();
+    const id = await notion.projekt("Sökindex");
+    await notion.avbocka("Sökindex");
+    expect((await apogee.getProjekt(id)).borttagen).not.toBeNull();
+    await notion.projekt("Sökindex");
+    expect((await apogee.getProjekt(id)).borttagen).toBeNull();
+    expect(await apogee.utanFunktionsområde()).toMatchObject({ projekt: [{ id }] });
   });
 });

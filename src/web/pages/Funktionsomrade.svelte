@@ -6,11 +6,9 @@
   import Tidsplan from "../components/Tidsplan.svelte";
   import Borttagna from "../components/Borttagna.svelte";
   import ProjektCells from "../components/ProjektCells.svelte";
-  import TaBort from "../components/TaBort.svelte";
   import Borttaget from "../components/Borttaget.svelte";
   import KopieraLank from "../components/KopieraLank.svelte";
   import Mer, { type MerPost } from "../components/Mer.svelte";
-  import { taBortSpärr } from "../lib/mer.js";
   import { STATUS_ORD } from "../lib/avslutat.js";
   import { api, ApiError } from "../lib/api.js";
   import { signatur } from "../lib/signatur.svelte.js";
@@ -27,7 +25,6 @@
   let loadError = $state("");
   let tidsplan = $state<ReturnType<typeof Tidsplan>>();
   let länk = $state<ReturnType<typeof KopieraLank>>();
-  let taBortÖppen = $state(false);
 
   /** Q18 b: Milstolpar and the rare actions are in Mer; namn and dates are changed in Notion. */
   const mer = $derived.by((): MerPost[] => {
@@ -35,7 +32,6 @@
     return [
       { grupp: "Tidsplan", text: "Ny Milstolpe", gör: () => tidsplan?.öppnaMilstolpe() },
       { avdelare: true, text: "Kopiera länk", gör: () => void länk?.kopiera() },
-      { avdelare: true, text: "Ta bort", farlig: true, spärr: taBortSpärr(fo.projekt), gör: () => (taBortÖppen = true) },
     ];
   });
 
@@ -62,17 +58,6 @@
     } finally {
       await load();
     }
-  }
-
-  /** Ta bort: only when all its Projekt are Avslutade (the core says why not). */
-  async function taBort() {
-    await signatur.signera((vem) => api.taBortFunktionsområde(id, vem));
-    router.navigate("/");
-  }
-
-  async function återställProjekt(projektId: string) {
-    await signatur.signera((vem) => api.återställProjekt(projektId, vem));
-    await load();
   }
 
   async function raderaProjekt(projektId: string, namn: string) {
@@ -108,16 +93,6 @@
             <KopieraLank bind:this={länk} knapp={false} href={funktionsområdeHref(fo)} />
             <AndraINotion url={fo.notionUrl} />
           </div>
-          {#if taBortÖppen}
-            <div class="tabort">
-              <TaBort
-                bind:öppen={taBortÖppen}
-                knapp={false}
-                fråga="Ta bort {fo.namn} med {fo.projekt.length} Projekt?"
-                ontabort={taBort}
-              />
-            </div>
-          {/if}
           <div class="meta">
             {STATUS_ORD[fo.status]}<NotionStatus status={fo.notionStatus} före=" · " /> · {fo.projekt.length} Projekt{#if fo.funktionsansvarig}{" · "}Funktionsansvarig {fo.funktionsansvarig.namn}{fo.funktionsansvarig.aktiv ? "" : " (inaktiv)"}{/if}{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}
           </div>
@@ -139,12 +114,7 @@
         <ProjektCells projekt={fo.projekt} stor />
       </section>
 
-      <Borttagna
-        rubrik="Borttagna Projekt"
-        rader={fo.borttagnaProjekt}
-        onåterställ={återställProjekt}
-        onradera={raderaProjekt}
-      />
+      <Borttagna rubrik="Borttagna Projekt" rader={fo.borttagnaProjekt} onradera={raderaProjekt} />
     {/if}
   </div>
 {/if}
@@ -155,9 +125,5 @@
   }
   .tid {
     margin-top: 14px;
-  }
-  .tabort {
-    margin-top: 8px;
-    font-size: 14px;
   }
 </style>

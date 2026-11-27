@@ -44,6 +44,12 @@ export function notionStruktur(apogee: Apogee, notion: MemoryNotion, storage: St
       return projektId(namn);
     },
 
+    /** Unticks a Projekt in Notion (or it is trashed, or gone) and syncs. */
+    async avbocka(namn: string): Promise<void> {
+      notion.utan(notionIdFör(namn));
+      await synka();
+    },
+
     /** Changes a Projekt (by its first name) in Notion and syncs. */
     async ändraProjekt(namn: string, fält: Partial<NotionProjekt>): Promise<void> {
       const p = (await notion.hämta()).projekt.find((x) => x.notionId === notionIdFör(namn));

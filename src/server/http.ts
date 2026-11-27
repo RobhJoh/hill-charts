@@ -127,24 +127,9 @@ export function createHandler({ apogee, webDir, publicUrl, skrivkö }: ServerOpt
       if (resource === "projekt") return tidsplanDel(method, { projekt: id }, sub, subId, req, vem);
       if (resource === "funktionsomraden") return tidsplanDel(method, { funktionsområde: id }, sub, subId, req, vem);
     }
-    // Ta bort (POST) and Återställ (DELETE) a Projekt or Funktionsområde.
-    if (
-      (resource === "projekt" || resource === "funktionsomraden") &&
-      id !== undefined &&
-      sub === "borttagen" &&
-      subId === undefined &&
-      (method === "POST" || method === "DELETE")
-    ) {
-      await serialize(() =>
-        resource === "projekt"
-          ? method === "POST"
-            ? apogee.taBortProjekt(id, vem)
-            : apogee.återställProjekt(id, vem)
-          : method === "POST"
-            ? apogee.taBortFunktionsområde(id, vem)
-            : apogee.återställFunktionsområde(id, vem),
-      );
-      return { status: 204 };
+    // Borttagen follows Notion (#76): nothing is taken away or restored by hand.
+    if ((resource === "projekt" || resource === "funktionsomraden") && sub === "borttagen" && subId === undefined) {
+      throw new HttpError(405, "notion", "Tas bort och kommer tillbaka i Notion");
     }
     if (resource === "projekt" && id !== undefined && sub !== undefined) {
       return projektDel(method, id, sub, subId, req, vem);
@@ -234,7 +219,7 @@ export function createHandler({ apogee, webDir, publicUrl, skrivkö }: ServerOpt
   }
 
   /**
-   * A Projekt's Hill chart (Ta bort/Återställ at /api/projekt/:id/borttagen is handled in `api`):
+   * A Projekt's Hill chart:
    *   GET    /api/projekt/:id/historik            its Uppdateringar, oldest first
    *   POST   /api/projekt/:id/scopes              { namn, ägare } → 201 { id, uppdatering }
    *   PATCH  /api/projekt/:id/scopes/:scopeId     exactly one of { läge } | { namn } | { ägare }

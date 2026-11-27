@@ -90,7 +90,7 @@ describe("Funktionsområde status, derived from its Projekt that are not Borttag
     const bokslut = (await notion.projekt("Bokslut", "Ekonomi"));
     await scope("Arkiv", 40, bokslut);
     expect(await status()).toBe("pågående");
-    await apogee.taBortProjekt(bokslut, anna);
+    await notion.avbocka("Bokslut");
     expect(await status()).toBe("inte påbörjat");
   });
 });

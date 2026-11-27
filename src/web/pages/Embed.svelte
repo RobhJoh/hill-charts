@@ -159,7 +159,7 @@
       <!-- The Apogee mark (#62): where the message comes from, in a frame that is otherwise empty. -->
       <div class="märke"><Marke /></div>
       <p><strong>Det här Projektet är borttaget.</strong></p>
-      <p class="meta">{projekt.namn} togs bort av {projekt.borttagen.vem.namn}.</p>
+      <p class="meta">{projekt.namn} finns inte längre i Notion.</p>
       <p><a href={länk} target="_blank" rel="noopener">Återställ i Apogee ↗</a></p>
     </div>
   {:else if projekt}

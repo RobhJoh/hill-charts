@@ -115,7 +115,7 @@ describe("synkaFrånNotion", () => {
     notion.projekt({ notionId: "n-sök", namn: "Sökindex" });
     const [a, b] = await Promise.all([apogee.synkaFrånNotion(), apogee.synkaFrånNotion()]);
     expect(notion.hämtningar).toBe(1);
-    expect(a).toEqual({ senastHämtat: "2026-11-24T10:00:00.000Z" });
+    expect(a).toEqual({ senastHämtat: "2026-11-24T10:00:00.000Z", fel: null });
     expect(b).toEqual(a);
     expect((await apogee.utanFunktionsområde())!.projekt).toHaveLength(1);
 
@@ -125,11 +125,11 @@ describe("synkaFrånNotion", () => {
 
   it("reports when it last fetched from Notion", async () => {
     const { apogee, notion, ställKlockan } = setup();
-    expect(apogee.synkStatus()).toEqual({ senastHämtat: null });
+    expect(apogee.synkStatus()).toEqual({ senastHämtat: null, fel: null });
     await apogee.synkaFrånNotion();
     ställKlockan("2026-11-24T10:05:00Z");
     await apogee.synkaFrånNotion();
-    expect(apogee.synkStatus()).toEqual({ senastHämtat: "2026-11-24T10:05:00.000Z" });
+    expect(apogee.synkStatus()).toEqual({ senastHämtat: "2026-11-24T10:05:00.000Z", fel: null });
     expect(notion.hämtningar).toBe(2);
   });
 });

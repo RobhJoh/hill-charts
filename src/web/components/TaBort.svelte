@@ -8,10 +8,13 @@
     /** The confirmation, e.g. "Ta bort Kassan med 3 Scopes?" */
     fråga: string;
     ontabort: () => Promise<void>;
+    /** The confirmation is showing; bind it when a Mer menu opens it. */
+    öppen?: boolean;
+    /** Show the "Ta bort" button; false when a Mer menu has it instead. */
+    knapp?: boolean;
   };
-  let { fråga, ontabort }: Props = $props();
+  let { fråga, ontabort, öppen = $bindable(false), knapp = true }: Props = $props();
 
-  let öppen = $state(false);
   let busy = $state(false);
   let fel = $state("");
 
@@ -32,11 +35,12 @@
 {#if öppen}
   <span class="fråga" role="group" aria-label="Bekräfta Ta bort">
     <span>{fråga} Det kan återställas.</span>
-    <button class="pr" disabled={busy} onclick={bekräfta}>Ta bort</button>
+    <!-- Opened from a menu: focus goes to the decision. -->
+    <button class="pr" disabled={busy} onclick={bekräfta} {@attach (el) => { if (!knapp) el.focus(); }}>Ta bort</button>
     <button onclick={() => ((öppen = false), (fel = ""))}>Avbryt</button>
     {#if fel}<span class="error" role="alert">{fel}</span>{/if}
   </span>
-{:else}
+{:else if knapp}
   <button class="quiet" onclick={() => (öppen = true)}>Ta bort</button>
 {/if}
 

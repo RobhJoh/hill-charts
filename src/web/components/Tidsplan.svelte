@@ -13,6 +13,7 @@
     onlägg,
     onändra,
     ontabort,
+    knappar = true,
     skrivskyddad = false,
   }: {
     tidsplan: Tidsplan;
@@ -22,6 +23,8 @@
     onlägg: (m: { namn: string; datum: string }) => Promise<unknown>;
     onändra: (id: string, ändring: { namn: string; datum: string }) => Promise<unknown>;
     ontabort: (id: string) => Promise<unknown>;
+    /** Show "Ändra datum" and "Ny Milstolpe"; false when a Mer menu opens them instead (Q18 b). */
+    knappar?: boolean;
     /** An Avslutat Projekt (Q8 b): dates and Milstolpar shown, not edited, until Öppna igen. */
     skrivskyddad?: boolean;
   } = $props();
@@ -45,7 +48,7 @@
   const appetitText = (dagar: number) =>
     dagar % 7 === 0 ? `${dagar / 7} ${dagar === 7 ? "vecka" : "veckor"}` : `${dagar} dagar`;
 
-  function öppnaDatum() {
+  export function öppnaDatum() {
     start = tidsplan.startdatum ?? "";
     slut = tidsplan.slutdatum ?? "";
     sätt = "datum";
@@ -79,7 +82,7 @@
     void kör(() => onsätt(input));
   }
 
-  function öppnaMilstolpe(m?: Milstolpe) {
+  export function öppnaMilstolpe(m?: Milstolpe) {
     mNamn = m?.namn ?? "";
     mDatum = m?.datum ?? "";
     fel = "";
@@ -106,7 +109,7 @@
       <span class="dim">Inga datum</span>
     {/if}
     {#each varningar as v (v)}<span class="varning">{v}</span>{/each}
-    {#if !skrivskyddad}
+    {#if knappar && !skrivskyddad}
       <button class="quiet" onclick={öppnaDatum}>{datumKnapp(tidsplan)}</button>
       <button class="quiet" onclick={() => öppnaMilstolpe()}>Ny Milstolpe</button>
     {/if}

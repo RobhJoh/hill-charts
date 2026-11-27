@@ -16,6 +16,7 @@
   import Borttaget from "../components/Borttaget.svelte";
   import KopieraLank from "../components/KopieraLank.svelte";
   import BaddaIn from "../components/BaddaIn.svelte";
+  import Mer, { type MerPost } from "../components/Mer.svelte";
   import { api, ApiError } from "../lib/api.js";
   import { följLive, liveMål, senasteLaddning } from "../lib/live.js";
   import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
@@ -47,6 +48,26 @@
   let foBorttaget = $state(false);
   /** Marked Avslutat (Q8 b): read-only, stars dimmed and still, until Öppna igen. */
   const stängt = $derived(projekt?.markeradAvslutat ?? false);
+
+  // --- Page head (Q5 a): the rare actions in Mer; dates and Milstolpar fold out ---
+  let länk = $state<ReturnType<typeof KopieraLank>>();
+  let bädda = $state<ReturnType<typeof BaddaIn>>();
+  let taBortÖppen = $state(false);
+  let tidÖppen = $state(false);
+
+  const mer = $derived.by((): MerPost[] => {
+    if (!projekt) return [];
+    return [
+      { text: "Byt namn", gör: () => (läge = "byt namn") },
+      { text: "Flytta", gör: () => void öppnaFlytta() },
+      { text: "Kopiera länk", gör: () => void länk?.kopiera() },
+      { text: "Bädda in", gör: () => bädda?.öppna() },
+      ...(projekt.markeradAvslutat
+        ? []
+        : [{ avdelare: true, text: "Markera Avslutat", gör: () => void växlaAvslutat(true) }]),
+      { avdelare: true, text: "Ta bort", farlig: true, gör: () => (taBortÖppen = true) },
+    ];
+  });
 
   /** Reloads the Projekt and its Hill chart (after a write, and on live sync). */
   const load = senasteLaddning(() => api.getProjekt(id), {
@@ -269,19 +290,41 @@
           oncancel={() => (läge = "visa")}
         />
       {:else}
-        <div class="titlerow">
-          <h1>{#if stängt}<span class="klar titelmärke" aria-hidden="true">✦</span>{/if}{projekt.namn}</h1>
-          <div class="verktyg">
-            <button class="quiet" onclick={() => (läge = "byt namn")}>Byt namn</button>
-            <button class="quiet" onclick={öppnaFlytta}>Flytta</button>
-            <KopieraLank href={projektHref(projekt)} />
-            <BaddaIn namn={projekt.namn} href={projektHref(projekt)} />
-            <TaBort
-              fråga="Ta bort {projekt.namn} med {projekt.scopes.length} {projekt.scopes.length === 1 ? 'Scope' : 'Scopes'}?"
-              ontabort={taBortProjekt}
-            />
+        <h1>{#if stängt}<span class="klar titelmärke" aria-hidden="true">✦</span>{/if}{projekt.namn}</h1>
+        <!-- Title plus one row (Q5 a): status and time on the left, the actions on the right. -->
+        <div class="statusrad">
+          <div class="status">
+            <span class:avslut={stängt}>{avslutatText(projekt)}</span>
+            {#if stängt}
+              <span class="lås">
+                <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                  <rect x="3" y="7" width="10" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.4" />
+                  <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.4" />
+                </svg>
+                Skrivskyddat tills det öppnas igen
+              </span>
+            {/if}
+            <!-- Avslutat is said once, in the status text: no countdown "Avslutat" here.
+                 Under Visa, now's time is dimmed (the banner shows the time then). -->
+            <span class="nu" class:dämpad={!!visning}>
+              <Nedrakning
+                nedräkning={projekt.nedräkning?.läge === "avslutat" ? null : projekt.nedräkning}
+                nästaMilstolpe={projekt.nästaMilstolpe}
+              />
+            </span>
+            {#if !tidÖppen}
+              {#each projekt.datumVarningar as v (v)}<span class="varning">· {v}</span>{/each}
+            {/if}
+            <button class="quiet" aria-expanded={tidÖppen} onclick={() => (tidÖppen = !tidÖppen)}>
+              {stängt
+                ? "Datum och Milstolpar"
+                : projekt.tidsplan.startdatum || projekt.tidsplan.slutdatum || projekt.tidsplan.milstolpar.length > 0
+                  ? "Ändra datum och Milstolpar"
+                  : "Sätt datum"}
+            </button>
           </div>
           <div class="primära">
+            <Mer poster={mer} höger />
             <button aria-pressed={historikÖppen} onclick={() => (historikÖppen ? stängHistorik() : (historikÖppen = true))}>
               Historik
             </button>
@@ -298,27 +341,21 @@
             {/if}
           </div>
         </div>
-        <div class="status">
-          <span class:avslut={stängt}>{avslutatText(projekt)}</span>
-          {#if stängt}
-            <span class="lås">
-              <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
-                <rect x="3" y="7" width="10" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.4" />
-                <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.4" />
-              </svg>
-              Skrivskyddat tills det öppnas igen
-            </span>
-          {:else}
-            <button class="quiet" onclick={() => växlaAvslutat(true)}>Markera Avslutat</button>
+        <div class="utfall">
+          <KopieraLank bind:this={länk} knapp={false} href={projektHref(projekt)} />
+          <BaddaIn bind:this={bädda} knapp={false} namn={projekt.namn} href={projektHref(projekt)} />
+          {#if taBortÖppen}
+            <TaBort
+              bind:öppen={taBortÖppen}
+              knapp={false}
+              fråga="Ta bort {projekt.namn} med {projekt.scopes.length} {projekt.scopes.length === 1 ? 'Scope' : 'Scopes'}?"
+              ontabort={taBortProjekt}
+            />
           {/if}
         </div>
+        {#if tidÖppen}
         <!-- Under Visa the banner is the only time shown (now's dates are dimmed and inert). -->
         <div class="tid" class:dämpad={!!visning} inert={!!visning}>
-          <!-- Avslutat is said once, in the status line above: no countdown "Avslutat" here. -->
-          <Nedrakning
-            nedräkning={projekt.nedräkning?.läge === "avslutat" ? null : projekt.nedräkning}
-            nästaMilstolpe={projekt.nästaMilstolpe}
-          />
           <Tidsplan
             tidsplan={projekt.tidsplan}
             varningar={projekt.datumVarningar}
@@ -329,6 +366,7 @@
             ontabort={taBortMilstolpe}
           />
         </div>
+        {/if}
       {/if}
 
       {#if läge === "flytta"}
@@ -507,13 +545,34 @@
     font-size: 13px;
     color: var(--redtx);
   }
+  h1 {
+    overflow-wrap: anywhere;
+  }
+  .statusrad {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin-top: 8px;
+  }
   .status {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 6px;
+    gap: 6px 18px;
     color: var(--dim);
+    font-size: 14px;
+    min-width: 0;
+  }
+  .varning {
+    color: var(--mid);
+    font-style: italic;
+  }
+  .utfall {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
     font-size: 14px;
   }
   /* The quiet ending of an Avslutat Projekt: said once, in full contrast. */
@@ -525,10 +584,9 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    margin-left: 6px;
   }
   .tid {
-    margin-top: 16px;
+    margin-top: 8px;
   }
   .huvud {
     padding: 28px 28px 48px;
@@ -547,26 +605,10 @@
     overflow: auto;
     padding: 28px 22px;
   }
-  /* The title on its own line; the quiet tools wrap as a group; Historik and
-     Ny Scope always stay together, at the right. */
-  .titlerow h1 {
-    flex: 1 1 100%;
-    overflow-wrap: anywhere;
-  }
-  .verktyg {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 4px 2px;
-    /* Quiet buttons carry their own padding: line their text up with the title. */
-    margin-left: -5px;
-  }
-  /* Tighter than the default quiet padding, so all five fit on one line on a phone. */
-  .verktyg :global(button.quiet) {
-    padding-inline: 5px;
-  }
+  /* Mer, Historik and Ny Scope always stay together, at the right. */
   .primära {
     display: flex;
+    align-items: center;
     gap: 10px;
     margin-left: auto;
     flex: none;
@@ -603,8 +645,12 @@
     content: "•";
     margin-right: 4px;
   }
-  .tid.dämpad {
+  .tid.dämpad,
+  .nu.dämpad {
     opacity: 0.4;
+  }
+  .nu {
+    display: inline-flex;
   }
   .chart {
     margin-top: 20px;

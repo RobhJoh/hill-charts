@@ -10,11 +10,13 @@
   // goes to the embed field on open and back to "Bädda in" on close.
   import { utanförRutan } from "../lib/popover.js";
 
-  let { namn, href }: { namn: string; href: string } = $props();
+  // With knapp={false} the page's Mer menu calls öppna() (Q5 a); closing then
+  // hands focus back to where it was (the dialog's own focus restore).
+  let { namn, href, knapp = true }: { namn: string; href: string; knapp?: boolean } = $props();
 
   let öppen = $state(false);
   let dialog = $state<HTMLDialogElement>();
-  let knapp = $state<HTMLButtonElement>();
+  let knappEl = $state<HTMLButtonElement>();
   let fält = $state<HTMLInputElement>();
   let kopierad = $state<"embed" | "rad" | null>(null);
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -61,7 +63,7 @@
     }
   }
 
-  function öppna() {
+  export function öppna() {
     dialog?.showModal();
     öppen = true;
     fält?.focus();
@@ -70,7 +72,7 @@
   // Covers Stäng, Escape (the dialog's own cancel) and a click outside.
   function stängd() {
     öppen = false;
-    knapp?.focus();
+    knappEl?.focus();
   }
 
   function klickIDialog(e: MouseEvent) {
@@ -80,7 +82,9 @@
   $effect(() => () => clearTimeout(timer));
 </script>
 
-<button class="quiet" aria-haspopup="dialog" aria-expanded={öppen} bind:this={knapp} onclick={öppna}>Bädda in</button>
+{#if knapp}
+  <button class="quiet" aria-haspopup="dialog" aria-expanded={öppen} bind:this={knappEl} onclick={öppna}>Bädda in</button>
+{/if}
 <!-- Escape is handled by the dialog itself (cancel, then close); the click handler is only for the backdrop. -->
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
 <dialog class="panel" aria-labelledby="badda-rubrik" bind:this={dialog} onclose={stängd} onclick={klickIDialog}>

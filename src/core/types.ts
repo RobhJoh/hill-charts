@@ -39,7 +39,8 @@ export type Funktionsområde = {
 export type Projekt = {
   id: ProjektId;
   namn: string;
-  funktionsområdeId: FunktionsområdeId;
+  /** The one Funktionsområde it belongs to; absent = none (listed under Utan funktionsområde). */
+  funktionsområdeId?: FunktionsområdeId;
   skapad: string; // ISO timestamp
   /**
    * Set while Borttagen. `medFunktionsområde`: it went with its

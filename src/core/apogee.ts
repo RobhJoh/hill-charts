@@ -25,6 +25,7 @@ export type {
   StjärnkartaProjekt,
   StjärnkartaVy,
   TidVy,
+  UtanFunktionsområdeVy,
   Översikt,
 } from "./apogee/vyer.js";
 

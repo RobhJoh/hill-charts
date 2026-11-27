@@ -15,6 +15,7 @@ import type {
   ProjektVy,
   StjärnkartaVy,
   Uppdatering,
+  UtanFunktionsområdeVy,
   Översikt,
 } from "../../core/index.js";
 
@@ -54,6 +55,7 @@ const målPath = (mål: Mål) =>
 
 export const api = {
   overview: () => call<Översikt>("GET", "/oversikt"),
+  utanFunktionsområde: () => call<UtanFunktionsområdeVy | null>("GET", "/utan-funktionsomrade"),
   getFunktionsområde: (id: string) => call<FunktionsområdeVy>("GET", `/funktionsomraden/${enc(id)}`),
   getProjekt: (id: string) => call<ProjektVy>("GET", `/projekt/${enc(id)}`),
   listPersoner: () => call<PersonVy[]>("GET", "/personer"),

@@ -62,6 +62,7 @@ export function notionSynk(k: Kärna, källa: NotionKälla = ingenKälla, iTur: 
       tidsplan: { milstolpar: [], ...fo.tidsplan, startdatum: nf.startdatum, slutdatum: nf.slutdatum },
       notionId: nf.notionId,
       notionUrl: nf.url,
+      notionStatus: nf.notionStatus,
     };
   }
 
@@ -77,6 +78,7 @@ export function notionSynk(k: Kärna, källa: NotionKälla = ingenKälla, iTur: 
       slutdatum: np.slutdatum,
       notionId: np.notionId,
       notionUrl: np.url,
+      notionStatus: np.notionStatus,
     };
     if (JSON.stringify(p) !== JSON.stringify(finns)) await storage.saveProjekt(p);
   }

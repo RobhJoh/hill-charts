@@ -270,10 +270,7 @@
             {:else}
               <span>Pågående</span>
             {/if}
-            {#if projekt.nedräkning || projekt.nästaMilstolpe}
-              <span aria-hidden="true">·</span>
-              <Nedrakning nedräkning={projekt.nedräkning} nästaMilstolpe={projekt.nästaMilstolpe} />
-            {/if}
+            <Nedrakning nedräkning={projekt.nedräkning} nästaMilstolpe={projekt.nästaMilstolpe} />
             {#if !tidÖppen}
               {#each projekt.datumVarningar as v (v)}<span class="varning">· {v}</span>{/each}
             {/if}
@@ -510,7 +507,7 @@
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 4px 10px;
+    gap: 6px 18px;
     color: var(--dim);
     font-size: 14px;
     min-width: 0;

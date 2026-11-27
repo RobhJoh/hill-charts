@@ -30,10 +30,18 @@
 
   const objekt = () => [...(meny?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])];
 
+  /** Horizontal shift that keeps the menu 16 px inside the screen edges (phone). */
+  let skjut = $state(0);
+
   function öppna() {
+    skjut = 0;
     öppen = true;
-    // Focus the first item once the menu is drawn.
-    queueMicrotask(() => objekt()[0]?.focus());
+    // Once the menu is drawn: keep it on screen, then focus the first item.
+    queueMicrotask(() => {
+      const r = meny?.getBoundingClientRect();
+      if (r) skjut = r.left < 16 ? 16 - r.left : r.right > innerWidth - 16 ? innerWidth - 16 - r.right : 0;
+      objekt()[0]?.focus();
+    });
   }
 
   function stäng(fokusTillbaka = true) {
@@ -98,7 +106,7 @@
     Mer <span class="pil" aria-hidden="true">▾</span>
   </button>
   {#if öppen}
-    <div bind:this={meny} id="{uid}-meny" class="meny" class:höger role="menu" aria-label="Fler handlingar" tabindex="-1" onkeydown={tangent}>
+    <div bind:this={meny} id="{uid}-meny" class="meny" class:höger style:translate={skjut ? `${skjut}px 0` : undefined} role="menu" aria-label="Fler handlingar" tabindex="-1" onkeydown={tangent}>
       {#each poster as post, i (post.text)}
         {#if post.avdelare}<hr />{/if}
         {#if post.grupp}<div class="grupp" aria-hidden="true">{post.grupp}</div>{/if}

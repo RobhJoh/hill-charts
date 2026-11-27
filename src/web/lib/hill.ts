@@ -138,6 +138,14 @@ export type Etikett = {
   ledare?: { x1: number; y1: number; x2: number; y2: number };
 };
 
+/**
+ * A star's label: the Stjärnkarta's Projekt letter, ✦ for the selected Scope
+ * (form, not only colour, tells it from the uphill stars), the name and Läge.
+ */
+export function etikettText(s: { namn: string; läge: number; märke?: string; vald?: boolean }): string {
+  return [s.märke, s.vald ? "✦" : undefined, s.namn, String(s.läge)].filter(Boolean).join(" ");
+}
+
 const RAD = 18;
 
 function ruta(x: number, y: number, anchor: Etikett["anchor"], bredd: number) {

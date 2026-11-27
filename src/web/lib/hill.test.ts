@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { tillOklch, kontrast } from "./farg.js";
-import { kompaktRuta, lägeFärg, placeraEtiketter, punkt, lägeFrånX, type Etikett } from "./hill.js";
+import { etikettText, kompaktRuta, lägeFärg, placeraEtiketter, punkt, lägeFrånX, type Etikett } from "./hill.js";
 
 describe("colour from Läge", () => {
   const heltal = Array.from({ length: 101 }, (_, i) => i);
@@ -118,5 +118,22 @@ describe("label placement", () => {
     const [stor] = placeraEtiketter([{ id: "a", läge: 70, text: "Prislista 70" }]);
     const [liten] = placeraEtiketter([{ id: "a", läge: 70, text: "Prislista 70" }], ruta);
     expect(liten!.ruta.b).toBeLessThan(stor!.ruta.b);
+  });
+});
+
+describe("a star's label text", () => {
+  it("is the name and Läge", () => {
+    expect(etikettText({ namn: "Sessionshantering", läge: 40 })).toBe("Sessionshantering 40");
+  });
+
+  it("puts the Stjärnkarta's Projekt letter first", () => {
+    expect(etikettText({ namn: "Sessionshantering", läge: 40, märke: "B" })).toBe("B Sessionshantering 40");
+  });
+
+  it("marks the selected Scope with ✦ before its name (Q15 a)", () => {
+    expect(etikettText({ namn: "Sessionshantering", läge: 40, vald: true })).toBe("✦ Sessionshantering 40");
+    expect(etikettText({ namn: "Sessionshantering", läge: 40, märke: "B", vald: true })).toBe(
+      "B ✦ Sessionshantering 40",
+    );
   });
 });

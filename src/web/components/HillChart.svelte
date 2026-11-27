@@ -14,6 +14,7 @@
   import {
     RUTA,
     dagarSedan,
+    etikettText,
     kompaktRuta,
     lägeFrånX,
     lägeFärg,
@@ -42,7 +43,7 @@
     namn: string;
     scopes: ScopeVy[];
     tema: Tema;
-    /** The selected Scope's id (red ring). */
+    /** The selected Scope's id (solid accent ring and ✦ before its label). */
     valt?: string | null;
     /** Scopes to highlight with a dashed ring (Historik's Visa: they differ from now). */
     markerade?: string[];
@@ -114,7 +115,7 @@
       ordning.map((t) => ({
         id: t.s.id,
         läge: t.läge,
-        text: `${märken[t.s.id] ? märken[t.s.id] + " " : ""}${t.s.namn} ${t.läge}`,
+        text: etikettText({ namn: t.s.namn, läge: t.läge, märke: märken[t.s.id], vald: t.s.id === valt }),
       })),
       ruta,
     );
@@ -284,11 +285,13 @@
         <circle class="markerad" cx={x} cy={y} r="25" />
       {/if}
       {#if kompakt && s.stilla && pågående[s.id] === undefined}
+        <circle class="stillahalo" cx={x} cy={y} r="10" />
         <circle class="stilla" cx={x} cy={y} r="10" />
       {:else if s.stilla && pågående[s.id] === undefined}
         <!-- Stuck: dashed red ring and a leader to the note, turned away from the frame's edges. -->
         {@const dx = x > 600 ? -1 : 1}
         {@const dy = y > 470 ? -1 : 1}
+        <circle class="stillahalo" cx={x} cy={y} r="14" />
         <circle class="stilla" cx={x} cy={y} r="14" />
         <polyline
           class="stilla"
@@ -303,7 +306,9 @@
           <line class="ledare" x1={e.ledare.x1} y1={e.ledare.y1} x2={e.ledare.x2} y2={e.ledare.y2} />
         {/if}
         <text class="sn" x={e.x} y={e.y} text-anchor={e.anchor}
-          >{#if märken[s.id]}<tspan class="sm">{märken[s.id] + " "}</tspan>{/if}{s.namn} <tspan class="sm">{läge}</tspan></text>
+          >{#if märken[s.id]}<tspan class="sm">{märken[s.id] + " "}</tspan>{/if}{#if s.id === valt}<tspan class="vm"
+              >✦&nbsp;</tspan
+            >{/if}{s.namn} <tspan class="sm">{läge}</tspan></text>
       {/if}
     </g>
   {/each}
@@ -356,7 +361,7 @@
   .ring {
     fill: none;
     stroke: var(--red);
-    stroke-width: 1.2;
+    stroke-width: 2;
   }
   .scope:focus-visible circle:nth-child(3) {
     stroke: var(--red);
@@ -381,10 +386,21 @@
     font-weight: 500;
     fill: var(--mid);
   }
+  .vm {
+    font-weight: 600;
+    fill: var(--redtx);
+  }
+  /* Stuck: a dashed accent ring on a dark halo, so it reads apart from the
+     orange uphill stars by form, not only hue. */
+  .stillahalo {
+    fill: none;
+    stroke: var(--halo);
+    stroke-width: 5;
+  }
   .stilla {
     fill: none;
     stroke: var(--red);
-    stroke-width: 1.1;
+    stroke-width: 1.6;
     stroke-dasharray: 3 3;
   }
   polyline.stilla {

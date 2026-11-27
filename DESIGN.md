@@ -86,7 +86,7 @@ typography:
     fontWeight: 600
   axel:
     fontFamily: "Barlow, system-ui, sans-serif"
-    fontSize: "12px"
+    fontSize: "13px"
     fontWeight: 500
     letterSpacing: "0.01em"
 rounded:
@@ -224,7 +224,7 @@ Scopets färg räknas fram ur Läge och lagras aldrig. Varm uppför, guld vid kr
 - **Meta** (400, 14px, `--dim`): Brödsmulor, metarader, nedräkning.
 - **Label / cap** (600, 13px, `--dim`): Små rubriker som "Avslutade", "Signatur", "Läge".
 - **Scope-etikett** (600, 15px i stora diagrammet, 13px i kompakt ruta och på telefon; Läge-siffran i 500 och `--mid`): Namnet vid stjärnan, med 4–5 px halo-kontur.
-- **Axel** (500, 12px, `--dim`): Kullens halvor under baslinjen.
+- **Axel** (500, 13px, `--dim`): Kullens halvor under baslinjen och Stjärnkartans storleksskala (13-pixelsregeln).
 
 ### Named Rules
 **13-pixelsregeln.** Ingen text i ett diagram blir mindre än 13 px i skärmpixlar. Ett diagram som skulle skalas ner så att etiketter blir mindre ritas i stället om i riktiga pixlar (se Layout, Telefon).
@@ -305,7 +305,7 @@ Komponenterna är återhållsamma och exakta: tunna konturer, ingen fyllnad utom
 ### Hill chart (signaturkomponent)
 Kullen är en cosinusbana från Läge 0 till 100 med krönet vid 50. Stjärnorna rider på banan; bara x betyder något.
 - **Bana:** 1,3–1,4 px i `--orbit`. Stora diagrammet har gradnät (11 linjer i `--grid`), ram i `--line`, skalsteg var 5:e Läge och siffror var 10:e, samt en svag stjärnhimmel.
-- **Kullens halvor (Q14 a):** Under baslinjen står **"← Utforskar"** till vänster och **"Genomför →"** till höger, 12 px, 500, `--dim`. I embedden visas de när rutan är högre än 150 px. Ersätter "Uppför · lista ut" och "Nedför · genomföra".
+- **Kullens halvor (Q14 a):** Under baslinjen står **"← Utforskar"** till vänster och **"Genomför →"** till höger, 13 px, 500, `--dim`. I embedden visas de när rutan är högre än 150 px. Ersätter "Uppför · lista ut" och "Nedför · genomföra".
 - **Stjärna:** Fylld cirkel i rampfärgen, radie 9/7,5/5 efter hur nyligen den flyttades, med glöd.
 - **Vald (Q15 a):** Heldragen 2 px ring i accent (i dag 1,2 px), och **✦ före namnet** i etiketten och i listan, i `--redtx`, 600: "✦ Sessionshantering".
 - **Stilla:** Streckad ring i accent (`stroke-dasharray: 3 3`, 1,6 px) ovanpå en mörk halo (5 px `--halo`), plus ledarlinje och texten "Ingen rörelse på 26 dagar" i `--redtx` i stora diagrammet. I listor och embed: "26 d" i `--redtx`.

@@ -338,7 +338,7 @@
   .ticks {
     display: flex;
     justify-content: space-between;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--dim);
   }
   .storlek {

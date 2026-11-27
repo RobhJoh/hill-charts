@@ -43,4 +43,9 @@ describe("tokens", () => {
     expect(tryckt).toMatch(/color:\s*var\(--tx\);/);
     expect(css.match(/\[aria-pressed="true"\]\s*\{/g)).toHaveLength(1);
   });
+
+  it("no chart text is below 13 px: the axis halves and the Stjärnkarta's size ticks", () => {
+    expect(regel(läs("./components/HillChart.svelte"), ".halva")).toMatch(/\b13px\b/);
+    expect(regel(läs("./pages/Stjarnkarta.svelte"), ".ticks")).toMatch(/font-size:\s*13px;/);
+  });
 });

@@ -485,7 +485,7 @@
     stroke-width: 1.5;
   }
   .halva {
-    font: 500 12px Barlow, system-ui, sans-serif;
+    font: 500 13px Barlow, system-ui, sans-serif;
     fill: var(--dim);
   }
   /* Held for a Signatur: the accent ring, dashed until the move is saved. */

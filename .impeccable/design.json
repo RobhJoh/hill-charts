@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-27T00:00:00Z",
+  "title": "Design System: Apogee",
+  "extensions": {
+    "colorMeta": {
+      "natt-accent": { "role": "primary", "displayName": "Orangeröd accent (natt)", "canonical": "#f0602e" },
+      "dag-accent": { "role": "primary", "displayName": "Orangeröd accent (dag)", "canonical": "#c44a1c" },
+      "natt-klar": { "role": "secondary", "displayName": "Klar ljusblå (natt)", "canonical": "#8fc7ff" },
+      "dag-klar": { "role": "secondary", "displayName": "Klar ljusblå (dag)", "canonical": "#2f6fb8" },
+      "natt-bg": { "role": "neutral", "displayName": "Natthimmel", "canonical": "#081026" },
+      "dag-bg": { "role": "neutral", "displayName": "Daghimmel", "canonical": "#eef2f9" }
+    },
+    "lageRamp": {
+      "interpolation": "oklch",
+      "natt": [[0, "#ff7a4d"], [25, "#ffb36b"], [50, "#ffe7a8"], [75, "#a9c8ff"], [100, "#6f9fff"]],
+      "dag": [[0, "#d9481f"], [25, "#e08a1e"], [50, "#b8860b"], [62, "#6f86c8"], [75, "#5a86d6"], [100, "#2f5fc4"]]
+    },
+    "shadows": [
+      { "name": "flytande-panel", "value": "0 6px 24px rgb(0 0 0 / 0.25)", "purpose": "Popovers som Bädda in." },
+      { "name": "toast", "value": "0 6px 24px rgb(0 0 0 / 0.3)", "purpose": "Ångra-toasten." }
+    ],
+    "motion": [
+      { "name": "glimt", "value": "300-400ms", "purpose": "Släpp som korsar 50 eller landar på 100; av under prefers-reduced-motion." }
+    ],
+    "breakpoints": [
+      { "name": "telefon", "value": "600px" },
+      { "name": "kompakt-diagram", "value": "900px" },
+      { "name": "tre-kolumner", "value": "1200px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primärknapp",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Högst en per vy; fylld accent med mörk text i natt.",
+      "html": "<button class=\"ds-pr\">Ny Scope</button>",
+      "css": ".ds-pr { background: #f0602e; border: 1px solid #f0602e; color: #081026; font: 600 14px Barlow, system-ui, sans-serif; padding: 8px 14px; border-radius: 2px; }"
+    },
+    {
+      "name": "Avslutat Projekt i lista",
+      "kind": "custom",
+      "description": "Ljusblå ✦, namn och datum i full kontrast.",
+      "html": "<a class=\"ds-avsl\"><span>✦</span><b>Onboarding-guide</b><i>Avslutat 12 nov.</i></a>",
+      "css": ".ds-avsl { display: flex; gap: 10px; align-items: baseline; padding: 8px 4px; background: #081026; color: #eef0f5; font: 400 15px Barlow, system-ui, sans-serif; } .ds-avsl span { color: #8fc7ff; font-size: 14px; } .ds-avsl b { font-weight: 600; } .ds-avsl i { font-style: normal; font-size: 13px; color: #8f9cbd; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Stjärnatlas",
+    "overview": "Varje Projekts Hill chart är en bit natthimmel: banan är kullen, varje Scope en stjärna vars färg är dess Läge. Gränssnittet runt kullen är tunt och stilla; karaktären bor i himlen, glöden och ✦-märket.",
+    "keyCharacteristics": [
+      "En accent för val, stilla och primär handling",
+      "Form före färg: ✦, heldragen och streckad ring",
+      "Läge läses på färgen, aldrig som procent",
+      "Barlow och tabellsiffror",
+      "Telefon: riktiga pixlar, alla etiketter, 44 px träffytor"
+    ],
+    "rules": [
+      { "name": "Tre-användningsregeln", "body": "Accenten betyder val, stilla eller primär handling.", "section": "colors" },
+      { "name": "Form-före-färg-regeln", "body": "Vald och stilla skiljs från stjärnorna med form, inte bara kulör.", "section": "colors" },
+      { "name": "Klar-regeln", "body": "Ljusblå ✦ betyder Avslutat Projekt och bara det.", "section": "colors" },
+      { "name": "13-pixelsregeln", "body": "Ingen diagramtext under 13 px i skärmpixlar.", "section": "typography" },
+      { "name": "Ljus-inte-skugga-regeln", "body": "Det som är viktigt lyser, det lyfts inte.", "section": "elevation" }
+    ],
+    "dos": ["Do hämta Scopets färg ur Läge-rampen.", "Do märka vald Scope med ✦ och 2 px ring."],
+    "donts": ["Don't visa Läge som procent.", "Don't sätta vit text på natt-accenten."]
+  }
+}

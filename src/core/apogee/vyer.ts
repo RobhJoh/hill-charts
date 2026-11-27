@@ -32,11 +32,13 @@ export type ProjektRad = {
   id: ProjektId;
   namn: string;
   avslutat: boolean;
+  /** When it became Avslutat (ISO time); null while Pågående or if never edited. */
+  avslutad: string | null;
   pågående: boolean;
   nedräkning: Nedräkning | null;
   nästaMilstolpe: NästaMilstolpe | null;
   överTid: boolean;
-  /** Number of stuck Scopes. */
+  /** Number of Stilla Scopes. */
   stilla: number;
   /** The mini chart's dots, highest Läge first. */
   scopes: { läge: number; stilla: boolean }[];
@@ -46,7 +48,7 @@ export type FunktionsområdeVy = {
   namn: string;
   /** Who took it away and when; null while it is shown. */
   borttagen: BorttagenVy | null;
-  /** Stuck Scopes across its Projekt. */
+  /** Stilla Scopes across its Projekt. */
   stilla: number;
   /** Its Projekt, except those taken away on their own (they went with it if it is Borttagen). */
   projekt: ProjektRad[];
@@ -77,6 +79,8 @@ export type DiagramVy = {
   avslutat: boolean;
   /** Someone marked it Avslutat (it stays so until "Öppna igen"). */
   markeradAvslutat: boolean;
+  /** When and by whom it was marked Avslutat (the status line's quiet ending); null unless marked. */
+  avslutadAv: { tid: string; vem: PersonVy | null } | null;
   /** Neither Avslutat nor Borttagen. */
   pågående: boolean;
 };
@@ -92,7 +96,7 @@ export type ScopeVy = {
   flyttad: string;
   /** Whole days since its Läge last changed ("Ingen rörelse på N dagar"). */
   stillaDagar: number;
-  /** Stuck: no Läge change for more than 14 days (never at Läge 100 or in an Avslutat Projekt). */
+  /** Stilla: no Läge change for more than 14 days (never at Läge 100 or in an Avslutat Projekt). */
   stilla: boolean;
 };
 
@@ -132,7 +136,7 @@ export type PersonRäkning = {
   scopes: number;
   /** Pågående Projekt in which they own a Scope. */
   projekt: number;
-  /** Their stuck Scopes (more than 14 days without movement). */
+  /** Their Stilla Scopes (more than 14 days without movement). */
   stilla: number;
   /** Avslutade Projekt in which they own a Scope. */
   avslutade: number;
@@ -204,5 +208,9 @@ export function diagramVy(logg: Uppdatering[], personer: Person[], borttagen: bo
       stilla: ärStilla(flyttad[scopeId]!, nu, s.läge, avslutat),
     }))
     .sort((a, b) => b.läge - a.läge || efterNamn(a, b));
-  return { scopes, avslutat, markeradAvslutat, pågående: ärPågående({ avslutat, borttagen }) };
+  const markering = markeradAvslutat ? logg.findLast((u) => u.projekt?.efter.avslutat === true) : undefined;
+  const avslutadAv = markering
+    ? { tid: markering.tid, vem: markering.vem === null ? null : ägareVy(personer, markering.vem) }
+    : null;
+  return { scopes, avslutat, markeradAvslutat, avslutadAv, pågående: ärPågående({ avslutat, borttagen }) };
 }

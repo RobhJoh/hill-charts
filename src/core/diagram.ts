@@ -51,7 +51,7 @@ export const nuvarande = (logg: readonly Uppdatering[]): Diagram => diagramEfter
 /**
  * When each Scope's Läge last changed (or it was first added): the ISO time
  * of that Uppdatering. A Scope that is removed and comes back keeps its time.
- * Drives star size and "stuck". May hold removed Scopes; look up by id.
+ * Drives star size and "Stilla". May hold removed Scopes; look up by id.
  */
 export function senastFlyttad(logg: readonly Uppdatering[]): Record<ScopeId, string> {
   const tid: Record<ScopeId, string> = {};

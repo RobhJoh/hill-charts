@@ -1,4 +1,4 @@
-// Derived status of Projekt and Scopes: Avslutat, Pågående and stuck.
+// Derived status of Projekt and Scopes: Avslutat, Pågående and Stilla.
 // Pure functions; "now" is always passed in so the rules are testable.
 import type { ProjektFält, Uppdatering } from "./types.js";
 
@@ -22,7 +22,30 @@ export function ärAvslutat(markerad: boolean, lägen: readonly number[]): boole
   return markerad || lägen.every((l) => l === 100);
 }
 
-/** A Scope is stuck once strictly more than this many days (of 24 h) pass without a Läge change. */
+/**
+ * When the Projekt last became Avslutat: the ISO time of the Uppdatering that
+ * turned it Avslutat (by Läge or by marking). Null while Pågående, and for a
+ * Projekt that is Avslutat without ever having had an Uppdatering.
+ */
+export function avslutadTid(logg: readonly Uppdatering[]): string | null {
+  const lägen = new Map<string, number>();
+  let markerad = false;
+  let tid: string | null = null;
+  let avslutat = ärAvslutat(markerad, []);
+  for (const u of logg) {
+    for (const ä of u.ändringar) {
+      if (ä.efter === null) lägen.delete(ä.scopeId);
+      else lägen.set(ä.scopeId, ä.efter.läge);
+    }
+    if (u.projekt?.efter.avslutat !== undefined) markerad = u.projekt.efter.avslutat;
+    const nu = ärAvslutat(markerad, [...lägen.values()]);
+    if (nu && !avslutat) tid = u.tid;
+    avslutat = nu;
+  }
+  return avslutat ? tid : null;
+}
+
+/** A Scope is Stilla once strictly more than this many days (of 24 h) pass without a Läge change. */
 export const STILLA_EFTER_DAGAR = 14;
 
 const DYGN_MS = 86_400_000;
@@ -32,9 +55,9 @@ export const dagarSedan = (iso: string, nu: Date): number =>
   Math.max(0, Math.floor((nu.getTime() - Date.parse(iso)) / DYGN_MS));
 
 /**
- * Stuck: strictly more than 14 × 24 h since its Läge last changed (`flyttad`).
+ * Stilla: strictly more than 14 × 24 h since its Läge last changed (`flyttad`).
  * A Scope at Läge 100 is done, and Scopes of an Avslutat Projekt are not
- * expected to move, so neither is ever stuck.
+ * expected to move, so neither is ever Stilla.
  */
 export function ärStilla(flyttad: string, nu: Date, läge: number, projektAvslutat: boolean): boolean {
   const stilla = nu.getTime() - Date.parse(flyttad) > STILLA_EFTER_DAGAR * DYGN_MS;

@@ -1,11 +1,15 @@
 <script lang="ts">
-  // Projekt as mini sky charts: name, Scope count and a red stuck count.
-  // Avslutade Projekt are dimmed and say so.
+  // Pågående Projekt as mini sky charts: name, Scope count and a red Stilla
+  // count. Avslutade Projekt follow in a compact list with a light-blue ✦ and
+  // the day they were Avslutade, without a mini chart (Q4 c, Q11 a).
   import type { ProjektRad } from "../../core/index.js";
   import { tema } from "../lib/tema.svelte.js";
   import { projektHref } from "../lib/links.js";
+  import { avslutatRad, delaProjekt } from "../lib/avslutade.js";
   import MiniHill from "./MiniHill.svelte";
   import Nedrakning from "./Nedrakning.svelte";
+  import StillaAntal from "./StillaAntal.svelte";
+  import { antal } from "../lib/ord.js";
 
   let {
     projekt,
@@ -15,23 +19,41 @@
     /** The Funktionsområde page shows the same cells at a larger size. */
     stor?: boolean;
   } = $props();
+
+  const delar = $derived(delaProjekt(projekt));
 </script>
 
-{#if projekt.length > 0}
+{#if delar.pågående.length > 0}
   <div class="cells" class:stor>
-    {#each projekt as p (p.id)}
-      <a class="cell" class:avslutat={p.avslutat} href={projektHref(p)}>
+    {#each delar.pågående as p (p.id)}
+      <a class="cell" href={projektHref(p)}>
         <MiniHill scopes={p.scopes} tema={tema.nu} width={stor ? 270 : 180} height={stor ? 75 : 50} />
         <b>{p.namn}</b>
         <span class="meta">
-          {#if p.avslutat}Avslutat ·{/if}
-          {p.scopes.length} Scopes{#if p.stilla > 0}{" · "}<span class="stilla">{p.stilla} stilla</span>{/if}
+          {antal(p.scopes.length, "Scope", "Scopes")}{#if p.stilla > 0}{" · "}<StillaAntal antal={p.stilla} />{/if}
         </span>
-        {#if !p.avslutat}<Nedrakning nedräkning={p.nedräkning} nästaMilstolpe={p.nästaMilstolpe} liten />{/if}
+        <Nedrakning nedräkning={p.nedräkning} nästaMilstolpe={p.nästaMilstolpe} liten />
       </a>
     {/each}
   </div>
-{:else}
+{/if}
+{#if delar.avslutade.length > 0}
+  <div class="avslutade">
+    <div class="cap">Avslutade</div>
+    <ul>
+      {#each delar.avslutade as p (p.id)}
+        <li>
+          <a href={projektHref(p)}>
+            <span class="klar" aria-hidden="true">✦</span>
+            <b>{p.namn}</b>
+            <span class="datum">{avslutatRad(p.avslutad)}</span>
+          </a>
+        </li>
+      {/each}
+    </ul>
+  </div>
+{/if}
+{#if projekt.length === 0}
   <p class="none">Inga Projekt ännu.</p>
 {/if}
 
@@ -39,6 +61,7 @@
   .cells {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    border-top: 1px solid var(--line);
     border-left: 1px solid var(--line);
   }
   .cells.stor {
@@ -60,9 +83,6 @@
   .cell:hover {
     background: var(--sel);
   }
-  .cell.avslutat {
-    opacity: 0.55;
-  }
   .cell b {
     display: block;
     font-weight: 600;
@@ -72,8 +92,42 @@
     font-size: 13px;
     color: var(--dim);
   }
-  .stilla {
-    color: var(--redtx);
+  .avslutade {
+    margin-top: 14px;
+  }
+  .avslutade .cap {
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--line);
+  }
+  .avslutade ul {
+    list-style: none;
+    padding: 0;
+  }
+  .avslutade a {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    padding: 8px 4px;
+    border-bottom: 1px solid var(--line);
+    text-decoration: none;
+    color: var(--tx);
+  }
+  .avslutade a:hover {
+    background: var(--sel);
+  }
+  .avslutade b {
+    font-weight: 600;
+  }
+  .klar {
+    color: var(--klar);
+    font-size: 14px;
+    line-height: 1;
+    flex: none;
+  }
+  .datum {
+    font-size: 13px;
+    color: var(--dim);
   }
   .none {
     color: var(--dim);

@@ -4,16 +4,19 @@
   // Add, rename, remove (handover of their Scopes in Pågående Projekt),
   // Återaktivera, and the Personer-historik. Nothing here has an Ångra.
   // Each Person shows their load (story 78) and links to their Stjärnkarta.
-  import { PERSON_HÄNDELSE_TYP, type PersonHändelse, type PersonRad, type PersonVy } from "../../core/index.js";
+  import type { PersonHändelse, PersonRad, PersonVy } from "../../core/index.js";
   import { api, ApiError } from "../lib/api.js";
-  import { lägeFärg } from "../lib/hill.js";
+  import MiniHill from "../components/MiniHill.svelte";
+  import StillaAntal from "../components/StillaAntal.svelte";
   import { personHref } from "../lib/links.js";
+  import { beskrivPersonHändelse } from "../lib/personhistorik.js";
+  import { antal } from "../lib/ord.js";
   import { tema } from "../lib/tema.svelte.js";
   import { laddaPersoner, signatur } from "../lib/signatur.svelte.js";
 
   let personer = $state<PersonVy[] | undefined>();
   let historik = $state<PersonHändelse[]>([]);
-  /** Load per Person (Scopes, Projekt, stuck, Läge dots), by id. */
+  /** Load per Person (Scopes, Projekt, Stilla, Läge dots), by id. */
   let last = $state<Record<string, PersonRad>>({});
   let loadError = $state("");
   let namn = $state("");
@@ -131,12 +134,6 @@
     }
   }
 
-  const VAD: Record<PersonHändelse["typ"], string> = {
-    [PERSON_HÄNDELSE_TYP.ny]: "lade till",
-    [PERSON_HÄNDELSE_TYP.bytNamn]: "bytte namn på",
-    [PERSON_HÄNDELSE_TYP.taBort]: "tog bort",
-    [PERSON_HÄNDELSE_TYP.återaktivera]: "återaktiverade",
-  };
   const tidFormat = new Intl.DateTimeFormat("sv-SE", { dateStyle: "medium", timeStyle: "short" });
 </script>
 
@@ -147,7 +144,7 @@
   <h1>Personer</h1>
   {#if personer}
     <div class="meta">
-      {aktiva.length} {aktiva.length === 1 ? "Person" : "Personer"}{#if inaktiva.length}, {inaktiva.length} inaktiva{/if}
+      {antal(aktiva.length, "Person", "Personer")}{#if inaktiva.length}, {antal(inaktiva.length, "inaktiv", "inaktiva")}{/if}
     </div>
   {/if}
 
@@ -179,8 +176,8 @@
         type="button"
         class="quiet toggle"
         class:on={visaInaktiva}
-        aria-pressed={visaInaktiva}
-        onclick={() => (visaInaktiva = !visaInaktiva)}>Visa inaktiva ({inaktiva.length})</button
+        onclick={() => (visaInaktiva = !visaInaktiva)}
+        >{visaInaktiva ? "Dölj" : "Visa"} inaktiva ({inaktiva.length})</button
       >
     {/if}
     {#if radError}<p class="error" role="alert">{radError}</p>{/if}
@@ -194,24 +191,30 @@
               <button type="button" class="quiet" onclick={() => (byterNamn = undefined)}>Avbryt</button>
             </form>
           {:else}
-            <span class="namn">
-              {#if p.aktiv}<a href={personHref(p)} title="Stjärnkarta för {p.namn}">{p.namn}</a>{:else}{p.namn}{/if}
-              {#if !p.aktiv}<span class="meta">(inaktiv)</span>{/if}
-              {#if p.id === signatur.person?.id}<span class="meta">Din signatur</span>{/if}
-            </span>
             {@const rad = last[p.id]}
-            {#if rad && p.aktiv}
-              <span class="last">
-                <span class="meta">
-                  {rad.räkning.scopes} Scopes i {rad.räkning.projekt} Projekt{#if rad.räkning.stilla}
-                    · <span class="stilla">{rad.räkning.stilla} stilla</span>{/if}
+            {#if p.aktiv}
+              <!-- Name, load and arrow are one click target to the Stjärnkarta. -->
+              <a class="karta" href={personHref(p)}>
+                <span class="namn">
+                  <span class="lank">{p.namn}</span>
+                  {#if p.id === signatur.person?.id}<span class="meta">Din signatur</span>{/if}
                 </span>
-                <span class="strip" aria-hidden="true">
-                  {#each rad.lägen as l, i (i)}
-                    <span class="dot" class:stilla={l.stilla} style:left="{l.läge}%" style:background={lägeFärg(l.läge, tema.nu)}
-                    ></span>
-                  {/each}
-                </span>
+                {#if rad}
+                  <span class="last">
+                    <span class="meta">
+                      {antal(rad.räkning.scopes, "Scope", "Scopes")} i {rad.räkning.projekt} Projekt{#if rad.räkning.stilla}
+                        · <StillaAntal antal={rad.räkning.stilla} />{/if}
+                    </span>
+                    <MiniHill scopes={rad.lägen} tema={tema.nu} width={180} height={40} topp />
+                  </span>
+                {/if}
+                <span class="pil">Stjärnkarta →</span>
+              </a>
+            {:else}
+              <span class="namn">
+                {p.namn}
+                <span class="meta">(inaktiv)</span>
+                {#if p.id === signatur.person?.id}<span class="meta">Din signatur</span>{/if}
               </span>
             {/if}
             <span class="actions">
@@ -250,15 +253,12 @@
     {:else}
       <ol class="historik">
         {#each historik as h (h.id)}
-          <li>
+          {@const text = beskrivPersonHändelse(h)}
+          <li class:markt={text.märkt}>
             <span>
-              <strong>{namnPå(h.vem)}</strong>
-              {VAD[h.typ]}
-              {#if h.typ === PERSON_HÄNDELSE_TYP.bytNamn}
-                <strong>{h.förraNamn}</strong> → <strong>{h.nyttNamn}</strong>
-              {:else}
-                <strong>{h.nyttNamn}</strong>
-              {/if}
+              {namnPå(h.vem)}
+              <span class="vad">{text.vad}</span>
+              {#each text.berörd as n, i (i)}{#if i}&nbsp;→&nbsp;{/if}<strong>{n}</strong>{/each}
               {#if h.nyÄgare}<span class="meta">· Scopes till {namnPå(h.nyÄgare)}</span>{/if}
             </span>
             <time class="meta" datetime={h.tid}>{tidFormat.format(new Date(h.tid))}</time>
@@ -296,9 +296,10 @@
   .toggle {
     margin-top: 20px;
   }
+  /* On: the accent underline of the header's active page, not just a border. */
   .toggle.on {
-    border-color: var(--btn);
     color: var(--tx);
+    box-shadow: inset 0 -2px 0 var(--red);
   }
   ul,
   ol {
@@ -319,43 +320,39 @@
   }
   .namn {
     font-weight: 600;
-  }
-  .namn {
     min-width: 180px;
   }
-  .namn a {
+  /* The whole row up to the buttons links to the Stjärnkarta; it reads as a
+     link through the underlined name and the "Stjärnkarta →" arrow. */
+  .karta {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 16px;
     text-decoration: none;
   }
-  .namn a:hover {
+  .lank {
     text-decoration: underline;
+    text-decoration-color: var(--mid);
+    text-underline-offset: 3px;
+  }
+  .pil {
+    font-size: 14px;
+    color: var(--mid);
+    white-space: nowrap;
+  }
+  .karta:hover .lank {
+    text-decoration-color: currentColor;
+  }
+  .karta:hover .pil {
+    color: var(--tx);
   }
   .last {
-    flex: 1 1 180px;
+    flex: 0 1 180px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    max-width: 260px;
-  }
-  .last .stilla {
-    color: var(--redtx);
-  }
-  .strip {
-    position: relative;
-    height: 14px;
-    margin: 0 4px;
-    border-bottom: 1px solid var(--grid);
-  }
-  .dot {
-    position: absolute;
-    top: 3px;
-    width: 8px;
-    height: 8px;
-    margin-left: -4px;
-    border-radius: 50%;
-  }
-  .dot.stilla {
-    outline: 1px dashed var(--red);
-    outline-offset: 2px;
+    gap: 2px;
   }
   .inaktiv .namn {
     color: var(--dim);
@@ -386,5 +383,34 @@
   }
   .historik li {
     font-size: 14px;
+  }
+  /* Removals and renames stand out among the additions (story 44, #68): a
+     discreet neutral marker, not the accent, which keeps to its three uses. */
+  .historik li.markt {
+    box-shadow: inset 2px 0 0 var(--mid);
+    padding-left: 10px;
+  }
+  .historik .vad {
+    color: var(--mid);
+  }
+  .historik .markt .vad {
+    color: var(--tx);
+    font-weight: 600;
+  }
+  /* Phone (Q17 b): every button and name link gets a 44 px tap target through
+     padding, not larger text, and Byt namn sits well apart from Ta bort. */
+  @media (max-width: 600px) {
+    button {
+      min-height: 44px;
+    }
+    .actions {
+      gap: 16px;
+    }
+    .karta {
+      min-height: 44px;
+    }
+    li {
+      align-items: center;
+    }
   }
 </style>

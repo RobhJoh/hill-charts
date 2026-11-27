@@ -7,6 +7,7 @@
 // runs only after a Person is chosen.
 import type { PersonVy } from "../../core/index.js";
 import { api, ApiError } from "./api.js";
+import type { Flytt } from "./vemremsa.js";
 
 const KEY = "apogee.signatur";
 
@@ -29,6 +30,8 @@ function spara(id: string) {
 let vem = $state<string | null>(läs());
 let personer = $state<PersonVy[]>([]);
 let frågar = $state(false);
+/** The held move, if the held edit is one: the strip names it and its star is marked. */
+let hållen = $state<Flytt | null>(null);
 type Hållen = { resolve: (vem: string) => void; reject: (error: Error) => void };
 let väntande: Hållen[] = [];
 
@@ -48,8 +51,9 @@ export async function laddaPersoner(): Promise<PersonVy[]> {
 }
 
 /** Asks "Vem?" and resolves once a Person is chosen. */
-function fråga(): Promise<string> {
+function fråga(flytt?: Flytt): Promise<string> {
   frågar = true;
+  hållen = flytt ?? null;
   return new Promise((resolve, reject) => väntande.push({ resolve, reject }));
 }
 
@@ -65,12 +69,17 @@ export const signatur = {
   get frågar(): boolean {
     return frågar;
   },
+  /** The held move while the strip asks, if the held edit is a move. */
+  get hållen(): Flytt | null {
+    return frågar ? hållen : null;
+  },
 
   /** Remembers `id` as this device's Signatur and releases held edits. */
   välj(id: string) {
     vem = id;
     spara(id);
     frågar = false;
+    hållen = null;
     const släpp = väntande;
     väntande = [];
     for (const h of släpp) h.resolve(id);
@@ -79,6 +88,7 @@ export const signatur = {
   /** Throws away held edits and hides the strip, e.g. when leaving the page. */
   avbryt() {
     frågar = false;
+    hållen = null;
     const släpp = väntande;
     väntande = [];
     for (const h of släpp) h.reject(new Avbruten());
@@ -92,18 +102,19 @@ export const signatur = {
 
   /**
    * Runs `edit` signed with the remembered Signatur, asking for one first if
-   * none is remembered or it is no longer an active Person.
+   * none is remembered or it is no longer an active Person. A `flytt`
+   * describes the edit to the strip while it is held.
    */
-  async signera<T>(edit: (vem: string) => Promise<T>): Promise<T> {
+  async signera<T>(edit: (vem: string) => Promise<T>, flytt?: Flytt): Promise<T> {
     await laddaPersoner();
-    const id = giltig(vem) ? vem! : await fråga();
+    const id = giltig(vem) ? vem! : await fråga(flytt);
     try {
       return await edit(id);
     } catch (error) {
       // Became inaktiv or unknown since the list was loaded: ask again.
       if (error instanceof ApiError && error.fel === "signatur") {
         await laddaPersoner();
-        return edit(await fråga());
+        return edit(await fråga(flytt));
       }
       throw error;
     }

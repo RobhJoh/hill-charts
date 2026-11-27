@@ -48,9 +48,8 @@ describe("Stjärnkarta", () => {
     const { apogee, anna, fo, kassan, moms, scope, karta } = await setup();
     const arkiv = (await apogee.createProjekt(fo, "Arkiv", anna)).id;
     await scope(arkiv, "Pärmar", anna, 100);
-    await scope(kassan, "Prislista", anna, 40);
+    await scope(kassan, "Prislista", anna, 100);
     await scope(moms, "Deklaration", anna, 20);
-    await apogee.markAvslutat(kassan, anna);
     const bokslut = (await apogee.createProjekt(fo, "Bokslut", anna)).id;
     await scope(bokslut, "Balans", anna, 30);
     await apogee.taBortProjekt(bokslut, anna);

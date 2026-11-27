@@ -5,7 +5,7 @@ import { DomainError } from "../errors.js";
 import type { NotionKälla } from "../notion.js";
 import type { Storage } from "../storage.js";
 import type { Funktionsområde, FunktionsområdeId, Person, PersonId, Projekt, ProjektId, Uppdatering, UppdateringId } from "../types.js";
-import { utanGamlaDatum } from "../status.js";
+import { utanGamlaFält } from "../status.js";
 import { requireSignatur } from "./regler.js";
 import { diagramVy, projektTidVy, type DiagramVy, type TidVy } from "./vyer.js";
 
@@ -28,12 +28,12 @@ export type Kärna = ReturnType<typeof skapaKärna>;
 
 /**
  * `lagring` must already announce Uppdateringar (see live.ts). Every Historik
- * is read without the dates an older Historik held (`utanGamlaDatum`).
+ * is read without the fields an older Historik held (`utanGamlaFält`).
  */
 export function skapaKärna({ storage: lagring, now, newId }: Pick<ApogeeDeps, "storage" | "now" | "newId">) {
   const storage: Storage = {
     ...lagring,
-    readHistorik: async (projektId) => utanGamlaDatum(await lagring.readHistorik(projektId)),
+    readHistorik: async (projektId) => utanGamlaFält(await lagring.readHistorik(projektId)),
   };
   return {
     storage,
@@ -73,8 +73,8 @@ export function skapaKärna({ storage: lagring, now, newId }: Pick<ApogeeDeps, "
     },
 
     /** A Projekt's Hill chart and status from its Historik, against the clock's "now". */
-    diagramVy(logg: Uppdatering[], personer: Person[], borttagen: boolean): DiagramVy {
-      return diagramVy(logg, personer, borttagen, now());
+    diagramVy(logg: Uppdatering[], personer: Person[]): DiagramVy {
+      return diagramVy(logg, personer, now());
     },
 
     /** A Projekt's dates, Milstolpar (from its Historik) and countdown, against today. */

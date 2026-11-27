@@ -1,7 +1,6 @@
-// Projekt-level fields: the Avslutat mark and Milstolpar. A Projekt's Avslutat
-// mark and Milstolpar are Uppdateringar in its Historik; a Funktionsområde's
-// Milstolpar are saved on the record itself without Historik. Dates come from
-// Notion (./notion.ts).
+// Projekt-level fields: Milstolpar. A Projekt's Milstolpar are Uppdateringar
+// in its Historik; a Funktionsområde's Milstolpar are saved on the record
+// itself without Historik. Dates come from Notion (./notion.ts).
 import { datumFrån, iOrdning, TOM_TIDSPLAN, ändraMilstolpe } from "../datum.js";
 import { fältLika, projektFält } from "../status.js";
 import { UPPDATERING_TYP } from "../typer.js";
@@ -80,19 +79,6 @@ export function projektfält(k: Kärna) {
   }
 
   return {
-    /** Marks a Projekt Avslutat whatever its Scopes' Läge. Null when already marked. */
-    async markAvslutat(projektId: ProjektId, vem: PersonId | null) {
-      return ändraProjektFält(projektId, UPPDATERING_TYP.avslutat, () => ({ avslutat: true }), vem);
-    },
-
-    /**
-     * "Öppna igen": removes the Avslutat mark. Null when not marked. A Projekt
-     * with every Scope at Läge 100 (or none) stays Avslutat.
-     */
-    async reopenProjekt(projektId: ProjektId, vem: PersonId | null) {
-      return ändraProjektFält(projektId, UPPDATERING_TYP.öppnaIgen, () => ({ avslutat: false }), vem);
-    },
-
     /** Adds a Milstolpe (name and date). */
     async addMilstolpe(
       mål: Mål,

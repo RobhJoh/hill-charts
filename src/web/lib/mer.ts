@@ -1,12 +1,13 @@
 // The "Mer" menu by the page heading (Q5 a, Q18 b): rare actions behind one button.
+import type { Status } from "../../core/index.js";
 
 /**
  * Why a Funktionsområde can't be taken away yet, or null when it can: only
  * when none of its Projekt is Pågående (the core's rule, shown before asking).
  */
-export function taBortSpärr(projekt: readonly { pågående: boolean }[]): string | null {
-  const pågår = projekt.filter((p) => p.pågående).length;
-  return pågår === 0 ? null : `Kan tas bort när alla Projekt är Avslutade (${pågår} pågår)`;
+export function taBortSpärr(projekt: readonly { status: Status }[]): string | null {
+  const pågår = projekt.filter((p) => p.status === "pågående").length;
+  return pågår === 0 ? null : `Kan tas bort när inget Projekt är Pågående (${pågår} pågår)`;
 }
 
 /**

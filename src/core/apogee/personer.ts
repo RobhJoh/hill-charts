@@ -72,7 +72,7 @@ export function personer(k: Kärna) {
     return Promise.all(
       synliga.map(async (p) => {
         const logg = await storage.readHistorik(p.id);
-        const { scopes, avslutat } = k.diagramVy(logg, personer, false);
+        const { scopes, avslutat } = k.diagramVy(logg, personer);
         const { nedräkning, nästaMilstolpe, överTid } = k.projektTidVy(p, logg, avslutat);
         return { id: p.id, namn: p.namn, avslutat, nedräkning, nästaMilstolpe, överTid, scopes };
       }),
@@ -100,9 +100,10 @@ export function personer(k: Kärna) {
     },
 
     /**
-     * Removes a Person by handing their Scopes in every Pågående Projekt to
-     * `nyÄgare` (one Uppdatering per affected Projekt, returned) and making
-     * them inaktiv. Scopes in Avslutade and Borttagna Projekt keep them.
+     * Removes a Person by handing their Scopes in every Projekt that is not
+     * Avslutat (Inte påbörjat ones too) to `nyÄgare` (one Uppdatering per
+     * affected Projekt, returned) and making them inaktiv. Scopes in Avslutade
+     * and Borttagna Projekt keep them.
      */
     async removePerson(id: PersonId, nyÄgare: PersonId, vem: PersonId | null): Promise<Uppdatering[]> {
       const all = await storage.listPersoner();
@@ -115,7 +116,7 @@ export function personer(k: Kärna) {
       const uppdateringar: Uppdatering[] = [];
       for (const p of await storage.listProjekt()) {
         const logg = await storage.readHistorik(p.id);
-        if (!k.diagramVy(logg, all, !!p.borttagen).pågående) continue;
+        if (p.borttagen || k.diagramVy(logg, all).avslutat) continue;
         const ändringar = Object.entries(nuvarande(logg))
           .filter(([, s]) => s.ägare === id)
           .map(([scopeId, före]) => ({ scopeId, före, efter: { ...före, ägare: mottagare } }));

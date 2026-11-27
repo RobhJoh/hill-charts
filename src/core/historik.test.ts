@@ -230,44 +230,77 @@ describe("Visa", () => {
   });
 });
 
-describe("Projekt-level Uppdateringar (Avslutat)", () => {
-  it("Ångra of Markera Avslutat reopens; blocked when Avslutat has changed since", async () => {
-    const { apogee, anna, erik, projekt } = await setup();
-    const markera = await apogee.markAvslutat(projekt, anna);
-    const u = await apogee.ångra(projekt, markera!.id, erik);
-    expect(u).toMatchObject({ typ: "ångra", ändringar: [], projekt: { före: { avslutat: true }, efter: { avslutat: false } } });
-    expect(await apogee.getProjekt(projekt)).toMatchObject({ markeradAvslutat: false });
-
-    const igen = await apogee.markAvslutat(projekt, anna);
-    await apogee.reopenProjekt(projekt, erik);
-    await expect(apogee.ångra(projekt, igen!.id, anna)).rejects.toMatchObject({
-      code: "krock",
-      message: expect.stringMatching(/Projektet.*avslutat/),
-    });
-  });
-
+describe("Projekt-level Uppdateringar", () => {
   it("Återställ hit and its Ångra fold the Projekt fields together with the Scopes", async () => {
     const { apogee, anna, erik, projekt, s2, diagram } = await setup();
     const före = (await apogee.historik(projekt)).at(-1)!;
     await apogee.moveScope(projekt, s2, 90, erik);
-    await apogee.markAvslutat(projekt, erik);
+    const { id: demo } = await apogee.addMilstolpe({ projekt }, { namn: "Demo", datum: "2026-12-01" }, erik);
     const innan = await diagram();
 
     const åter = await apogee.återställHit(projekt, före.id, anna);
-    expect(åter!.projekt).toEqual({ före: { avslutat: true }, efter: { avslutat: false } });
-    expect(await apogee.getProjekt(projekt)).toMatchObject({ markeradAvslutat: false });
+    expect(åter!.projekt).toEqual({
+      före: { milstolpar: [{ id: demo, namn: "Demo", datum: "2026-12-01" }] },
+      efter: { milstolpar: [] },
+    });
+    expect((await apogee.getProjekt(projekt)).tidsplan.milstolpar).toEqual([]);
     expect((await diagram()).find(([id]) => id === s2)![2]).toBe(38);
 
     await apogee.ångra(projekt, åter!.id, anna);
-    expect(await apogee.getProjekt(projekt)).toMatchObject({ markeradAvslutat: true });
+    expect((await apogee.getProjekt(projekt)).tidsplan.milstolpar).toMatchObject([{ id: demo }]);
     expect(await diagram()).toEqual(innan);
   });
+});
 
-  it("Visa shows whether the Projekt was marked Avslutat at that point", async () => {
-    const { apogee, anna, projekt } = await setup();
-    const markera = await apogee.markAvslutat(projekt, anna);
-    await apogee.reopenProjekt(projekt, anna);
-    expect(await apogee.förhandsvisa(projekt, markera!.id)).toMatchObject({ markeradAvslutat: true, avslutat: true });
+describe("a Historik from before status followed Läge alone", () => {
+  /** Markera Avslutat and Öppna igen as the old format wrote them, with a Milstolpe in between. */
+  async function medGamlaMarkeringar() {
+    const f = await setup();
+    const markering = (id: string, avslutat: boolean, tid: string) => ({
+      id,
+      typ: avslutat ? "avslutat" : "öppna igen",
+      vem: f.anna,
+      tid,
+      ändringar: [],
+      projekt: { före: { avslutat: !avslutat }, efter: { avslutat } },
+    });
+    const gamla = [
+      markering("markerad", true, "2026-11-25T11:00:00.000Z"),
+      {
+        id: "med-milstolpe",
+        typ: "milstolpe",
+        vem: f.anna,
+        tid: "2026-11-25T11:01:00.000Z",
+        ändringar: [],
+        projekt: {
+          före: { avslutat: false, milstolpar: [] },
+          efter: { avslutat: true, milstolpar: [{ id: "m1", namn: "Demo", datum: "2026-12-01" }] },
+        },
+      },
+      markering("öppnad", false, "2026-11-25T11:02:00.000Z"),
+    ] as unknown as Uppdatering[];
+    for (const u of gamla) await f.storage.appendUppdatering(f.projekt, u);
+    return f;
+  }
+
+  it("ignores the old Avslutat marks: status follows Läge alone", async () => {
+    const { apogee, projekt } = await medGamlaMarkeringar();
+    expect(await apogee.getProjekt(projekt)).toMatchObject({ status: "pågående", avslutat: false, avslutad: null });
+    expect((await apogee.getProjekt(projekt)).tidsplan.milstolpar).toEqual([{ id: "m1", namn: "Demo", datum: "2026-12-01" }]);
+  });
+
+  it("leaves the marks out of the Historik, keeping the Milstolpe change", async () => {
+    const { apogee, projekt } = await medGamlaMarkeringar();
+    const logg = await apogee.historik(projekt);
+    expect(logg.map((u) => u.id)).not.toContain("markerad");
+    expect(logg.map((u) => u.id)).not.toContain("öppnad");
+    expect(logg.at(-1)).toMatchObject({
+      id: "med-milstolpe",
+      projekt: { före: { milstolpar: [] }, efter: { milstolpar: [{ id: "m1" }] } },
+    });
+    expect(logg.at(-1)!.projekt!.efter).not.toHaveProperty("avslutat");
+    expect((await apogee.historikVy(projekt)).map((r) => r.id)).not.toContain("markerad");
+    expect(await apogee.förhandsvisa(projekt, "med-milstolpe")).toMatchObject({ fältSkiljer: [], sammaSomNu: true });
   });
 });
 

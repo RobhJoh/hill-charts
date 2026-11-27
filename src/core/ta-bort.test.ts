@@ -38,15 +38,14 @@ describe("Ta bort a Projekt", () => {
 });
 
 describe("a Borttagen Projekt", () => {
-  it("keeps its Hill chart and Historik, is not Pågående, and says who took it away", async () => {
+  it("keeps its Hill chart, status and Historik, and says who took it away", async () => {
     const { apogee, anna, kassan } = await setup();
     await apogee.addScope(kassan, { namn: "Kvitton", ägare: anna }, anna);
-    expect((await apogee.getProjekt(kassan)).pågående).toBe(true);
     await apogee.taBortProjekt(kassan, anna);
     const vy = await apogee.getProjekt(kassan);
     expect(vy).toMatchObject({
       scopes: [{ namn: "Kvitton" }],
-      pågående: false,
+      status: "inte påbörjat",
       borttagen: { vem: { id: anna, namn: "Anna" }, tid: "2026-11-24T10:00:00.000Z" },
     });
     expect(await apogee.historik(kassan)).toHaveLength(1);
@@ -67,7 +66,6 @@ describe("a Borttagen Projekt", () => {
     expect((await apogee.getFunktionsområde(fo)).borttagnaProjekt).toEqual([]);
     expect(await apogee.getProjekt(kassan)).toMatchObject({
       scopes: [{ namn: "Kvitton" }],
-      pågående: true,
       borttagen: null,
     });
   });
@@ -84,13 +82,14 @@ describe("a Borttagen Projekt", () => {
 describe("Ta bort a Funktionsområde", () => {
   it("is blocked, with a reason naming them, while any of its Projekt is Pågående", async () => {
     const { apogee, anna, fo, kassan } = await setup();
-    await apogee.addScope(kassan, { namn: "Kvitton", ägare: anna }, anna);
+    const { id } = await apogee.addScope(kassan, { namn: "Kvitton", ägare: anna }, anna);
+    await apogee.moveScope(kassan, id, 40, anna);
     await expect(apogee.taBortFunktionsområde(fo, anna)).rejects.toMatchObject({
       code: "ogiltig",
       message: expect.stringContaining("Kassan"),
     });
     expect((await apogee.overview()).map((f) => f.namn)).toEqual(["Ekonomi"]);
-    await apogee.markAvslutat(kassan, anna);
+    await apogee.moveScope(kassan, id, 100, anna);
     await apogee.taBortFunktionsområde(fo, anna);
     expect(await apogee.overview()).toEqual([]);
   });

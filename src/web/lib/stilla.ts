@@ -9,11 +9,11 @@ export const STILLA_FÖRKLARING = `Ingen rörelse på över ${STILLA_EFTER_DAGAR
 export const stillaI = (dagar: number): string => `stilla i ${dagar} d`;
 
 export type SamladStatus = {
-  /** Pågående Projekt. */
+  /** Projekt that are not Avslutat (Inte påbörjat ones too). */
   pågående: number;
-  /** Stilla Scopes across all Pågående Projekt. */
+  /** Stilla Scopes across all Projekt that are not Avslutat. */
   stilla: number;
-  /** Pågående Projekt that are Över tid. */
+  /** Projekt not Avslutat that are Över tid. */
   överTid: number;
   /** The Projekt with stilla Scopes, in overview order. */
   stillaProjekt: ProjektRad[];
@@ -23,7 +23,7 @@ export type SamladStatus = {
 
 /** The overview's one-line status: "5 pågående · 3 stilla · 1 över tid". */
 export function samladStatus(översikt: Översikt): SamladStatus {
-  const pågående = översikt.flatMap((fo) => fo.projekt).filter((p) => p.pågående);
+  const pågående = översikt.flatMap((fo) => fo.projekt).filter((p) => !p.avslutat);
   const stillaProjekt = pågående.filter((p) => p.stilla > 0);
   const överTidProjekt = pågående.filter((p) => p.överTid);
   return {

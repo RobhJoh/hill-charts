@@ -91,7 +91,7 @@ describe("entering dates", () => {
 describe("the countdown, in calendar days", () => {
   it("goes Startar om → N dagar kvar → Över tid → Avslutat; no bar before the start", async () => {
     const { apogee, anna, projekt, idag } = await setup();
-    await apogee.addScope(projekt, { namn: "Prislista", ägare: anna }, anna);
+    const { id: prislista } = await apogee.addScope(projekt, { namn: "Prislista", ägare: anna }, anna);
     await apogee.setDatum({ projekt }, { startdatum: "2026-11-02", slutdatum: "2026-12-14" }, anna);
     const vy = async () => {
       const { nedräkning, överTid } = await apogee.getProjekt(projekt);
@@ -111,7 +111,7 @@ describe("the countdown, in calendar days", () => {
     idag("2026-12-18");
     expect(await vy()).toEqual({ läge: "över tid", text: "Över tid · 4 dagar", andel: 1, överTid: true });
 
-    await apogee.markAvslutat(projekt, anna);
+    await apogee.moveScope(projekt, prislista, 100, anna);
     expect(await vy()).toEqual({ läge: "avslutat", text: "Avslutat", andel: null, överTid: false });
   });
 
@@ -144,11 +144,12 @@ describe("the countdown, in calendar days", () => {
     expect((await apogee.getFunktionsområde(fo)).projekt[0]).toMatchObject({ överTid: true });
   });
 
-  it("passing the Slutdatum never makes a Projekt Avslutat", async () => {
+  it("passing the Slutdatum never makes a Projekt Avslutat; an Inte påbörjat one is Över tid too", async () => {
     const { apogee, anna, projekt } = await setup();
-    await apogee.addScope(projekt, { namn: "Prislista", ägare: anna }, anna);
     await apogee.setDatum({ projekt }, { startdatum: null, slutdatum: "2026-11-01" }, anna);
-    expect(await apogee.getProjekt(projekt)).toMatchObject({ avslutat: false, pågående: true, överTid: true });
+    expect(await apogee.getProjekt(projekt)).toMatchObject({ status: "inte påbörjat", överTid: true });
+    await apogee.addScope(projekt, { namn: "Prislista", ägare: anna }, anna);
+    expect(await apogee.getProjekt(projekt)).toMatchObject({ status: "inte påbörjat", överTid: true });
   });
 });
 
@@ -271,20 +272,22 @@ describe("Funktionsområde dates", () => {
 
   it("is Över tid after its Slutdatum while any Projekt is not Avslutat, and Avslutat once all are", async () => {
     const { apogee, anna, fo, projekt } = await setup();
-    await apogee.addScope(projekt, { namn: "Prislista", ägare: anna }, anna);
+    const { id: prislista } = await apogee.addScope(projekt, { namn: "Prislista", ägare: anna }, anna);
     await apogee.setDatum({ funktionsområde: fo }, { startdatum: null, slutdatum: "2026-11-20" }, anna);
     expect(await apogee.getFunktionsområde(fo)).toMatchObject({
       nedräkning: { läge: "över tid", text: "Över tid · 4 dagar" },
       överTid: true,
     });
-    await apogee.markAvslutat(projekt, anna);
+    await apogee.moveScope(projekt, prislista, 100, anna);
     expect(await apogee.getFunktionsområde(fo)).toMatchObject({ nedräkning: { läge: "avslutat" }, överTid: false });
     const [ekonomi] = await apogee.overview();
     expect(ekonomi).toMatchObject({ överTid: false });
   });
 
   it("counts down normally before its Slutdatum even when every Projekt is Avslutat", async () => {
-    const { apogee, anna, fo } = await setup();
+    const { apogee, anna, fo, projekt } = await setup();
+    const { id } = await apogee.addScope(projekt, { namn: "Prislista", ägare: anna }, anna);
+    await apogee.moveScope(projekt, id, 100, anna);
     await apogee.setDatum({ funktionsområde: fo }, { startdatum: null, slutdatum: "2026-11-30" }, anna);
     expect((await apogee.getFunktionsområde(fo)).nedräkning).toMatchObject({ text: "6 dagar kvar" });
   });

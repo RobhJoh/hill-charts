@@ -2,7 +2,7 @@
 // from stored records and a Projekt's Historik.
 import { nuvarande, senastFlyttad } from "../diagram.js";
 import { nedräkning, nästaMilstolpe, ärÖverTid, type Nedräkning, type NästaMilstolpe } from "../datum.js";
-import { dagarSedan, projektFält, ärAvslutat, ärPågående, ärStilla } from "../status.js";
+import { dagarSedan, projektFält, projektStatus, ärStilla, type Status } from "../status.js";
 import type {
   Borttagen,
   Datum,
@@ -31,10 +31,11 @@ export type TidVy = {
 export type ProjektRad = {
   id: ProjektId;
   namn: string;
+  /** Derived from the Scopes' Läge alone (status.ts). */
+  status: Status;
   avslutat: boolean;
-  /** When it became Avslutat (ISO time); null while Pågående or if never edited. */
+  /** When it last became Avslutat (ISO time); null while it is not. */
   avslutad: string | null;
-  pågående: boolean;
   nedräkning: Nedräkning | null;
   nästaMilstolpe: NästaMilstolpe | null;
   överTid: boolean;
@@ -50,6 +51,8 @@ export type FunktionsområdeVy = {
   notionUrl: string | null;
   /** Who took it away and when; null while it is shown. */
   borttagen: BorttagenVy | null;
+  /** Derived from its Projekt that are not Borttagna (status.ts). */
+  status: Status;
   /** Stilla Scopes across its Projekt. */
   stilla: number;
   /** Its Projekt, except those taken away on their own (they went with it if it is Borttagen). */
@@ -78,6 +81,8 @@ export type ProjektVy = {
   borttagen: BorttagenVy | null;
   /** Quiet warnings such as "slutar efter Funktionsområdet"; never block saving. */
   datumVarningar: string[];
+  /** When it last became Avslutat (ISO time); null while it is not. */
+  avslutad: string | null;
 } & DiagramVy &
   TidVy;
 
@@ -85,14 +90,10 @@ export type ProjektVy = {
 export type DiagramVy = {
   /** The Hill chart: current Scopes, highest Läge first. */
   scopes: ScopeVy[];
-  /** Marked Avslutat, or every Scope at Läge 100 (or none). */
+  /** Derived from the Scopes' Läge alone (status.ts). */
+  status: Status;
+  /** Status is Avslutat: it has Scopes and every one is at Läge 100. */
   avslutat: boolean;
-  /** Someone marked it Avslutat (it stays so until "Öppna igen"). */
-  markeradAvslutat: boolean;
-  /** When and by whom it was marked Avslutat (the status line's quiet ending); null unless marked. */
-  avslutadAv: { tid: string; vem: PersonVy | null } | null;
-  /** Neither Avslutat nor Borttagen. */
-  pågående: boolean;
 };
 
 /** A Scope as shown on the Hill chart and in the Scope index. */
@@ -202,11 +203,11 @@ export function projektTidVy(p: Projekt, logg: Uppdatering[], avslutat: boolean,
 }
 
 /** A Projekt's Hill chart and status from its Historik, against `nu`. */
-export function diagramVy(logg: Uppdatering[], personer: Person[], borttagen: boolean, nu: Date): DiagramVy {
+export function diagramVy(logg: Uppdatering[], personer: Person[], nu: Date): DiagramVy {
   const flyttad = senastFlyttad(logg);
   const diagram = Object.entries(nuvarande(logg));
-  const markeradAvslutat = projektFält(logg).avslutat;
-  const avslutat = ärAvslutat(markeradAvslutat, diagram.map(([, s]) => s.läge));
+  const status = projektStatus(diagram.map(([, s]) => s.läge));
+  const avslutat = status === "avslutat";
   const scopes = diagram
     .map(([scopeId, s]): ScopeVy => ({
       id: scopeId,
@@ -218,9 +219,5 @@ export function diagramVy(logg: Uppdatering[], personer: Person[], borttagen: bo
       stilla: ärStilla(flyttad[scopeId]!, nu, s.läge, avslutat),
     }))
     .sort((a, b) => b.läge - a.läge || efterNamn(a, b));
-  const markering = markeradAvslutat ? logg.findLast((u) => u.projekt?.efter.avslutat === true) : undefined;
-  const avslutadAv = markering
-    ? { tid: markering.tid, vem: markering.vem === null ? null : ägareVy(personer, markering.vem) }
-    : null;
-  return { scopes, avslutat, markeradAvslutat, avslutadAv, pågående: ärPågående({ avslutat, borttagen }) };
+  return { scopes, status, avslutat };
 }

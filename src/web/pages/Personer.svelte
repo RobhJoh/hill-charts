@@ -8,6 +8,7 @@
   import { api, ApiError } from "../lib/api.js";
   import { lägeFärg } from "../lib/hill.js";
   import { personHref } from "../lib/links.js";
+  import { antal } from "../lib/ord.js";
   import { tema } from "../lib/tema.svelte.js";
   import { laddaPersoner, signatur } from "../lib/signatur.svelte.js";
 
@@ -147,7 +148,7 @@
   <h1>Personer</h1>
   {#if personer}
     <div class="meta">
-      {aktiva.length} {aktiva.length === 1 ? "Person" : "Personer"}{#if inaktiva.length}, {inaktiva.length} inaktiva{/if}
+      {antal(aktiva.length, "Person", "Personer")}{#if inaktiva.length}, {antal(inaktiva.length, "inaktiv", "inaktiva")}{/if}
     </div>
   {/if}
 

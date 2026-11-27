@@ -10,8 +10,9 @@
   import Nedrakning from "../components/Nedrakning.svelte";
   import Toast from "../components/Toast.svelte";
   import { api, ApiError } from "../lib/api.js";
-  import { dagarSedan, lägeFärg, radie } from "../lib/hill.js";
+  import { dagarSedan, lägeFärg, radie, rampGradient } from "../lib/hill.js";
   import { personHref, projektHref } from "../lib/links.js";
+  import { böj } from "../lib/ord.js";
   import { router } from "../lib/router.svelte.js";
   import { följLive, senasteLaddning } from "../lib/live.js";
   import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
@@ -122,7 +123,7 @@
       <div><b>{r.scopes}</b><span>Scopes</span></div>
       <div><b>{r.projekt}</b><span>Projekt</span></div>
       <div class:röd={r.stilla > 0}><b>{r.stilla}</b><span>stilla &gt; 14 d</span></div>
-      {#if r.avslutade}<div><b>{r.avslutade}</b><span>avslutade</span></div>{/if}
+      {#if r.avslutade}<div><b>{r.avslutade}</b><span>{böj(r.avslutade, "avslutat Projekt", "avslutade Projekt")}</span></div>{/if}
     </div>
 
     <div class="filt">
@@ -152,7 +153,7 @@
             onvälj={(s) => (valt = s)}
             onflytta={flytta}
           />
-          <p class="hint">Dra en stjärna för att ändra Läge. Ändringen hamnar i det Projektets Historik.</p>
+          <p class="hint">Dra en stjärna för att ändra Läge. Ändringen sparas i Scopets Projekt och syns i dess Historik.</p>
           {#if skrivFel}<p class="error" role="alert">{skrivFel}</p>{/if}
         </div>
         <aside class="key" aria-label="Projekt">
@@ -181,6 +182,17 @@
               </ul>
             </section>
           {/each}
+          <footer class="förklaring">
+            <span class="cap">Läge</span>
+            <div class="bar" style:background={rampGradient(tema.nu)}></div>
+            <div class="ticks"><span>0 uppför</span><span>50 krön</span><span>100 klar</span></div>
+            <p class="storlek">
+              <svg width="30" height="20" viewBox="0 0 30 20" aria-hidden="true"
+                ><circle cx="9" cy="10" r={radie(0)} fill="var(--dim)" /><circle cx="25" cy="10" r={radie(30)} fill="var(--dim)" /></svg
+              >
+              Större stjärna = flyttad nyligen
+            </p>
+          </footer>
         </aside>
       </div>
     {/if}
@@ -315,6 +327,29 @@
     font: inherit;
     text-align: left;
     cursor: pointer;
+  }
+  .förklaring {
+    margin-top: 20px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .förklaring .bar {
+    height: 8px;
+    margin: 6px 0 4px;
+  }
+  .ticks {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--dim);
+  }
+  .storlek {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0 0;
+    font-size: 14px;
+    color: var(--dim);
   }
   @media (max-width: 900px) {
     .skywrap {

@@ -10,6 +10,7 @@
   import Saknas from "./pages/Saknas.svelte";
   import Embed from "./pages/Embed.svelte";
   import VemStrip from "./components/VemStrip.svelte";
+  import Marke from "./components/Marke.svelte";
   import { laddaPersoner, signatur } from "./lib/signatur.svelte.js";
   import { tema } from "./lib/tema.svelte.js";
   import { initialer } from "./lib/initialer.js";
@@ -63,9 +64,7 @@
 {:else}
 <header>
   <a class="mk" href="/">
-    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
-      <path d="M11 1 L12.6 9.4 L21 11 L12.6 12.6 L11 21 L9.4 12.6 L1 11 L9.4 9.4Z" fill="var(--red)" />
-    </svg>
+    <Marke />
     Apogee
   </a>
   <div class="right">

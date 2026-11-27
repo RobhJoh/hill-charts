@@ -23,6 +23,7 @@
   import { tema } from "../lib/tema.svelte.js";
   import { sparatKvitto, VÄNTAR, vemFråga, type Flytt } from "../lib/vemremsa.js";
   import { tick } from "svelte";
+  import Marke from "../components/Marke.svelte";
 
   let { id }: { id: string } = $props();
 
@@ -156,9 +157,7 @@
   {:else if projekt?.borttagen}
     <div class="besked">
       <!-- The Apogee mark (#62): where the message comes from, in a frame that is otherwise empty. -->
-      <svg class="märke" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
-        <path d="M11 1 L12.6 9.4 L21 11 L12.6 12.6 L11 21 L9.4 12.6 L1 11 L9.4 9.4Z" fill="var(--red)" />
-      </svg>
+      <div class="märke"><Marke /></div>
       <p><strong>Det här Projektet är borttaget.</strong></p>
       <p class="meta">{projekt.namn} togs bort av {projekt.borttagen.vem.namn}.</p>
       <p><a href={länk} target="_blank" rel="noopener">Återställ i Apogee ↗</a></p>
@@ -207,9 +206,7 @@
         {#if !smal && signatur.person}<span class="signamn" aria-hidden="true">{signatur.person.namn}</span>{/if}
       </button>
       <a class="öppna" href={länk} target="_blank" rel="noopener">
-        <svg width="13" height="13" viewBox="0 0 22 22" aria-hidden="true">
-          <path d="M11 1 L12.6 9.4 L21 11 L12.6 12.6 L11 21 L9.4 12.6 L1 11 L9.4 9.4Z" fill="var(--red)" />
-        </svg>
+        <Marke storlek={13} />
         {smal ? "Öppna ↗" : "Öppna i Apogee ↗"}
       </a>
     </header>
@@ -596,8 +593,9 @@
     margin-top: 6px;
   }
   .märke {
-    display: block;
-    margin: 0 auto 10px;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
   }
   .meta {
     color: var(--dim);

@@ -36,16 +36,17 @@
   let saknas = $state(false);
   let fel = $state("");
   let valt = $state<string | null>(null);
+  /** The Scope pointed at, in the list or on the hill: linked both ways. */
+  let pekad = $state<string | null>(null);
   let bredd = $state(0);
-  let himmelHöjd = $state(0);
   /** The Signatur strip opened from the header's person icon (no edit held). */
   let byter = $state(false);
   let vald = $state("");
 
   /** Under ~520px: no list, all star labels, short link. */
   const smal = $derived(bredd > 0 && bredd < 520);
-  /** A tall embed has room for every star's label beside the list too. */
-  const hög = $derived(himmelHöjd >= 420);
+  /** The list reads left to right like the hill: Läge 0 first. */
+  const ordnade = $derived(projekt ? [...projekt.scopes].sort((a, b) => a.läge - b.läge) : []);
   const länk = $derived(projekt ? location.origin + projektHref(projekt) : location.origin);
   const visaStrip = $derived(signatur.frågar || byter);
 
@@ -181,26 +182,39 @@
     </header>
 
     <div class="kropp">
-      <div class="himmel" bind:clientHeight={himmelHöjd}>
+      <div class="himmel">
         <HillChart
           namn={projekt.namn}
           scopes={projekt.scopes}
           tema={tema.nu}
           kompakt
-          etiketter={smal || hög ? true : "valt"}
+          etiketter={smal ? true : "plats"}
           {valt}
+          {pekad}
           onvälj={(v) => (valt = v)}
+          onpeka={(v) => (pekad = v)}
           onflytta={flytta}
         />
       </div>
       {#if !smal}
-        <ul class="lista" class:harstilla={projekt.scopes.some((s) => s.stilla)} aria-label="Scopes">
-          {#each projekt.scopes as s (s.id)}
+        <ul class="lista" class:bred={bredd > 640} class:harstilla={projekt.scopes.some((s) => s.stilla)} aria-label="Scopes">
+          {#each ordnade as s (s.id)}
             <li>
-              <button class:sel={s.id === valt} onclick={() => (valt = s.id)} aria-pressed={s.id === valt}>
+              <button
+                class:sel={s.id === valt}
+                class:pekad={s.id === pekad}
+                onclick={() => (valt = s.id)}
+                onpointerenter={() => (pekad = s.id)}
+                onpointerleave={() => (pekad = null)}
+                onfocus={() => (pekad = s.id)}
+                onblur={() => (pekad = null)}
+                aria-pressed={s.id === valt}
+              >
                 <span class="prick" style:background={lägeFärg(s.läge, tema.nu)}></span>
-                <span class="sn" title={s.namn}>{s.namn}</span>
-                <span class="äg">{s.ägare.namn}{s.ägare.aktiv ? "" : " (inaktiv)"}</span>
+                <span class="nm">
+                  <span class="sn" title={s.namn}>{#if s.id === valt}<span class="vm">✦&nbsp;</span>{/if}{s.namn}</span>
+                  <span class="äg">{s.ägare.namn}{s.ägare.aktiv ? "" : " (inaktiv)"}</span>
+                </span>
                 <span class="l">{s.läge}</span>
                 {#if s.stilla}
                   <span class="sd" title="Ingen rörelse på {s.stillaDagar} dagar"
@@ -379,10 +393,14 @@
     overflow: auto;
     font-size: 13px;
   }
+  /* A wider box gives the names more room. */
+  .lista.bred {
+    width: 260px;
+  }
   .lista button {
     display: grid;
-    grid-template-columns: 7px minmax(0, 1fr) auto 26px;
-    align-items: center;
+    grid-template-columns: 7px minmax(0, 1fr) 26px;
+    align-items: start;
     gap: 8px;
     width: 100%;
     padding: 5px 12px;
@@ -391,39 +409,52 @@
     text-align: left;
     font: 400 13px Barlow, system-ui, sans-serif;
   }
-  /* A Stilla Scope keeps its "26 d" in view: one more column, a little wider list. */
-  .lista.harstilla {
-    width: 262px;
-  }
+  /* A Stilla Scope keeps its "26 d" in view: one more column. */
   .lista.harstilla button {
-    grid-template-columns: 7px minmax(0, 1fr) auto 26px 32px;
+    grid-template-columns: 7px minmax(0, 1fr) 26px 32px;
   }
   .lista button:hover,
+  .lista button.pekad,
   .lista button.sel {
     background: var(--sel);
   }
   .prick {
     width: 7px;
     height: 7px;
+    margin-top: 5px;
     border-radius: 50%;
   }
+  /* The name gets the whole row; the Ägare goes on a second line. */
+  .nm {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
   .sn {
+    line-height: 16px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .vm {
+    font-weight: 600;
+    color: var(--redtx);
+  }
   .äg {
+    font-size: 12px;
+    line-height: 15px;
     color: var(--dim);
     white-space: nowrap;
-    max-width: 70px;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .l {
+    line-height: 16px;
     font-weight: 700;
     text-align: right;
   }
   .sd {
+    line-height: 16px;
     color: var(--redtx);
     white-space: nowrap;
     text-align: right;

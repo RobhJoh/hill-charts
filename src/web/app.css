@@ -109,6 +109,19 @@ button:disabled {
   opacity: 0.6;
   cursor: default;
 }
+/* A primary button that can't be used yet is an outline, not a murky half-red. */
+button.pr:disabled {
+  background: none;
+  border-color: var(--btn);
+  color: var(--dim);
+  opacity: 1;
+}
+/* A primary button whose form is open (Ny Scope) reads as pressed, not as a call to act. */
+button.pr[aria-pressed="true"] {
+  background: var(--sel);
+  border-color: var(--btn);
+  color: var(--tx);
+}
 input,
 select {
   background: var(--panel);

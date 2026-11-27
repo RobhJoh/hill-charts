@@ -4,6 +4,7 @@ import { datumVarningar, idagFrån, TOM_TIDSPLAN } from "../datum.js";
 import { DomainError } from "../errors.js";
 import type { Funktionsområde, FunktionsområdeId, Person, PersonId, Projekt, ProjektId } from "../types.js";
 import type { Kärna } from "./karna.js";
+import { avslutadTid } from "../status.js";
 import { inteBorttaget, namnFrån, requireBekräftelse } from "./regler.js";
 import {
   borttagenEnsam,
@@ -28,6 +29,7 @@ export function struktur(k: Kärna) {
       id: p.id,
       namn: p.namn,
       avslutat,
+      avslutad: avslutadTid(logg),
       pågående,
       nedräkning,
       nästaMilstolpe,

@@ -33,7 +33,7 @@ export const tema = {
       // Storage unavailable: the choice lasts for this page load only.
     }
   },
-  /** Shows `t` without remembering it (the Notion embed is always `dag`). */
+  /** Shows `t` without remembering it (the Notion embed follows the computer's theme). */
   visa(t: Tema) {
     nu = t;
     tillämpa(t);

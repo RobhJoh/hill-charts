@@ -22,6 +22,7 @@
   import { funktionsområdeHref, projektHref } from "../lib/links.js";
   import { router } from "../lib/router.svelte.js";
   import StillaAntal from "../components/StillaAntal.svelte";
+  import { grannar as ordnaGrannar } from "../lib/grannar.js";
   import Saknas from "./Saknas.svelte";
 
   let { id }: { id: string } = $props();
@@ -37,7 +38,7 @@
   let valt = $state<string | null>(null);
   let nyScope = $state(false);
   let skrivFel = $state("");
-  /** The other Projekt in the same Funktionsområde, as mini charts. */
+  /** The other Projekt in the same Funktionsområde: pågående as mini charts, Avslutade last (Q12 a). */
   let grannar = $state<ProjektRad[]>([]);
   /** Whether the Funktionsområde is Borttaget too (then its Borttagna list is on the start page). */
   let foBorttaget = $state(false);
@@ -53,7 +54,7 @@
       }
       const fo = await api.getFunktionsområde(svar.funktionsområde.id).catch(() => undefined);
       if (aktuell() && fo) {
-        grannar = fo.projekt.filter((p) => p.id !== id);
+        grannar = ordnaGrannar(fo.projekt, id);
         foBorttaget = !!fo.borttagen;
       }
     },
@@ -197,14 +198,25 @@
   {:else if projekt}
     <div class="projekt">
     <nav class="grannar" aria-label="Andra Projekt i {projekt.funktionsområde.namn}">
-      <div class="cap">{projekt.funktionsområde.namn}</div>
+      <div class="cap">Andra Projekt i {projekt.funktionsområde.namn}</div>
       {#each grannar as g (g.id)}
-        <a href={projektHref(g)} class:avslutat={g.avslutat}>
-          <MiniHill scopes={g.scopes} tema={tema.nu} width={160} height={46} />
-          <span class="gnamn">{g.namn}</span>
-          {#if g.stilla > 0}<span class="stilla"><StillaAntal antal={g.stilla} /></span>{/if}
-          {#if !g.avslutat}<Nedrakning nedräkning={g.nedräkning} nästaMilstolpe={g.nästaMilstolpe} liten />{/if}
-        </a>
+        {#if g.avslutat}
+          <!-- Avslutat (Q12 a): no mini chart, a light-blue ✦ and the word, in full contrast. -->
+          <a href={projektHref(g)} class="avslutat">
+            <span class="klar" aria-hidden="true">✦</span>
+            <span>
+              <span class="gnamn">{g.namn}</span>
+              <span class="gstatus">Avslutat</span>
+            </span>
+          </a>
+        {:else}
+          <a href={projektHref(g)}>
+            <MiniHill scopes={g.scopes} tema={tema.nu} width={160} height={46} />
+            <span class="gnamn">{g.namn}</span>
+            {#if g.stilla > 0}<span class="stilla"><StillaAntal antal={g.stilla} /></span>{/if}
+            <Nedrakning nedräkning={g.nedräkning} nästaMilstolpe={g.nästaMilstolpe} liten />
+          </a>
+        {/if}
       {:else}
         <p class="meta">Inga andra Projekt.</p>
       {/each}
@@ -400,7 +412,7 @@
   }
   .projekt {
     display: grid;
-    grid-template-columns: 236px minmax(0, 1fr) 340px;
+    grid-template-columns: 236px minmax(0, 1fr) minmax(320px, 360px);
     min-height: calc(100vh - 56px);
   }
   .grannar {
@@ -421,7 +433,17 @@
     background: var(--sel);
   }
   .grannar a.avslutat {
-    opacity: 0.55;
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+  }
+  .klar {
+    color: var(--klar);
+  }
+  .gstatus {
+    display: block;
+    font-size: 13px;
+    color: var(--mid);
   }
   .grannar :global(svg) {
     display: block;
@@ -515,7 +537,7 @@
      chart (as on the phone) and the Scope index keeps its side column. */
   @media (max-width: 1200px) {
     .projekt {
-      grid-template-columns: minmax(0, 1fr) 340px;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
       grid-template-rows: auto 1fr;
       grid-template-areas:
         "huvud aside"

@@ -75,6 +75,17 @@ describe("chart geometry", () => {
     const låg = kompaktRuta(300, 40);
     expect(låg.bas - punkt(50, låg)[1]).toBe(20);
   });
+
+  it("keeps a tall embed's hill at about 0.45 × its width, centred, instead of a spire", () => {
+    const ruta = kompaktRuta(720, 600);
+    expect(ruta.ht).toBe(324);
+    // Centred: the space above the crest equals the space below the baseline.
+    expect(punkt(50, ruta)[1]).toBe(600 - ruta.bas);
+    expect(ruta.bas - punkt(0, ruta)[1]).toBe(0);
+    const smal = kompaktRuta(400, 600);
+    expect(smal.ht).toBe(180);
+    expect(punkt(50, smal)[1]).toBe(600 - smal.bas);
+  });
 });
 
 describe("label placement", () => {

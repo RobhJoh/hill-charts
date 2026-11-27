@@ -32,6 +32,8 @@ export type ProjektRad = {
   id: ProjektId;
   namn: string;
   avslutat: boolean;
+  /** When it became Avslutat (ISO time); null while Pågående or if never edited. */
+  avslutad: string | null;
   pågående: boolean;
   nedräkning: Nedräkning | null;
   nästaMilstolpe: NästaMilstolpe | null;

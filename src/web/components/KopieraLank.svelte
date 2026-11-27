@@ -2,13 +2,14 @@
   // "Kopiera länk": copies the clean canonical URL (current name, no query
   // string). Where the clipboard is unavailable (e.g. inside some iframes) the
   // URL is shown selected instead, for copying by hand.
-  let { href }: { href: string } = $props();
+  // With knapp={false} the page's Mer menu calls kopiera() and only the receipt shows.
+  let { href, knapp = true }: { href: string; knapp?: boolean } = $props();
 
   let läge = $state<"vila" | "kopierad" | "visa">("vila");
   let timer: ReturnType<typeof setTimeout> | undefined;
   const url = $derived(location.origin + href);
 
-  async function kopiera() {
+  export async function kopiera() {
     clearTimeout(timer);
     try {
       await navigator.clipboard.writeText(url);
@@ -33,6 +34,8 @@
     />
     <button class="quiet" onclick={() => (läge = "vila")}>Stäng</button>
   </span>
+{:else if !knapp}
+  <span class="kvitto" role="status">{läge === "kopierad" ? "Länken är kopierad" : ""}</span>
 {:else}
   <button class="quiet" onclick={kopiera} aria-live="polite">
     {läge === "kopierad" ? "Kopierad" : "Kopiera länk"}
@@ -44,6 +47,13 @@
     display: inline-flex;
     gap: 6px;
     align-items: center;
+  }
+  .kvitto {
+    font-size: 14px;
+    color: var(--mid);
+  }
+  .kvitto:empty {
+    display: none;
   }
   input {
     width: 22em;

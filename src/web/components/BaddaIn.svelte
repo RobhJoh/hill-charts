@@ -3,9 +3,14 @@
   // /embed) together with a link line to paste below the embed, since Notion's
   // phone apps never show embeds. The link line is copied as a rich link (with
   // a plain-text fallback), so Notion pastes it as "Namn · Apogee".
-  let { namn, href }: { namn: string; href: string } = $props();
+  // With knapp={false} the page's Mer menu opens the panel (bind öppen).
+  let {
+    namn,
+    href,
+    öppen = $bindable(false),
+    knapp = true,
+  }: { namn: string; href: string; öppen?: boolean; knapp?: boolean } = $props();
 
-  let öppen = $state(false);
   let kopierad = $state<"embed" | "rad" | null>(null);
   let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -55,14 +60,23 @@
 </script>
 
 <span class="badda">
-  <button class="quiet" aria-expanded={öppen} onclick={() => (öppen = !öppen)}>Bädda in</button>
+  {#if knapp}
+    <button class="quiet" aria-expanded={öppen} onclick={() => (öppen = !öppen)}>Bädda in</button>
+  {/if}
   {#if öppen}
     <div class="panel" role="dialog" aria-label="Bädda in i Notion">
       <p class="rubrik">Bädda in i Notion</p>
       <label>
         <span class="cap">1. Klistra in i Notion och välj Create embed</span>
         <span class="rad">
-          <input readonly value={embedUrl} onfocus={(e) => e.currentTarget.select()} />
+          <input
+            readonly
+            value={embedUrl}
+            onfocus={(e) => e.currentTarget.select()}
+            {@attach (el) => {
+              if (!knapp) el.focus();
+            }}
+          />
           <button class="quiet" onclick={kopieraEmbed}>{kopierad === "embed" ? "Kopierad" : "Kopiera"}</button>
         </span>
       </label>

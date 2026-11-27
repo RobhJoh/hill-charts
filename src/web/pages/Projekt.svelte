@@ -15,6 +15,7 @@
   import Borttaget from "../components/Borttaget.svelte";
   import KopieraLank from "../components/KopieraLank.svelte";
   import BaddaIn from "../components/BaddaIn.svelte";
+  import Mer, { type MerPost } from "../components/Mer.svelte";
   import { api, ApiError } from "../lib/api.js";
   import { följLive, senasteLaddning } from "../lib/live.js";
   import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
@@ -42,6 +43,26 @@
   let grannar = $state<ProjektRad[]>([]);
   /** Whether the Funktionsområde is Borttaget too (then its Borttagna list is on the start page). */
   let foBorttaget = $state(false);
+
+  // --- Page head (Q5 a): the rare actions in Mer; dates and Milstolpar fold out ---
+  let länk = $state<ReturnType<typeof KopieraLank>>();
+  let baddaÖppen = $state(false);
+  let taBortÖppen = $state(false);
+  let tidÖppen = $state(false);
+
+  const mer = $derived.by((): MerPost[] => {
+    if (!projekt) return [];
+    return [
+      { text: "Byt namn", gör: () => (läge = "byt namn") },
+      { text: "Flytta", gör: () => void öppnaFlytta() },
+      { text: "Kopiera länk", gör: () => void länk?.kopiera() },
+      { text: "Bädda in", gör: () => (baddaÖppen = true) },
+      ...(projekt.markeradAvslutat
+        ? []
+        : [{ avdelare: true, text: "Markera Avslutat", gör: () => void växlaAvslutat(true) }]),
+      { avdelare: true, text: "Ta bort", farlig: true, gör: () => (taBortÖppen = true) },
+    ];
+  });
 
   /** Reloads the Projekt and its Hill chart (after a write, and on live sync). */
   const load = senasteLaddning(() => api.getProjekt(id), {
@@ -235,36 +256,53 @@
           oncancel={() => (läge = "visa")}
         />
       {:else}
-        <div class="titlerow">
-          <h1>{projekt.namn}</h1>
-          <div class="verktyg">
-            <button class="quiet" onclick={() => (läge = "byt namn")}>Byt namn</button>
-            <button class="quiet" onclick={öppnaFlytta}>Flytta</button>
-            <KopieraLank href={projektHref(projekt)} />
-            <BaddaIn namn={projekt.namn} href={projektHref(projekt)} />
-            <TaBort
-              fråga="Ta bort {projekt.namn} med {projekt.scopes.length} {projekt.scopes.length === 1 ? 'Scope' : 'Scopes'}?"
-              ontabort={taBortProjekt}
-            />
+        <h1>{projekt.namn}</h1>
+        <!-- Title plus one row (Q5 a): status and time on the left, the actions on the right. -->
+        <div class="statusrad">
+          <div class="status">
+            {#if projekt.markeradAvslutat}
+              <span>Avslutat</span>
+              <button class="quiet" onclick={() => växlaAvslutat(false)}>Öppna igen</button>
+            {:else if projekt.avslutat}
+              <span>Avslutat · alla Scopes på Läge 100</span>
+            {:else}
+              <span>Pågående</span>
+            {/if}
+            {#if projekt.nedräkning || projekt.nästaMilstolpe}
+              <span aria-hidden="true">·</span>
+              <Nedrakning nedräkning={projekt.nedräkning} nästaMilstolpe={projekt.nästaMilstolpe} />
+            {/if}
+            {#if !tidÖppen}
+              {#each projekt.datumVarningar as v (v)}<span class="varning">· {v}</span>{/each}
+            {/if}
+            <button class="quiet" aria-expanded={tidÖppen} onclick={() => (tidÖppen = !tidÖppen)}>
+              {projekt.tidsplan.startdatum || projekt.tidsplan.slutdatum || projekt.tidsplan.milstolpar.length > 0
+                ? "Ändra datum och Milstolpar"
+                : "Sätt datum"}
+            </button>
           </div>
           <div class="primära">
+            <Mer poster={mer} höger />
             <button aria-pressed={historikÖppen} onclick={() => (historikÖppen ? stängHistorik() : (historikÖppen = true))}>
               Historik
             </button>
             <button class="pr" onclick={() => (nyScope = true)}>Ny Scope</button>
           </div>
         </div>
-        <div class="status">
-          {#if projekt.markeradAvslutat}
-            <span>Avslutat</span>
-            <button class="quiet" onclick={() => växlaAvslutat(false)}>Öppna igen</button>
-          {:else}
-            {#if projekt.avslutat}<span>Avslutat · alla Scopes på Läge 100</span>{:else}<span>Pågående</span>{/if}
-            <button class="quiet" onclick={() => växlaAvslutat(true)}>Markera Avslutat</button>
+        <div class="utfall">
+          <KopieraLank bind:this={länk} knapp={false} href={projektHref(projekt)} />
+          <BaddaIn bind:öppen={baddaÖppen} knapp={false} namn={projekt.namn} href={projektHref(projekt)} />
+          {#if taBortÖppen}
+            <TaBort
+              bind:öppen={taBortÖppen}
+              knapp={false}
+              fråga="Ta bort {projekt.namn} med {projekt.scopes.length} {projekt.scopes.length === 1 ? 'Scope' : 'Scopes'}?"
+              ontabort={taBortProjekt}
+            />
           {/if}
         </div>
+        {#if tidÖppen}
         <div class="tid">
-          <Nedrakning nedräkning={projekt.nedräkning} nästaMilstolpe={projekt.nästaMilstolpe} />
           <Tidsplan
             tidsplan={projekt.tidsplan}
             varningar={projekt.datumVarningar}
@@ -274,6 +312,7 @@
             ontabort={(mid) => redigera((vem) => api.removeMilstolpe(tidMål, mid, vem))}
           />
         </div>
+        {/if}
       {/if}
 
       {#if läge === "flytta"}
@@ -455,16 +494,38 @@
     font-size: 13px;
     color: var(--redtx);
   }
+  h1 {
+    overflow-wrap: anywhere;
+  }
+  .statusrad {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin-top: 8px;
+  }
   .status {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-top: 6px;
+    flex-wrap: wrap;
+    gap: 4px 10px;
     color: var(--dim);
+    font-size: 14px;
+    min-width: 0;
+  }
+  .varning {
+    color: var(--mid);
+    font-style: italic;
+  }
+  .utfall {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
     font-size: 14px;
   }
   .tid {
-    margin-top: 16px;
+    margin-top: 8px;
   }
   .huvud {
     padding: 28px 28px 48px;
@@ -475,26 +536,10 @@
     border-left: 1px solid var(--line);
     padding: 28px 22px;
   }
-  /* The title on its own line; the quiet tools wrap as a group; Historik and
-     Ny Scope always stay together, at the right. */
-  .titlerow h1 {
-    flex: 1 1 100%;
-    overflow-wrap: anywhere;
-  }
-  .verktyg {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 4px 2px;
-    /* Quiet buttons carry their own padding: line their text up with the title. */
-    margin-left: -5px;
-  }
-  /* Tighter than the default quiet padding, so all five fit on one line on a phone. */
-  .verktyg :global(button.quiet) {
-    padding-inline: 5px;
-  }
+  /* Mer, Historik and Ny Scope always stay together, at the right. */
   .primära {
     display: flex;
+    align-items: center;
     gap: 10px;
     margin-left: auto;
     flex: none;

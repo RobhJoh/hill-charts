@@ -9,11 +9,14 @@
     tema,
     width = 180,
     height = 50,
+    topp = false,
   }: {
     scopes?: { läge: number; stilla: boolean }[];
     tema: Tema;
     width?: number;
     height?: number;
+    /** A thin mark at the top of the hill, where uppför turns to nedför. */
+    topp?: boolean;
   } = $props();
 
   const skala = $derived(height / 50);
@@ -38,6 +41,9 @@
 
 <svg {width} {height} viewBox="0 0 {width} {height}" aria-hidden="true">
   <path d={path} fill="none" stroke="var(--orbit)" stroke-width=".8" opacity=".7" />
+  {#if topp}
+    <line x1={x(50)} x2={x(50)} y1={y(50) - 6 * skala} y2={y(50) + 2 * skala} stroke="var(--dim)" stroke-width="1" />
+  {/if}
   {#each scopes as s, i (i)}
     {#if s.stilla}
       <circle cx={x(s.läge)} cy={cy(s.läge, i)} r={4 * skala} fill="none" stroke="var(--red)" stroke-width=".8" stroke-dasharray="2 1.5" />

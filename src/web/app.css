@@ -2,8 +2,7 @@
    default, `dag` overrides it under [data-theme="dag"] (set by tema.svelte.ts).
    The orange-red accent (--red) only for selection, stuck and the primary
    action; --red-on is text on it (dark in natt: white fails 4.5:1). Scope colours come
-   from the Läge ramp in lib/hill.ts, never from here. --klar (light blue) is
-   only the ✦ before an Avslutat Projekt in lists. */
+   from the Läge ramp in lib/hill.ts, never from here. */
 :root {
   --bg: #081026;
   --panel: #0a1430;
@@ -21,6 +20,7 @@
   --star: #dfe6f5;
   --btn: #4f63a0;
   --halo: #0d1836;
+  /* Light blue: only the ✦ before an Avslutat Projekt in lists (DESIGN.md Klar-regeln). */
   --klar: #8fc7ff;
   --chart-ground: radial-gradient(ellipse at 50% 60%, #11204a 0%, var(--chart) 55%, var(--bg) 100%);
   color-scheme: dark;

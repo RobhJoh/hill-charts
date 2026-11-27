@@ -28,13 +28,24 @@ export type Ruta = {
 /** The big chart's box, in SVG units (viewBox 0 0 900 640). */
 export const RUTA: Ruta = { bredd: 900, höjd: 640, x0: 70, w: 760, bas: 560, ht: 380, topp: 40, tecken: 8.4 };
 
+/** The compact hill's highest height, as a share of the box's width. */
+const KULLE_MOT_BREDD = 0.45;
+
 /**
  * The embed's compact hill (prototype/embed): fills a `bredd` × `höjd` pixel
  * box with small margins, no grid, and 13px labels. The hill keeps a minimum
- * height, so a very low box still shows one.
+ * height, so a very low box still shows one, and a maximum (about 0.45 × the
+ * width), so a tall one does not stretch it into a spire.
  */
 export function kompaktRuta(bredd: number, höjd: number): Ruta {
   const x0 = 18;
+  const tak = Math.round(KULLE_MOT_BREDD * bredd);
+  if (höjd - 46 > tak) {
+    // A tall box: the hill stays at most ~0.45 × the width and is centred, so
+    // the extra height becomes room for labels instead of a spire.
+    const topp = Math.round((höjd - tak) / 2);
+    return { bredd, höjd, x0, w: bredd - 2 * x0, bas: topp + tak, ht: tak, topp, tecken: 7.3 };
+  }
   const topp = 24;
   const bas = höjd - 22;
   return { bredd, höjd, x0, w: bredd - 2 * x0, bas, ht: Math.max(20, bas - topp), topp, tecken: 7.3 };

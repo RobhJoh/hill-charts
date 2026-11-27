@@ -33,17 +33,11 @@ describe("the date in the Avslutade list", () => {
 describe("the light-blue ✦ (--klar) that marks an Avslutat Projekt", () => {
   const css = readFileSync(new URL("../app.css", import.meta.url), "utf8");
 
-  it("is #8fc7ff in natt and #2f6fb8 in dag (DESIGN.md)", () => {
-    expect(tokens(css, "natt")["--klar"]).toBe("#8fc7ff");
-    expect(tokens(css, "dag")["--klar"]).toBe("#2f6fb8");
-  });
-
+  // Its value and 4.5:1 on --bg are checked in kontrast.test.ts (#57). On the
+  // list's hover background the ✦ is a symbol, not text: non-text 3:1 applies.
   for (const tema of ["natt", "dag"] as const) {
-    // DESIGN.md: 10.6:1 natt, 4.6:1 dag on --bg. On the hover background the
-    // ✦ is a symbol, not text, so the non-text minimum 3:1 applies.
-    it(`reaches 4.5:1 on the background and 3:1 on hover in ${tema}`, () => {
+    it(`stays visible on the hovered row in ${tema}`, () => {
       const t = tokens(css, tema);
-      expect(kontrast(t["--klar"]!, t["--bg"]!)).toBeGreaterThanOrEqual(4.5);
       expect(kontrast(t["--klar"]!, t["--sel"]!)).toBeGreaterThanOrEqual(3);
     });
   }

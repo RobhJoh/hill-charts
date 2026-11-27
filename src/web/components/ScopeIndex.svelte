@@ -108,6 +108,13 @@
     <p class="meta tom">Inga Scopes ännu.</p>
   {:else}
     <table>
+      <!-- Fixed widths so the table fits a 320 px side column (#57): the name takes what is left and wraps. -->
+      <colgroup>
+        <col class="c-farg" />
+        <col />
+        <col class="c-agare" />
+        <col class="c-lage" />
+      </colgroup>
       <thead>
         <tr>
           <th scope="col"><span class="sr">Färg</span></th>
@@ -139,7 +146,7 @@
                 </button>
               {/if}
             </td>
-            <td>
+            <td class="ägare">
               <select
                 value={s.ägare.id}
                 aria-label="Ägare för {s.namn}"
@@ -215,6 +222,7 @@
   }
   table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     font-size: 14px;
   }
@@ -254,8 +262,18 @@
     height: 8px;
     border-radius: 50%;
   }
+  .c-farg {
+    width: 20px;
+  }
+  .c-agare {
+    width: 110px;
+  }
+  .c-lage {
+    width: 44px;
+  }
   .namn {
-    width: 100%;
+    overflow-wrap: anywhere;
+    hyphens: auto;
   }
   .namn input {
     width: 100%;
@@ -270,9 +288,13 @@
   .länk:hover {
     text-decoration: underline;
   }
+  /* The owner and the ✦ to their Stjärnkarta on one line. */
+  .ägare {
+    white-space: nowrap;
+  }
   td select {
     padding: 3px 4px;
-    max-width: 120px;
+    max-width: calc(100% - 1.3em);
     background: transparent;
     border-color: transparent;
   }
@@ -307,7 +329,7 @@
     clip: rect(0 0 0 0);
   }
   .karta {
-    margin-left: 6px;
+    margin-left: 4px;
     color: var(--dim);
     text-decoration: none;
   }

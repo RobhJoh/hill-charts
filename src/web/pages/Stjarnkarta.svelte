@@ -316,4 +316,18 @@
       border-top: 1px solid var(--line);
     }
   }
+  /* Phone (Q17 b): the key is where the thumb picks a Scope, so each row's
+     button and the filter buttons get a 44 px tap target through padding. */
+  @media (max-width: 600px) {
+    li {
+      padding-block: 0;
+    }
+    .länk {
+      flex: 1 1 auto;
+      min-height: 44px;
+    }
+    .filt button {
+      min-height: 44px;
+    }
+  }
 </style>

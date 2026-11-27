@@ -25,6 +25,7 @@
   import StillaAntal from "../components/StillaAntal.svelte";
   import { grannar as ordnaGrannar } from "../lib/grannar.js";
   import Saknas from "./Saknas.svelte";
+  import { avslutatText } from "../lib/avslutat.js";
 
   let { id }: { id: string } = $props();
 
@@ -43,6 +44,8 @@
   let grannar = $state<ProjektRad[]>([]);
   /** Whether the Funktionsområde is Borttaget too (then its Borttagna list is on the start page). */
   let foBorttaget = $state(false);
+  /** Marked Avslutat (Q8 b): read-only, stars dimmed and still, until Öppna igen. */
+  const stängt = $derived(projekt?.markeradAvslutat ?? false);
 
   // --- Page head (Q5 a): the rare actions in Mer; dates and Milstolpar fold out ---
   let länk = $state<ReturnType<typeof KopieraLank>>();
@@ -160,6 +163,12 @@
     }
   }
 
+  /** Återställ a Borttaget Projekt from its own page (same command as in the Borttagna list). */
+  async function återställProjekt() {
+    await signatur.signera((vem) => api.återställProjekt(id, vem));
+    await load();
+  }
+
   /** Ta bort: hides the Projekt; it is listed under Borttagna Projekt on its Funktionsområde page. */
   async function taBortProjekt() {
     const p = projekt;
@@ -203,7 +212,7 @@
 </svelte:head>
 
 {#if saknas}
-  <Saknas längre />
+  <Saknas vad="Projektet" />
 {:else}
   {#if loadError}
     <div class="page"><p class="error">{loadError}</p></div>
@@ -212,6 +221,7 @@
       rubrik="Projektet är borttaget"
       namn={projekt.namn}
       borttagen={projekt.borttagen}
+      onåterställ={foBorttaget ? undefined : återställProjekt}
       lista={foBorttaget
         ? { href: "/", text: "Till Borttagna Funktionsområden" }
         : { href: funktionsområdeHref(projekt.funktionsområde), text: `Till Borttagna Projekt i ${projekt.funktionsområde.namn}` }}
@@ -258,26 +268,34 @@
           oncancel={() => (läge = "visa")}
         />
       {:else}
-        <h1>{projekt.namn}</h1>
+        <h1>{#if stängt}<span class="klar titelmärke" aria-hidden="true">✦</span>{/if}{projekt.namn}</h1>
         <!-- Title plus one row (Q5 a): status and time on the left, the actions on the right. -->
         <div class="statusrad">
           <div class="status">
-            {#if projekt.markeradAvslutat}
-              <span>Avslutat</span>
-              <button class="quiet" onclick={() => växlaAvslutat(false)}>Öppna igen</button>
-            {:else if projekt.avslutat}
-              <span>Avslutat · alla Scopes på Läge 100</span>
-            {:else}
-              <span>Pågående</span>
+            <span class:avslut={stängt}>{avslutatText(projekt)}</span>
+            {#if stängt}
+              <span class="lås">
+                <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                  <rect x="3" y="7" width="10" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.4" />
+                  <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.4" />
+                </svg>
+                Skrivskyddat tills det öppnas igen
+              </span>
             {/if}
-            <Nedrakning nedräkning={projekt.nedräkning} nästaMilstolpe={projekt.nästaMilstolpe} />
+            <!-- Avslutat is said once, in the status text: no countdown "Avslutat" here. -->
+            <Nedrakning
+              nedräkning={projekt.nedräkning?.läge === "avslutat" ? null : projekt.nedräkning}
+              nästaMilstolpe={projekt.nästaMilstolpe}
+            />
             {#if !tidÖppen}
               {#each projekt.datumVarningar as v (v)}<span class="varning">· {v}</span>{/each}
             {/if}
             <button class="quiet" aria-expanded={tidÖppen} onclick={() => (tidÖppen = !tidÖppen)}>
-              {projekt.tidsplan.startdatum || projekt.tidsplan.slutdatum || projekt.tidsplan.milstolpar.length > 0
-                ? "Ändra datum och Milstolpar"
-                : "Sätt datum"}
+              {stängt
+                ? "Datum och Milstolpar"
+                : projekt.tidsplan.startdatum || projekt.tidsplan.slutdatum || projekt.tidsplan.milstolpar.length > 0
+                  ? "Ändra datum och Milstolpar"
+                  : "Sätt datum"}
             </button>
           </div>
           <div class="primära">
@@ -285,7 +303,11 @@
             <button aria-pressed={historikÖppen} onclick={() => (historikÖppen ? stängHistorik() : (historikÖppen = true))}>
               Historik
             </button>
-            <button class="pr" aria-pressed={nyScope} aria-controls="ny-scope" onclick={() => (nyScope = !nyScope)}>Ny Scope</button>
+            {#if stängt}
+              <button class="pr" onclick={() => växlaAvslutat(false)}>Öppna igen</button>
+            {:else}
+              <button class="pr" aria-pressed={nyScope} aria-controls="ny-scope" onclick={() => (nyScope = !nyScope)}>Ny Scope</button>
+            {/if}
           </div>
         </div>
         <div class="utfall">
@@ -305,6 +327,7 @@
           <Tidsplan
             tidsplan={projekt.tidsplan}
             varningar={projekt.datumVarningar}
+            skrivskyddad={stängt}
             onsätt={(input) => redigera((vem) => api.setDatum(tidMål, input, vem))}
             onlägg={(m) => redigera((vem) => api.addMilstolpe(tidMål, m, vem))}
             onändra={(mid, ä) => redigera((vem) => api.changeMilstolpe(tidMål, mid, ä, vem))}
@@ -383,7 +406,8 @@
             tema={tema.nu}
             {valt}
             onvälj={(s) => (valt = s)}
-            onflytta={flyttaScope}
+            onflytta={stängt ? undefined : flyttaScope}
+            dimmade={stängt ? projekt.scopes.map((s) => s.id) : []}
           />
         </div>
       {/if}
@@ -409,6 +433,7 @@
         tema={tema.nu}
         {valt}
         bind:nyScope
+        skrivskyddad={stängt}
         onvälj={(s) => (valt = s)}
         onlägg={läggTill}
         onbytnamn={(scopeId, namn) => redigera((vem) => api.changeScope(id, scopeId, { namn }, vem))}
@@ -476,6 +501,9 @@
   .klar {
     color: var(--klar);
   }
+  .titelmärke {
+    margin-right: 0.25em;
+  }
   .gstatus {
     display: block;
     font-size: 13px;
@@ -522,6 +550,16 @@
     flex-wrap: wrap;
     gap: 8px;
     font-size: 14px;
+  }
+  /* The quiet ending of an Avslutat Projekt: said once, in full contrast. */
+  .status .avslut {
+    color: var(--tx);
+    font-weight: 600;
+  }
+  .lås {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
   .tid {
     margin-top: 8px;

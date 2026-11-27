@@ -20,6 +20,7 @@
     onbytnamn,
     onbytägare,
     ontabort,
+    skrivskyddad = false,
   }: {
     scopes: ScopeVy[];
     /** All Personer; only active ones can be chosen as Ägare. */
@@ -33,6 +34,8 @@
     onbytnamn: (id: string, namn: string) => Promise<unknown>;
     onbytägare: (id: string, ägare: string) => Promise<unknown>;
     ontabort: (id: string) => Promise<unknown>;
+    /** An Avslutat Projekt (Q8 b): Scopes shown, not edited, until Öppna igen. */
+    skrivskyddad?: boolean;
   } = $props();
 
   const aktiva = $derived(personer.filter((p) => p.aktiv));
@@ -202,7 +205,7 @@
             </td>
             <td class="num">{s.läge}{#if s.stilla}<span class="stilla" title="Ingen rörelse på {s.stillaDagar} dagar">{s.stillaDagar} d</span>{/if}</td>
           </tr>
-          {#if s.id === valt}
+          {#if s.id === valt && !skrivskyddad}
             <tr class="valt åtg">
               <td></td>
               <td colspan="3">
@@ -243,7 +246,11 @@
     <div class="bar" style:background={rampGradient(tema)}></div>
     <div class="ticks"><span>0 uppför</span><span>50 krön</span><span>100 klar</span></div>
   </div>
-  <p class="meta">Dra en stjärna längs banan för att ändra dess Läge, eller markera den och använd piltangenterna.</p>
+  {#if skrivskyddad}
+    <p class="meta">Projektet är Avslutat, så stjärnorna står still. Välj Öppna igen för att flytta dem eller ändra Ägare.</p>
+  {:else}
+    <p class="meta">Dra en stjärna längs banan för att ändra dess Läge, eller markera den och använd piltangenterna.</p>
+  {/if}
 </section>
 
 <style>

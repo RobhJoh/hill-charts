@@ -14,6 +14,7 @@
     onändra,
     ontabort,
     knappar = true,
+    skrivskyddad = false,
   }: {
     tidsplan: Tidsplan;
     /** Quiet warnings, e.g. "slutar efter Funktionsområdet". */
@@ -24,6 +25,8 @@
     ontabort: (id: string) => Promise<unknown>;
     /** Show "Ändra datum" and "Ny Milstolpe"; false when a Mer menu opens them instead (Q18 b). */
     knappar?: boolean;
+    /** An Avslutat Projekt (Q8 b): dates and Milstolpar shown, not edited, until Öppna igen. */
+    skrivskyddad?: boolean;
   } = $props();
 
   let öppen = $state<"inget" | "datum" | "ny milstolpe" | string>("inget");
@@ -106,7 +109,7 @@
       <span class="dim">Inga datum</span>
     {/if}
     {#each varningar as v (v)}<span class="varning">{v}</span>{/each}
-    {#if knappar}
+    {#if knappar && !skrivskyddad}
       <button class="quiet" onclick={öppnaDatum}>{datumKnapp(tidsplan)}</button>
       <button class="quiet" onclick={() => öppnaMilstolpe()}>Ny Milstolpe</button>
     {/if}
@@ -153,8 +156,10 @@
           {:else}
             <span>◆ {m.namn}</span>
             <span class="dim">{visaDatum(m.datum)}</span>
-            <button class="quiet" onclick={() => öppnaMilstolpe(m)}>Ändra</button>
-            <button class="quiet" onclick={() => kör(() => ontabort(m.id))}>Ta bort</button>
+            {#if !skrivskyddad}
+              <button class="quiet" onclick={() => öppnaMilstolpe(m)}>Ändra</button>
+              <button class="quiet" onclick={() => kör(() => ontabort(m.id))}>Ta bort</button>
+            {/if}
           {/if}
         </li>
       {/each}

@@ -2,18 +2,16 @@
 // Signatur (`vem`, a Person id) and send it in the Apogee-Signatur header;
 // pages get it from `signatur.signera` in signatur.svelte.ts.
 import type {
-  DatumInput,
   Mål,
   Förhandsvisning,
-  Funktionsområde,
   FunktionsområdeVy,
   HistorikRad,
   PersonHändelse,
   PersonRad,
   PersonVy,
-  Projekt,
   ProjektVy,
   StjärnkartaVy,
+  SynkStatus,
   Uppdatering,
   UtanFunktionsområdeVy,
   Översikt,
@@ -74,16 +72,10 @@ export const api = {
   personerÖversikt: () => call<PersonRad[]>("GET", "/personer/oversikt"),
   /** A Person's Stjärnkarta; 404 for an inaktiv or unknown Person. */
   stjärnkarta: (personId: string) => call<StjärnkartaVy>("GET", `/personer/${enc(personId)}/stjarnkarta`),
-  createFunktionsområde: (namn: string, vem: string) =>
-    call<Funktionsområde>("POST", "/funktionsomraden", { namn }, vem),
-  renameFunktionsområde: (id: string, namn: string, vem: string) =>
-    call<void>("PATCH", `/funktionsomraden/${enc(id)}`, { namn }, vem),
-  createProjekt: (funktionsområdeId: string, namn: string, vem: string) =>
-    call<Projekt>("POST", "/projekt", { funktionsområdeId, namn }, vem),
-  renameProjekt: (id: string, namn: string, vem: string) =>
-    call<void>("PATCH", `/projekt/${enc(id)}`, { namn }, vem),
-  moveProjekt: (id: string, funktionsområdeId: string, vem: string) =>
-    call<void>("PATCH", `/projekt/${enc(id)}`, { funktionsområdeId }, vem),
+  /** The sync state: when Apogee last fetched from Notion. */
+  synkStatus: () => call<SynkStatus>("GET", "/notion/synk"),
+  /** Hämta från Notion nu: waits for the sync (or joins one already running). */
+  synkaFrånNotion: () => call<SynkStatus>("POST", "/notion/synk"),
 
   /** Ta bort: always allowed for a Projekt; a Funktionsområde only when none of its Projekt is Pågående. */
   taBortProjekt: (id: string, vem: string) => call<void>("POST", `/projekt/${enc(id)}/borttagen`, undefined, vem),
@@ -120,9 +112,6 @@ export const api = {
   removeScope: (projektId: string, scopeId: string, vem: string) =>
     call<{ uppdatering: Uppdatering }>("DELETE", `/projekt/${enc(projektId)}/scopes/${enc(scopeId)}`, undefined, vem),
 
-  /** Dates of a Projekt (an Uppdatering) or Funktionsområde (uppdatering always null). */
-  setDatum: (mål: Mål, input: DatumInput, vem: string) =>
-    call<{ uppdatering: Uppdatering | null }>("PUT", `${målPath(mål)}/datum`, input, vem),
   addMilstolpe: (mål: Mål, milstolpe: { namn: string; datum: string }, vem: string) =>
     call<{ id: string; uppdatering: Uppdatering | null }>("POST", `${målPath(mål)}/milstolpar`, milstolpe, vem),
   changeMilstolpe: (mål: Mål, milstolpeId: string, ändring: { namn?: string; datum?: string }, vem: string) =>

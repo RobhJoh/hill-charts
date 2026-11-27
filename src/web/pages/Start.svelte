@@ -1,8 +1,7 @@
 <script lang="ts">
   import { felText } from "../lib/fel.js";
-  import type { FunktionsområdeVy, UtanFunktionsområdeVy, Översikt } from "../../core/index.js";
+  import type { FunktionsområdeVy, SynkStatus, UtanFunktionsområdeVy, Översikt } from "../../core/index.js";
   import Borttagna from "../components/Borttagna.svelte";
-  import NamnForm from "../components/NamnForm.svelte";
   import Nedrakning from "../components/Nedrakning.svelte";
   import ProjektCells from "../components/ProjektCells.svelte";
   import { api } from "../lib/api.js";
@@ -11,19 +10,23 @@
   import StillaAntal from "../components/StillaAntal.svelte";
   import { samladStatus } from "../lib/stilla.js";
   import { STATUS_ORD } from "../lib/avslutat.js";
+  import { visaTid } from "../lib/historik.js";
 
   let översikt = $state<Översikt | undefined>();
   let utan = $state<UtanFunktionsområdeVy | null>(null);
   let borttagna = $state<FunktionsområdeVy[]>([]);
+  let synk = $state<SynkStatus | undefined>();
   let loadError = $state("");
-  let skapar = $state(false);
+  let hämtar = $state(false);
+  let synkError = $state("");
 
   async function load() {
     try {
-      [översikt, utan, borttagna] = await Promise.all([
+      [översikt, utan, borttagna, synk] = await Promise.all([
         api.overview(),
         api.utanFunktionsområde(),
         api.borttagnaFunktionsområden(),
+        api.synkStatus(),
       ]);
     } catch (e) {
       loadError = felText(e, "Kunde inte läsa in");
@@ -53,10 +56,18 @@
     await load();
   }
 
-  async function skapa(namn: string) {
-    await signatur.signera((vem) => api.createFunktionsområde(namn, vem));
-    skapar = false;
-    await load();
+  /** Hämta från Notion nu: needs no Signatur, since it only reads Notion. */
+  async function hämta() {
+    hämtar = true;
+    synkError = "";
+    try {
+      await api.synkaFrånNotion();
+      await load();
+    } catch (e) {
+      synkError = felText(e, "Kunde inte hämta från Notion");
+    } finally {
+      hämtar = false;
+    }
   }
 </script>
 
@@ -79,25 +90,22 @@
         </p>
       {/if}
     </div>
-    {#if !skapar}
-      <!-- A plain outlined button: the rarest action here does not get the accent (Q1 c). -->
-      <button onclick={() => (skapar = true)}>Nytt Funktionsområde</button>
-    {/if}
+    <!-- Funktionsområden and Projekt come from Notion (ADR 0003); a plain outlined button, as before. -->
+    <div class="synk">
+      <button onclick={hämta} disabled={hämtar}>{hämtar ? "Hämtar…" : "Hämta från Notion nu"}</button>
+      {#if synk}
+        <p class="meta">
+          Senast hämtat från Notion: {synk.senastHämtat ? visaTid(synk.senastHämtat) : "aldrig"}
+        </p>
+      {/if}
+      {#if synkError}<p class="error" role="alert">{synkError}</p>{/if}
+    </div>
   </div>
-
-  {#if skapar}
-    <NamnForm
-      label="Namn på Funktionsområdet"
-      submitLabel="Skapa"
-      onsubmit={skapa}
-      oncancel={() => (skapar = false)}
-    />
-  {/if}
 
   {#if loadError}
     <p class="error">{loadError}</p>
   {:else if översikt && översikt.length === 0 && !utan}
-    <p class="empty">Inga Funktionsområden ännu. Skapa det första för att samla Projekt i det.</p>
+    <p class="empty">Inga Projekt ännu. Kryssa i Apogee på ett Projekt i Notion för att hämta hit det.</p>
   {:else if översikt}
     {#each översikt as fo (fo.id)}
       <section>
@@ -176,6 +184,16 @@
   }
   .status {
     margin: 0;
+  }
+  .synk {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+  .synk p {
+    margin: 0;
+    text-align: right;
   }
   .status a {
     color: inherit;

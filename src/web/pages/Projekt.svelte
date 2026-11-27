@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from "svelte";
   import { felText } from "../lib/fel.js";
-  import type { Förhandsvisning, HistorikRad, Översikt, PersonVy, ProjektRad, ProjektVy } from "../../core/index.js";
+  import type { Förhandsvisning, HistorikRad, PersonVy, ProjektRad, ProjektVy } from "../../core/index.js";
   import HillChart from "../components/HillChart.svelte";
   import HistorikPanel from "../components/HistorikPanel.svelte";
   import MiniHill from "../components/MiniHill.svelte";
@@ -10,7 +10,7 @@
   import Toast from "../components/Toast.svelte";
   import { beskrivRad, skillnaderMotNu, UTAN_NAMN, visaTid } from "../lib/historik.js";
   import { visaDatum } from "../lib/datum.js";
-  import NamnForm from "../components/NamnForm.svelte";
+  import AndraINotion from "../components/AndraINotion.svelte";
   import ScopeIndex from "../components/ScopeIndex.svelte";
   import TaBort from "../components/TaBort.svelte";
   import Borttaget from "../components/Borttaget.svelte";
@@ -34,10 +34,6 @@
   let projekt = $state<ProjektVy | undefined>();
   let saknas = $state(false);
   let loadError = $state("");
-  let läge = $state<"visa" | "byt namn" | "flytta">("visa");
-  let funktionsområden = $state<Översikt>([]);
-  let flyttaTill = $state("");
-  let flyttError = $state("");
   let personer = $state<PersonVy[]>([]);
   let valt = $state<string | null>(null);
   let nyScope = $state(false);
@@ -56,8 +52,6 @@
   const mer = $derived.by((): MerPost[] => {
     if (!projekt) return [];
     return [
-      { text: "Byt namn", gör: () => (läge = "byt namn") },
-      { text: "Flytta", gör: () => void öppnaFlytta() },
       { text: "Kopiera länk", gör: () => void länk?.kopiera() },
       { text: "Bädda in", gör: () => bädda?.öppna() },
       { avdelare: true, text: "Ta bort", farlig: true, gör: () => (taBortÖppen = true) },
@@ -193,34 +187,8 @@
     router.navigate(p.funktionsområde ? funktionsområdeHref(p.funktionsområde) : "/");
   }
 
-  // --- Dates and Milstolpar (#38): Uppdateringar in the Historik ---
+  // --- Milstolpar (#38): Uppdateringar in the Historik; dates come from Notion ---
   const tidMål = $derived({ projekt: id });
-
-  async function bytNamn(namn: string) {
-    await signatur.signera((vem) => api.renameProjekt(id, namn, vem));
-    await load();
-    läge = "visa";
-    if (projekt) router.navigate(projektHref(projekt), { replace: true });
-  }
-
-  async function öppnaFlytta() {
-    funktionsområden = await api.overview();
-    flyttaTill = "";
-    flyttError = "";
-    läge = "flytta";
-  }
-
-  async function flytta(event: SubmitEvent) {
-    event.preventDefault();
-    if (!flyttaTill) return;
-    try {
-      await signatur.signera((vem) => api.moveProjekt(id, flyttaTill, vem));
-      await load();
-      läge = "visa";
-    } catch (e) {
-      flyttError = felText(e, "Kunde inte flytta");
-    }
-  }
 </script>
 
 <svelte:head>
@@ -282,93 +250,67 @@
         {/if}
       </nav>
 
-      {#if läge === "byt namn"}
-        <NamnForm
-          label="Nytt namn på Projektet"
-          value={projekt.namn}
-          submitLabel="Spara"
-          onsubmit={bytNamn}
-          oncancel={() => (läge = "visa")}
-        />
-      {:else}
-        <h1>{#if projekt.avslutat}<span class="klar titelmärke" aria-hidden="true">✦</span>{/if}{projekt.namn}</h1>
-        <!-- Title plus one row (Q5 a): status and time on the left, the actions on the right. -->
-        <div class="statusrad">
-          <div class="status">
-            <span class:avslut={projekt.avslutat}>{statusText(projekt)}</span>
-            <!-- Avslutat is said once, in the status text: no countdown "Avslutat" here.
-                 Under Visa, now's time is dimmed (the banner shows the time then). -->
-            <span class="nu" class:dämpad={!!visning}>
-              <Nedrakning
-                nedräkning={projekt.nedräkning?.läge === "avslutat" ? null : projekt.nedräkning}
-                nästaMilstolpe={projekt.nästaMilstolpe}
-              />
-            </span>
-            {#if !tidÖppen}
-              {#each projekt.datumVarningar as v (v)}<span class="varning">· {v}</span>{/each}
-            {/if}
-            <button class="quiet" aria-expanded={tidÖppen} onclick={() => (tidÖppen = !tidÖppen)}>
-              {projekt.tidsplan.startdatum || projekt.tidsplan.slutdatum || projekt.tidsplan.milstolpar.length > 0
-                  ? "Ändra datum och Milstolpar"
-                  : "Sätt datum"}
-            </button>
-          </div>
-          <div class="primära">
-            <Mer poster={mer} höger />
-            <button aria-pressed={historikÖppen} onclick={() => (historikÖppen ? stängHistorik() : (historikÖppen = true))}>
-              Historik
-            </button>
-            <button
-              class="pr"
-              aria-pressed={nyScope}
-              aria-controls="ny-scope"
-              disabled={!!visning}
-              onclick={() => (nyScope = !nyScope)}>Ny Scope</button
-            >
-          </div>
-        </div>
-        <div class="utfall">
-          <KopieraLank bind:this={länk} knapp={false} href={projektHref(projekt)} />
-          <BaddaIn bind:this={bädda} knapp={false} namn={projekt.namn} href={projektHref(projekt)} />
-          {#if taBortÖppen}
-            <TaBort
-              bind:öppen={taBortÖppen}
-              knapp={false}
-              fråga="Ta bort {projekt.namn} med {projekt.scopes.length} {projekt.scopes.length === 1 ? 'Scope' : 'Scopes'}?"
-              ontabort={taBortProjekt}
+      <h1>{#if projekt.avslutat}<span class="klar titelmärke" aria-hidden="true">✦</span>{/if}{projekt.namn}</h1>
+      <!-- Title plus one row (Q5 a): status and time on the left, the actions on the right. -->
+      <div class="statusrad">
+        <div class="status">
+          <span class:avslut={projekt.avslutat}>{statusText(projekt)}</span>
+          <!-- Avslutat is said once, in the status text: no countdown "Avslutat" here.
+               Under Visa, now's time is dimmed (the banner shows the time then). -->
+          <span class="nu" class:dämpad={!!visning}>
+            <Nedrakning
+              nedräkning={projekt.nedräkning?.läge === "avslutat" ? null : projekt.nedräkning}
+              nästaMilstolpe={projekt.nästaMilstolpe}
             />
+          </span>
+          {#if !tidÖppen}
+            {#each projekt.datumVarningar as v (v)}<span class="varning">· {v}</span>{/each}
           {/if}
+          <button class="quiet" aria-expanded={tidÖppen} onclick={() => (tidÖppen = !tidÖppen)}>
+            {projekt.tidsplan.startdatum || projekt.tidsplan.slutdatum || projekt.tidsplan.milstolpar.length > 0
+                ? "Datum och Milstolpar"
+                : "Milstolpar"}
+          </button>
+          <!-- Namn, Funktionsområde and dates come from Notion (ADR 0003). -->
+          <AndraINotion url={projekt.notionUrl} />
         </div>
-        {#if tidÖppen}
-        <!-- Under Visa the banner is the only time shown (now's dates are dimmed and inert). -->
-        <div class="tid" class:dämpad={!!visning} inert={!!visning}>
-          <Tidsplan
-            tidsplan={projekt.tidsplan}
-            varningar={projekt.datumVarningar}
-            onsätt={(input) => redigera((vem) => api.setDatum(tidMål, input, vem))}
-            onlägg={(m) => redigera((vem) => api.addMilstolpe(tidMål, m, vem))}
-            onändra={(mid, ä) => redigera((vem) => api.changeMilstolpe(tidMål, mid, ä, vem))}
-            ontabort={taBortMilstolpe}
+        <div class="primära">
+          <Mer poster={mer} höger />
+          <button aria-pressed={historikÖppen} onclick={() => (historikÖppen ? stängHistorik() : (historikÖppen = true))}>
+            Historik
+          </button>
+          <button
+            class="pr"
+            aria-pressed={nyScope}
+            aria-controls="ny-scope"
+            disabled={!!visning}
+            onclick={() => (nyScope = !nyScope)}>Ny Scope</button
+          >
+        </div>
+      </div>
+      <div class="utfall">
+        <KopieraLank bind:this={länk} knapp={false} href={projektHref(projekt)} />
+        <BaddaIn bind:this={bädda} knapp={false} namn={projekt.namn} href={projektHref(projekt)} />
+        {#if taBortÖppen}
+          <TaBort
+            bind:öppen={taBortÖppen}
+            knapp={false}
+            fråga="Ta bort {projekt.namn} med {projekt.scopes.length} {projekt.scopes.length === 1 ? 'Scope' : 'Scopes'}?"
+            ontabort={taBortProjekt}
           />
-        </div>
         {/if}
-      {/if}
-
-      {#if läge === "flytta"}
-        <form class="flytta" onsubmit={flytta}>
-          <label>
-            <span class="cap">Flytta till Funktionsområde</span>
-            <select bind:value={flyttaTill} required>
-              <option value="" disabled>Välj …</option>
-              {#each funktionsområden as fo (fo.id)}
-                <option value={fo.id} disabled={fo.id === projekt.funktionsområde?.id}>{fo.namn}</option>
-              {/each}
-            </select>
-          </label>
-          <button class="pr" disabled={!flyttaTill}>Flytta</button>
-          <button type="button" onclick={() => (läge = "visa")}>Avbryt</button>
-          {#if flyttError}<p class="error" role="alert">{flyttError}</p>{/if}
-        </form>
+      </div>
+      {#if tidÖppen}
+      <!-- Under Visa the banner is the only time shown (now's dates are dimmed and inert). -->
+      <div class="tid" class:dämpad={!!visning} inert={!!visning}>
+        <Tidsplan
+          tidsplan={projekt.tidsplan}
+          varningar={projekt.datumVarningar}
+          onlägg={(m) => redigera((vem) => api.addMilstolpe(tidMål, m, vem))}
+          onändra={(mid, ä) => redigera((vem) => api.changeMilstolpe(tidMål, mid, ä, vem))}
+          ontabort={taBortMilstolpe}
+        />
+      </div>
       {/if}
 
       {#if visning}
@@ -466,22 +408,6 @@
   .crumbs {
     display: flex;
     gap: 8px;
-  }
-  .flytta {
-    display: flex;
-    align-items: flex-end;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin: 16px 0;
-  }
-  .flytta label {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 240px;
-  }
-  .flytta p {
-    flex-basis: 100%;
   }
   .projekt {
     display: grid;

@@ -266,6 +266,7 @@ export function struktur(k: Kärna) {
         funktionsområde: { id: fo.id, namn: fo.namn },
         borttagen: p.borttagen ? borttagenVy(personer, p.borttagen) : null,
         datumVarningar: datumVarningar(tid.tidsplan, fo.tidsplan ?? TOM_TIDSPLAN),
+        avslutad: avslutadTid(logg),
         ...diagram,
         ...tid,
       };

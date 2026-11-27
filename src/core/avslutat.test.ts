@@ -211,6 +211,7 @@ describe("when a Projekt became Avslutat (the date in the Avslutade list)", () =
     senare(DAG);
     await apogee.moveScope(projekt, a, 100, anna);
     expect(await avslutad(apogee)).toEqual([["Kassan", "2026-11-26T10:00:00.000Z"]]);
+    expect((await apogee.getProjekt(projekt)).avslutad).toBe("2026-11-26T10:00:00.000Z");
   });
 
   it("is null for a Projekt with no Scopes, and once its only Scope at 100 is removed", async () => {

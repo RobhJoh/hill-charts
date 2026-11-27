@@ -5,9 +5,9 @@ import { samladStatus, STILLA_FÖRKLARING, stillaI } from "./stilla.js";
 const rad = (namn: string, extra: Partial<ProjektRad> = {}): ProjektRad => ({
   id: namn.toLowerCase(),
   namn,
+  status: "pågående",
   avslutat: false,
   avslutad: null,
-  pågående: true,
   nedräkning: null,
   nästaMilstolpe: null,
   överTid: false,
@@ -30,9 +30,13 @@ const fo = (namn: string, projekt: ProjektRad[]): Översikt[number] => ({
 } as unknown as Översikt[number]);
 
 describe("samladStatus", () => {
-  it("counts Pågående Projekt, stilla Scopes and Projekt Över tid across Funktionsområden", () => {
+  it("counts Projekt not Avslutat (Inte påbörjat too), stilla Scopes and Projekt Över tid across Funktionsområden", () => {
     const status = samladStatus([
-      fo("Plattform", [rad("Alfa", { stilla: 2 }), rad("Beta"), rad("Klar", { avslutat: true, pågående: false })]),
+      fo("Plattform", [
+        rad("Alfa", { stilla: 2 }),
+        rad("Beta", { status: "inte påbörjat" }),
+        rad("Klar", { status: "avslutat", avslutat: true }),
+      ]),
       fo("Kassa", [rad("Gamma", { stilla: 1, överTid: true }), rad("Delta"), rad("Epsilon")]),
     ]);
     expect(status.pågående).toBe(5);
@@ -51,7 +55,7 @@ describe("samladStatus", () => {
 
   it("leaves Avslutade Projekt out of every count", () => {
     const status = samladStatus([
-      fo("Plattform", [rad("Klar", { avslutat: true, pågående: false, stilla: 4, överTid: true })]),
+      fo("Plattform", [rad("Klar", { status: "avslutat", avslutat: true, stilla: 4, överTid: true })]),
     ]);
     expect(status).toMatchObject({ pågående: 0, stilla: 0, överTid: 0, stillaProjekt: [], överTidProjekt: [] });
   });

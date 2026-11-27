@@ -27,12 +27,10 @@ export function beskrivÄndring({ före, efter }: Ändring, namn: Namn): string 
   return delar.join(", ");
 }
 
-/** A Projekt-level change, e.g. "markerade Projektet Avslutat". */
+/** A Projekt-level change, e.g. "satte Slutdatum 14 dec.". */
 export function beskrivProjekt(projekt: HistorikRad<PersonVy>["projekt"]): string[] {
   if (!projekt) return [];
   const delar: string[] = [];
-  if (projekt.efter.avslutat === true) delar.push("markerade Projektet Avslutat");
-  if (projekt.efter.avslutat === false) delar.push("öppnade Projektet igen");
   for (const fält of ["startdatum", "slutdatum"] as const) {
     if (!(fält in projekt.efter)) continue;
     const före = projekt.före[fält] ?? null;
@@ -97,15 +95,12 @@ export const visaTid = (iso: string) => tidFormat.format(new Date(iso));
 
 /** The Visa banner's sentences on how the previewed view differs from now. */
 export function skillnaderMotNu(
-  vy: Pick<Förhandsvisning, "skiljer" | "fältSkiljer" | "milstolparSkiljer" | "sammaSomNu" | "markeradAvslutat">,
+  vy: Pick<Förhandsvisning, "skiljer" | "fältSkiljer" | "milstolparSkiljer" | "sammaSomNu">,
 ): string[] {
   const delar: string[] = [];
   if (vy.sammaSomNu) delar.push("Samma som nu.");
   if (vy.skiljer.length > 0) {
     delar.push(`${antal(vy.skiljer.length, "Scope", "Scopes")} skiljer sig från nu (streckad ring).`);
-  }
-  if (vy.fältSkiljer.includes("avslutat")) {
-    delar.push(`Projektet var ${vy.markeradAvslutat ? "markerat Avslutat" : "inte markerat Avslutat"} då.`);
   }
   if (vy.fältSkiljer.includes("startdatum") || vy.fältSkiljer.includes("slutdatum")) {
     delar.push("Datumen skiljer sig från nu.");

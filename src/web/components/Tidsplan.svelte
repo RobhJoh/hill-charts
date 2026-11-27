@@ -25,7 +25,7 @@
     ontabort: (id: string) => Promise<unknown>;
     /** Show "Ändra datum" and "Ny Milstolpe"; false when a Mer menu opens them instead (Q18 b). */
     knappar?: boolean;
-    /** An Avslutat Projekt (Q8 b): dates and Milstolpar shown, not edited, until Öppna igen. */
+    /** Dates and Milstolpar shown, not edited. */
     skrivskyddad?: boolean;
   } = $props();
 

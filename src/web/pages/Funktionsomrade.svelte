@@ -11,6 +11,7 @@
   import KopieraLank from "../components/KopieraLank.svelte";
   import Mer, { type MerPost } from "../components/Mer.svelte";
   import { taBortSpärr } from "../lib/mer.js";
+  import { STATUS_ORD } from "../lib/avslutat.js";
   import { datumKnapp } from "../lib/datum.js";
   import { api, ApiError } from "../lib/api.js";
   import { signatur } from "../lib/signatur.svelte.js";
@@ -141,7 +142,7 @@
               </div>
             {/if}
             <div class="meta">
-              {fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}
+              {STATUS_ORD[fo.status]} · {fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}
             </div>
             <div class="tid">
               <Nedrakning nedräkning={fo.nedräkning} nästaMilstolpe={fo.nästaMilstolpe} />

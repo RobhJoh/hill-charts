@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { menyFokus, taBortSpärr } from "./mer.js";
 
 describe("taBortSpärr: why a Funktionsområde can't be taken away yet", () => {
-  it("allows Ta bort when every Projekt is Avslutat", () => {
-    expect(taBortSpärr([{ pågående: false }, { pågående: false }])).toBeNull();
+  it("allows Ta bort when no Projekt is Pågående (Inte påbörjat or Avslutat)", () => {
+    expect(taBortSpärr([{ status: "avslutat" }, { status: "inte påbörjat" }])).toBeNull();
   });
 
   it("allows Ta bort with no Projekt at all", () => {
@@ -11,13 +11,13 @@ describe("taBortSpärr: why a Funktionsområde can't be taken away yet", () => {
   });
 
   it("explains the block and counts the Pågående Projekt", () => {
-    expect(taBortSpärr([{ pågående: true }, { pågående: false }, { pågående: true }])).toBe(
-      "Kan tas bort när alla Projekt är Avslutade (2 pågår)",
+    expect(taBortSpärr([{ status: "pågående" }, { status: "avslutat" }, { status: "pågående" }])).toBe(
+      "Kan tas bort när inget Projekt är Pågående (2 pågår)",
     );
   });
 
   it("says the same for a single Pågående Projekt", () => {
-    expect(taBortSpärr([{ pågående: true }])).toBe("Kan tas bort när alla Projekt är Avslutade (1 pågår)");
+    expect(taBortSpärr([{ status: "pågående" }])).toBe("Kan tas bort när inget Projekt är Pågående (1 pågår)");
   });
 });
 

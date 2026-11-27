@@ -71,6 +71,8 @@ export type ProjektVy = {
   borttagen: BorttagenVy | null;
   /** Quiet warnings such as "slutar efter Funktionsområdet"; never block saving. */
   datumVarningar: string[];
+  /** When it last became Avslutat (ISO time); null while it is not. */
+  avslutad: string | null;
 } & DiagramVy &
   TidVy;
 

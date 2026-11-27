@@ -1,7 +1,7 @@
 <script lang="ts">
   import { felText } from "../lib/fel.js";
   // Inställningar › Personer: everyone who can sign edits and own Scopes.
-  // Add, rename, remove (handover of their Scopes in Pågående Projekt),
+  // Add, rename, remove (handover of their Scopes in Projekt not Avslutat),
   // Återaktivera, and the Personer-historik. Nothing here has an Ångra.
   // Each Person shows their load (story 78) and links to their Stjärnkarta.
   import type { PersonHändelse, PersonRad, PersonVy } from "../../core/index.js";
@@ -229,7 +229,7 @@
           {#if tarBort?.id === p.id}
             <form class="handover" onsubmit={bekräftaTaBort} aria-label="Ta bort {p.namn}">
               <p>
-                {p.namn}s Scopes i Pågående Projekt går till en ny Ägare. Scopes i Avslutade och
+                {p.namn}s Scopes i Projekt som inte är Avslutade går till en ny Ägare. Scopes i Avslutade och
                 Borttagna Projekt behåller {p.namn}. {p.namn} blir inaktiv och kan återaktiveras.
               </p>
               <label>

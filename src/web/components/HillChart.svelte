@@ -15,7 +15,7 @@
     RUTA,
     dagarSedan,
     etikettText,
-    höjdpunkt,
+    glimtVidSpar,
     kompaktRuta,
     lägeFrånX,
     lägeFärg,
@@ -39,6 +39,7 @@
     kompakt = false,
     märken = {},
     dimmade = [],
+    pulsVidSpar = false,
     onvälj,
     onflytta,
   }: {
@@ -60,6 +61,8 @@
     märken?: Record<string, string>;
     /** Scopes drawn dimmed (the Stjärnkarta's Avslutade Projekt). */
     dimmade?: string[];
+    /** Pulse a star's glow after every saved drop, not only at the crest or 100 (the Stjärnkarta). */
+    pulsVidSpar?: boolean;
     onvälj?: (id: string | null) => void;
     /** Commit a new Läge. Leave out for a read-only chart. Rejecting snaps the star back. */
     onflytta?: (id: string, läge: number) => Promise<unknown> | void;
@@ -150,12 +153,12 @@
     return lägeFrånX(p.x, ruta);
   }
 
-  /** A short glint on a star whose drop crossed the crest or landed on 100. */
-  let glimt = $state<{ id: string; sort: "krön" | "mål"; n: number } | null>(null);
+  /** A short glint on a star whose drop crossed the crest or landed on 100 (or any saved drop, with `pulsVidSpar`). */
+  let glimt = $state<{ id: string; sort: "krön" | "mål" | "puls"; n: number } | null>(null);
   let glimtTimer: ReturnType<typeof setTimeout> | undefined;
 
   function glimta(id: string, från: number, till: number) {
-    const sort = höjdpunkt(från, till);
+    const sort = glimtVidSpar(från, till, pulsVidSpar);
     if (!sort) return;
     clearTimeout(glimtTimer);
     glimt = { id, sort, n: (glimt?.n ?? 0) + 1 };

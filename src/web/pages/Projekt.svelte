@@ -16,7 +16,7 @@
   import KopieraLank from "../components/KopieraLank.svelte";
   import BaddaIn from "../components/BaddaIn.svelte";
   import { api, ApiError } from "../lib/api.js";
-  import { följLive, senasteLaddning } from "../lib/live.js";
+  import { följLive, liveMål, senasteLaddning } from "../lib/live.js";
   import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
   import { tema } from "../lib/tema.svelte.js";
   import { funktionsområdeHref, projektHref } from "../lib/links.js";
@@ -65,7 +65,9 @@
   load();
   // Live sync (#36): re-fetch whenever anyone writes to this Projekt's Historik,
   // and on every (re)connect to catch up on what happened while offline.
-  $effect(() => följLive([id], () => void load()));
+  // Only once the first fetch succeeded and while the Projekt is Pågående.
+  const följId = $derived(liveMål(saknas ? undefined : projekt));
+  $effect(() => (följId ? följLive([följId], () => void load()) : undefined));
   laddaPersoner()
     .then((p) => (personer = p))
     .catch(() => {});

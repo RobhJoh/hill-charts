@@ -214,20 +214,9 @@
 
 <style>
   .ap {
-    /* Stjärnatlas dag, on Notion's white page. */
+    /* Inherits the dag tokens from app.css; the one deliberate deviation is
+       the white of Notion's page behind the embed. */
     --bg: #ffffff;
-    --panel: #f6f8fc;
-    --line: #d3dbea;
-    --grid: #e6ebf4;
-    --tx: #0f1a3a;
-    --mid: #4a5878;
-    --dim: #5d6a88;
-    --orbit: #8a9ac0;
-    --red: #c8402b;
-    --redtx: #b8381f;
-    --sel: #e6ecf8;
-    --halo: #fff;
-    --star: #9aa8c7;
     position: fixed;
     inset: 0;
     display: flex;

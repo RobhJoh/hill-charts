@@ -74,7 +74,8 @@
       {/if}
     </div>
     {#if !skapar}
-      <button class="pr" onclick={() => (skapar = true)}>Nytt Funktionsområde</button>
+      <!-- A plain outlined button: the rarest action here does not get the accent (Q1 c). -->
+      <button onclick={() => (skapar = true)}>Nytt Funktionsområde</button>
     {/if}
   </div>
 

@@ -135,7 +135,7 @@
                 </form>
               {:else}
                 <button class="länk" onclick={() => onvälj(s.id === valt ? null : s.id)} aria-pressed={s.id === valt}>
-                  {s.namn}
+                  {#if s.id === valt}<span class="vm" aria-hidden="true">✦</span>{/if}{s.namn}
                 </button>
               {/if}
             </td>
@@ -233,6 +233,11 @@
   }
   tr.valt td {
     background: var(--sel);
+  }
+  .vm {
+    color: var(--redtx);
+    font-weight: 600;
+    margin-right: 0.3em;
   }
   .num {
     text-align: right;

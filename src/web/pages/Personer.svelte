@@ -9,6 +9,7 @@
   import StillaAntal from "../components/StillaAntal.svelte";
   import { lägeFärg } from "../lib/hill.js";
   import { personHref } from "../lib/links.js";
+  import { antal } from "../lib/ord.js";
   import { tema } from "../lib/tema.svelte.js";
   import { laddaPersoner, signatur } from "../lib/signatur.svelte.js";
 
@@ -148,7 +149,7 @@
   <h1>Personer</h1>
   {#if personer}
     <div class="meta">
-      {aktiva.length} {aktiva.length === 1 ? "Person" : "Personer"}{#if inaktiva.length}, {inaktiva.length} inaktiva{/if}
+      {antal(aktiva.length, "Person", "Personer")}{#if inaktiva.length}, {antal(inaktiva.length, "inaktiv", "inaktiva")}{/if}
     </div>
   {/if}
 
@@ -180,8 +181,8 @@
         type="button"
         class="quiet toggle"
         class:on={visaInaktiva}
-        aria-pressed={visaInaktiva}
-        onclick={() => (visaInaktiva = !visaInaktiva)}>Visa inaktiva ({inaktiva.length})</button
+        onclick={() => (visaInaktiva = !visaInaktiva)}
+        >{visaInaktiva ? "Dölj" : "Visa"} inaktiva ({inaktiva.length})</button
       >
     {/if}
     {#if radError}<p class="error" role="alert">{radError}</p>{/if}
@@ -297,9 +298,10 @@
   .toggle {
     margin-top: 20px;
   }
+  /* On: the accent underline of the header's active page, not just a border. */
   .toggle.on {
-    border-color: var(--btn);
     color: var(--tx);
+    box-shadow: inset 0 -2px 0 var(--red);
   }
   ul,
   ol {
@@ -384,5 +386,23 @@
   }
   .historik li {
     font-size: 14px;
+  }
+  /* Phone (Q17 b): every button and name link gets a 44 px tap target through
+     padding, not larger text, and Byt namn sits well apart from Ta bort. */
+  @media (max-width: 600px) {
+    button {
+      min-height: 44px;
+    }
+    .actions {
+      gap: 16px;
+    }
+    .namn a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+    }
+    li {
+      align-items: center;
+    }
   }
 </style>

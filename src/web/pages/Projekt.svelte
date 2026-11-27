@@ -508,17 +508,28 @@
     border: 1px solid var(--line);
     background: var(--chart-ground);
   }
-  @media (max-width: 900px) {
+  /* Three columns only from 1200 px: below that the side column would squeeze
+     the Hill chart. Between 900 and 1200 px the other Projekt move under the
+     chart (as on the phone) and the Scope index keeps its side column. */
+  @media (max-width: 1200px) {
     .projekt {
-      grid-template-columns: minmax(0, 1fr);
-      min-height: 0;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      grid-template-rows: auto 1fr;
+      grid-template-areas:
+        "huvud aside"
+        "grannar aside";
     }
-    /* The other Projekt stack below the Scope index instead of a side column. */
+    .huvud {
+      grid-area: huvud;
+    }
+    aside {
+      grid-area: aside;
+    }
     .grannar {
-      order: 3;
+      grid-area: grannar;
       border-right: none;
       border-top: 1px solid var(--line);
-      padding: 20px 16px 64px;
+      padding: 20px 28px 48px;
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
       column-gap: 14px;
@@ -527,6 +538,24 @@
     .grannar .cap,
     .grannar .meta {
       grid-column: 1 / -1;
+    }
+  }
+  @media (max-width: 900px) {
+    .projekt {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: none;
+      grid-template-areas: none;
+      min-height: 0;
+    }
+    .huvud,
+    aside,
+    .grannar {
+      grid-area: auto;
+    }
+    /* The other Projekt stack below the Scope index on the phone. */
+    .grannar {
+      order: 3;
+      padding: 20px 16px 64px;
     }
     .huvud {
       padding: 20px 16px 24px;

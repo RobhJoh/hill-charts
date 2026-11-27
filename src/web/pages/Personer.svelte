@@ -388,4 +388,22 @@
   .historik li {
     font-size: 14px;
   }
+  /* Phone (Q17 b): every button and name link gets a 44 px tap target through
+     padding, not larger text, and Byt namn sits well apart from Ta bort. */
+  @media (max-width: 600px) {
+    button {
+      min-height: 44px;
+    }
+    .actions {
+      gap: 16px;
+    }
+    .namn a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+    }
+    li {
+      align-items: center;
+    }
+  }
 </style>

@@ -11,6 +11,7 @@
   // `kompakt` is the Notion embed's hill (#43): it fills its box in real
   // pixels (13px type at any size), with no starfield, grid or scale; the
   // halves' names stand under the baseline when the box is over 150 px high.
+  import { untrack } from "svelte";
   import type { ScopeVy } from "../../core/index.js";
   import {
     RUTA,
@@ -44,6 +45,8 @@
     märken = {},
     dimmade = [],
     pulsVidSpar = false,
+    väntar = null,
+    puls = null,
     onvälj,
     onpeka,
     onflytta,
@@ -73,6 +76,10 @@
     dimmade?: string[];
     /** Pulse a star's glow after every saved drop, not only at the crest or 100 (the Stjärnkarta). */
     pulsVidSpar?: boolean;
+    /** The star whose move is held for a Signatur: dashed ring until it is saved. */
+    väntar?: string | null;
+    /** A star whose glow pulses once (a saved move's receipt): the same glint as `pulsVidSpar`. */
+    puls?: string | null;
     onvälj?: (id: string | null) => void;
     /** A star is pointed at (hover), or no longer (null). */
     onpeka?: (id: string | null) => void;
@@ -172,16 +179,26 @@
   let glimt = $state<{ id: string; sort: "krön" | "mål" | "puls"; n: number } | null>(null);
   let glimtTimer: ReturnType<typeof setTimeout> | undefined;
 
-  function glimta(id: string, från: number, till: number) {
-    const sort = glimtVidSpar(från, till, pulsVidSpar);
-    if (!sort) return;
+  function tänd(id: string, sort: "krön" | "mål" | "puls") {
     clearTimeout(glimtTimer);
-    glimt = { id, sort, n: (glimt?.n ?? 0) + 1 };
+    glimt = { id, sort, n: untrack(() => glimt?.n ?? 0) + 1 };
     glimtTimer = setTimeout(() => (glimt = null), 900);
   }
 
+  function glimta(id: string, från: number, till: number) {
+    const sort = glimtVidSpar(från, till, pulsVidSpar);
+    if (sort) tänd(id, sort);
+  }
+
+  // A receipt from outside (the embed's saved move): the same pulse as `pulsVidSpar`.
+  $effect(() => {
+    if (puls) tänd(puls, "puls");
+  });
+
   /** Stars whose drop is being written (or held for a Signatur). */
   const skickas = new Set<string>();
+  /** Stars gliding back after a drop that was not saved. */
+  let glider = $state<Record<string, true>>({});
 
   async function släpp(s: ScopeVy) {
     const läge = pågående[s.id];
@@ -196,7 +213,9 @@
       await onflytta(s.id, läge);
       glimta(s.id, s.läge, läge);
     } catch {
-      // Not saved (e.g. the Signatur was abandoned): snap back.
+      // Not saved (e.g. the Signatur was abandoned): glide back.
+      glider[s.id] = true;
+      setTimeout(() => delete glider[s.id], 400);
     } finally {
       skickas.delete(s.id);
       delete pågående[s.id];
@@ -314,6 +333,7 @@
       class="scope"
       class:dras={pågående[s.id] !== undefined}
       class:dimmad={dimmade.includes(s.id)}
+      class:glider={glider[s.id]}
       role={onflytta ? "slider" : "img"}
       tabindex={onflytta || onvälj ? 0 : undefined}
       aria-label="{s.namn}, Läge {läge}, Ägare {s.ägare.namn}{s.stilla ? `, ingen rörelse på ${s.stillaDagar} dagar` : ""}"
@@ -333,10 +353,12 @@
       {#if kompakt}
         <title>{s.namn} · {s.ägare.namn} · Läge {läge}{s.stilla ? ` · stilla i ${s.stillaDagar} dagar` : ""}</title>
       {/if}
-      <circle cx={x} cy={y} r={r * (kompakt ? 2.4 : 2.6)} fill={färg} opacity=".13" />
+      <circle class="glöd" cx={x} cy={y} r={r * (kompakt ? 2.4 : 2.6)} fill={färg} opacity=".13" />
       <circle cx={x} cy={y} r={Math.max(r, 16)} fill="transparent" />
       <circle cx={x} cy={y} {r} fill={färg} />
-      {#if s.id === valt}
+      {#if s.id === väntar}
+        <circle class="väntar" cx={x} cy={y} r={kompakt ? (s.stilla ? 18 : 13) : 20} />
+      {:else if s.id === valt}
         <!-- Around a Stilla star's dashed ring it stands well outside, so the two read as two. -->
         <circle class="ring" cx={x} cy={y} r={kompakt ? (s.stilla ? 18 : 13) : 20} />
       {:else if s.id === pekad}
@@ -441,6 +463,23 @@
   .halva {
     font: 500 12px Barlow, system-ui, sans-serif;
     fill: var(--dim);
+  }
+  /* Held for a Signatur: the accent ring, dashed until the move is saved. */
+  .väntar {
+    fill: none;
+    stroke: var(--red);
+    stroke-width: 2;
+    stroke-dasharray: 4 3;
+  }
+  .glider circle {
+    transition:
+      cx 0.35s ease-out,
+      cy 0.35s ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .glider circle {
+      transition: none;
+    }
   }
   .markerad {
     fill: none;

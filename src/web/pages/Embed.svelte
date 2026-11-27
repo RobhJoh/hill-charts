@@ -21,6 +21,8 @@
   import { följLive, liveMål, senasteLaddning } from "../lib/live.js";
   import { Avbruten, laddaPersoner, signatur } from "../lib/signatur.svelte.js";
   import { tema } from "../lib/tema.svelte.js";
+  import { sparatKvitto, VÄNTAR, vemFråga, type Flytt } from "../lib/vemremsa.js";
+  import { tick } from "svelte";
 
   let { id }: { id: string } = $props();
 
@@ -42,6 +44,12 @@
   /** The Signatur strip opened from the header's person icon (no edit held). */
   let byter = $state(false);
   let vald = $state("");
+  let lista: HTMLSelectElement | undefined = $state();
+  /** Where focus was when the strip opened (the held star, or the person icon), to give it back. */
+  let tillbaka: HTMLElement | SVGElement | null = null;
+  /** The receipt after a saved move, shown about 2 s where the strip sits. */
+  let kvitto = $state<{ text: string; scopeId: string } | null>(null);
+  let kvittoTimer: ReturnType<typeof setTimeout> | undefined;
 
   /** Under ~520px: no list, all star labels, short link. */
   const smal = $derived(bredd > 0 && bredd < 520);
@@ -49,6 +57,22 @@
   const ordnade = $derived(projekt ? [...projekt.scopes].sort((a, b) => a.läge - b.läge) : []);
   const länk = $derived(projekt ? location.origin + projektHref(projekt) : location.origin);
   const visaStrip = $derived(signatur.frågar || byter);
+  const fråga = $derived(vemFråga(signatur.hållen, { byter }));
+
+  // Focus moves to the Person list when the strip opens.
+  $effect(() => {
+    if (!visaStrip) return;
+    const aktiv = document.activeElement;
+    tillbaka = aktiv instanceof HTMLElement || aktiv instanceof SVGElement ? aktiv : null;
+    void tick().then(() => lista?.focus());
+  });
+
+  async function återlämna() {
+    const mål = tillbaka;
+    tillbaka = null;
+    await tick();
+    if (mål?.isConnected) mål.focus({ preventScroll: true });
+  }
 
   const load = senasteLaddning(() => api.getProjekt(id), {
     svar(svar) {
@@ -71,8 +95,14 @@
 
   async function flytta(scopeId: string, läge: number) {
     fel = "";
+    const flytt: Flytt = { scopeId, namn: projekt?.scopes.find((s) => s.id === scopeId)?.namn ?? "", läge };
     try {
-      await signatur.signera((vem) => api.changeScope(id, scopeId, { läge }, vem));
+      let signerad = "";
+      await signatur.signera((vem) => ((signerad = vem), api.changeScope(id, scopeId, { läge }, vem)), flytt);
+      const person = signatur.aktiva.find((p) => p.id === signerad)?.namn;
+      clearTimeout(kvittoTimer);
+      kvitto = { text: sparatKvitto(flytt, person), scopeId };
+      kvittoTimer = setTimeout(() => (kvitto = null), 2000);
     } catch (e) {
       if (!(e instanceof Avbruten)) fel = felText(e, "Kunde inte spara");
       throw e;
@@ -93,6 +123,7 @@
     signatur.välj(vald);
     byter = false;
     vald = "";
+    void återlämna();
   }
 
   /** Abandon: a held drag is thrown away (its star snaps back). */
@@ -100,6 +131,7 @@
     byter = false;
     vald = "";
     signatur.avbryt();
+    void återlämna();
   }
 </script>
 
@@ -172,6 +204,7 @@
           <circle cx="8" cy="5.5" r="2.8" />
           <path d="M2.5 14c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5" />
         </svg>
+        {#if !smal && signatur.person}<span class="signamn" aria-hidden="true">{signatur.person.namn}</span>{/if}
       </button>
       <a class="öppna" href={länk} target="_blank" rel="noopener">
         <svg width="13" height="13" viewBox="0 0 22 22" aria-hidden="true">
@@ -194,6 +227,8 @@
           onvälj={(v) => (valt = v)}
           onpeka={(v) => (pekad = v)}
           onflytta={flytta}
+          väntar={signatur.hållen?.scopeId}
+          puls={kvitto?.scopeId}
         />
       </div>
       {#if !smal}
@@ -234,27 +269,35 @@
 
     {#if fel}<p class="fel" role="alert">{fel}</p>{/if}
 
+    <p class="sr" role="status" aria-live="polite">
+      {visaStrip ? (signatur.frågar ? `${fråga} ${VÄNTAR}` : fråga) : (kvitto?.text ?? "")}
+    </p>
+
     {#if visaStrip}
       <form class="strip" onsubmit={spara} aria-label="Välj signatur">
         {#if signatur.aktiva.length === 0}
           <span>Det finns inga Personer än.</span>
         {:else}
           <label>
-            <span class="q">Vem flyttade?</span>
-            <select bind:value={vald} required>
+            <span class="q">{fråga}</span>
+            <select bind:this={lista} bind:value={vald} required>
               <option value="" disabled>Person</option>
               {#each signatur.aktiva as p (p.id)}<option value={p.id}>{p.namn}</option>{/each}
             </select>
           </label>
           <button class="pr" disabled={!vald}>Spara</button>
+          {#if !smal}<span class="inte">Kommer ihåg valet i den här inbäddningen.</span>{/if}
         {/if}
+        <button type="button" class="avbryt" onclick={avbryt}>Avbryt</button>
+        {#if signatur.frågar}<span class="väntar">{VÄNTAR}</span>{/if}
         <span class="inte">
           Inte med? <a href={location.origin + "/installningar/personer"} target="_blank" rel="noopener"
             >Öppna Inställningar i Apogee ↗</a
           >
         </span>
-        <button type="button" class="stäng" onclick={avbryt} aria-label="Avbryt" title="Avbryt">×</button>
       </form>
+    {:else if kvitto}
+      <p class="kvitto" aria-hidden="true">{kvitto.text}</p>
     {/if}
   {/if}
 </div>
@@ -355,6 +398,7 @@
   }
   .vem {
     display: flex;
+    align-items: center;
     padding: 5px;
     border: none;
     color: var(--dim);
@@ -507,13 +551,41 @@
   .inte {
     color: var(--dim);
   }
-  .stäng {
-    margin-left: auto;
-    border: none;
-    padding: 2px 8px;
-    font-size: 18px;
-    line-height: 1;
+  .avbryt {
+    padding: 4px 10px;
+  }
+  .väntar {
+    color: var(--mid);
+  }
+  .smal .väntar {
+    flex-basis: 100%;
+  }
+  /* Laid over the bottom edge, so the hill doesn't resize for 2 s. */
+  .kvitto {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 8px 14px;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    font-size: 13px;
+    color: var(--mid);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .signamn {
+    margin-left: 6px;
+    font-size: 13px;
     color: var(--dim);
+    white-space: nowrap;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .vem:hover .signamn {
+    color: var(--tx);
   }
   .besked {
     margin: auto;

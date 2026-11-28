@@ -1,22 +1,36 @@
 import { describe, expect, it } from "vitest";
 import { createApogee } from "./index.js";
 import { createMemoryStorage } from "../storage/memory.js";
+import { createMemoryNotion } from "../notion/minne.js";
+import { notionStruktur } from "./test-struktur.js";
+import type { Uppdatering } from "./types.js";
+import type { Storage } from "./storage.js";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createJsonFileStorage } from "../storage/json-file.js";
+
+/**
+ * Old Historik exists only on disk: the JSON-file adapter upgrades it on read
+ * (ADR 0001), so tests with old data go through that adapter.
+ */
+const medGammalData = async () => setup(createJsonFileStorage(await mkdtemp(join(tmpdir(), "apogee-test-"))));
 
 /**
  * The prototype/historik start state: Anna, Erik and Klottraren; a Projekt
  * with s1 Prislista 72/Anna, s2 Kassaflöde 38/Erik, s3 Kvittomejl 12/Anna,
  * s4 Rabattkoder 55/Erik (each added then moved by Anna), then +1 day.
  */
-async function setup() {
-  const storage = createMemoryStorage();
+async function setup(storage: Storage = createMemoryStorage()) {
   let n = 0;
   let klocka = new Date("2026-11-24T10:00:00Z");
-  const apogee = createApogee({ storage, now: () => klocka, newId: () => `id${++n}` });
+  const källa = createMemoryNotion();
+  const apogee = createApogee({ storage, notion: källa, now: () => klocka, newId: () => `id${++n}` });
+  const notion = notionStruktur(apogee, källa, storage);
   const anna = (await apogee.createPerson("Anna", null)).id;
   const erik = (await apogee.createPerson("Erik", anna)).id;
   const klottrare = (await apogee.createPerson("Klottraren", anna)).id;
-  const fo = await apogee.createFunktionsområde("Ekonomi", anna);
-  const projekt = (await apogee.createProjekt(fo.id, "Kassan", anna)).id;
+  const projekt = await notion.projekt("Kassan", "Ekonomi");
   const senare = (minuter: number) => {
     klocka = new Date(klocka.getTime() + minuter * 60_000);
   };
@@ -33,12 +47,12 @@ async function setup() {
   /** The chart as [id, namn, läge, ägare], highest Läge first. */
   const diagram = async () =>
     (await apogee.getProjekt(projekt)).scopes.map((s) => [s.id, s.namn, s.läge, s.ägare.id]);
-  return { apogee, storage, anna, erik, klottrare, projekt, senare, s1, s2, s3, s4, diagram };
+  return { apogee, storage, notion, anna, erik, klottrare, projekt, senare, s1, s2, s3, s4, diagram };
 }
 
 describe("Återställ hit", () => {
   it("puts the whole chart back to right after the target as one Uppdatering, bringing a removed Scope back with its id", async () => {
-    const { apogee, anna, erik, klottrare, projekt, s1, s2, s3, s4, diagram } = await setup();
+    const { apogee, notion, anna, erik, klottrare, projekt, s1, s2, s3, s4, diagram } = await setup();
     const annasFlytt = await apogee.moveScope(projekt, s2, 45, anna);
     await apogee.moveScope(projekt, s1, 100, klottrare);
     await apogee.moveScope(projekt, s3, 100, klottrare);
@@ -61,7 +75,7 @@ describe("Återställ hit", () => {
 
 describe("Ångra bara denna", () => {
   it("reverts only that Uppdatering, keeping good work done after it", async () => {
-    const { apogee, anna, erik, klottrare, projekt, senare, s1, s2, s3, s4, diagram } = await setup();
+    const { apogee, notion, anna, erik, klottrare, projekt, senare, s1, s2, s3, s4, diagram } = await setup();
     const klotter = await apogee.moveScope(projekt, s3, 95, klottrare);
     senare(24 * 60);
     await apogee.moveScope(projekt, s2, 60, erik);
@@ -85,7 +99,7 @@ describe("Ångra bara denna", () => {
   });
 
   it("is blocked when a field it would revert has changed since; a change to another field doesn't block", async () => {
-    const { apogee, anna, erik, projekt, s2, diagram } = await setup();
+    const { apogee, notion, anna, erik, projekt, s2, diagram } = await setup();
     const annasFlytt = await apogee.moveScope(projekt, s2, 50, anna);
     const eriksNamn = await apogee.renameScope(projekt, s2, "Kassa", erik);
     await apogee.moveScope(projekt, s2, 70, erik);
@@ -102,7 +116,7 @@ describe("Ångra bara denna", () => {
   });
 
   it("an Återställning can itself be undone, bringing everything back", async () => {
-    const { apogee, anna, erik, projekt, s2, diagram } = await setup();
+    const { apogee, notion, anna, erik, projekt, s2, diagram } = await setup();
     await apogee.moveScope(projekt, s2, 66, erik);
     await apogee.addScope(projekt, { namn: "Fraktval", ägare: anna }, anna);
     const innan = await diagram();
@@ -115,7 +129,7 @@ describe("Ångra bara denna", () => {
   });
 
   it("a removed Scope comes back with its id and earlier Historik", async () => {
-    const { apogee, anna, erik, projekt, senare, s2 } = await setup();
+    const { apogee, notion, anna, erik, projekt, senare, s2 } = await setup();
     const flyttad = (await apogee.getProjekt(projekt)).scopes.find((s) => s.id === s2)!.flyttad;
     const borttagen = await apogee.removeScope(projekt, s2, anna);
     senare(5);
@@ -129,7 +143,7 @@ describe("Ångra bara denna", () => {
 
 describe("Historik view", () => {
   it("merges consecutive moves of one Scope by one Signatur within 10 minutes into one row, newest first", async () => {
-    const { apogee, anna, erik, projekt, senare, s1, s2 } = await setup();
+    const { apogee, notion, anna, erik, projekt, senare, s1, s2 } = await setup();
     const drag = [];
     for (const läge of [42, 48, 46, 55, 61, 64]) {
       drag.push((await apogee.moveScope(projekt, s2, läge, anna))!.id);
@@ -157,7 +171,7 @@ describe("Historik view", () => {
   });
 
   it("a move more than 10 minutes after the previous one, or by someone else, starts a new row", async () => {
-    const { apogee, anna, erik, projekt, senare, s2 } = await setup();
+    const { apogee, notion, anna, erik, projekt, senare, s2 } = await setup();
     await apogee.moveScope(projekt, s2, 40, anna);
     senare(11);
     await apogee.moveScope(projekt, s2, 41, anna);
@@ -167,7 +181,7 @@ describe("Historik view", () => {
   });
 
   it("marks skipped Uppdateringar bortåterställd and undone ones ångrad", async () => {
-    const { apogee, anna, erik, klottrare, projekt, s1, s3, s4 } = await setup();
+    const { apogee, notion, anna, erik, klottrare, projekt, s1, s3, s4 } = await setup();
     const annasFlytt = await apogee.moveScope(projekt, s1, 75, anna);
     const k1 = await apogee.moveScope(projekt, s1, 100, klottrare);
     const k2 = await apogee.removeScope(projekt, s4, klottrare);
@@ -186,7 +200,7 @@ describe("Historik view", () => {
   });
 
   it("shows a legacy edit without Signatur as null (\"Någon utan namn\")", async () => {
-    const { apogee, storage, projekt, s2 } = await setup();
+    const { apogee, notion, storage, projekt, s2 } = await setup();
     await storage.appendUppdatering(projekt, {
       id: "gammal",
       typ: "flytt",
@@ -206,7 +220,7 @@ describe("Historik view", () => {
 
 describe("Visa", () => {
   it("shows the chart right after an Uppdatering and which Scopes differ from now", async () => {
-    const { apogee, anna, erik, klottrare, projekt, senare, s1, s2, s3, s4 } = await setup();
+    const { apogee, notion, anna, erik, klottrare, projekt, senare, s1, s2, s3, s4 } = await setup();
     const annasFlytt = await apogee.moveScope(projekt, s2, 45, anna);
     const tid = annasFlytt!.tid;
     senare(30);
@@ -229,52 +243,88 @@ describe("Visa", () => {
   });
 });
 
-describe("Projekt-level Uppdateringar (Avslutat)", () => {
-  it("Ångra of Markera Avslutat reopens; blocked when Avslutat has changed since", async () => {
-    const { apogee, anna, erik, projekt } = await setup();
-    const markera = await apogee.markAvslutat(projekt, anna);
-    const u = await apogee.ångra(projekt, markera!.id, erik);
-    expect(u).toMatchObject({ typ: "ångra", ändringar: [], projekt: { före: { avslutat: true }, efter: { avslutat: false } } });
-    expect(await apogee.getProjekt(projekt)).toMatchObject({ markeradAvslutat: false });
-
-    const igen = await apogee.markAvslutat(projekt, anna);
-    await apogee.reopenProjekt(projekt, erik);
-    await expect(apogee.ångra(projekt, igen!.id, anna)).rejects.toMatchObject({
-      code: "krock",
-      message: expect.stringMatching(/Projektet.*avslutat/),
-    });
-  });
-
+describe("Projekt-level Uppdateringar", () => {
   it("Återställ hit and its Ångra fold the Projekt fields together with the Scopes", async () => {
-    const { apogee, anna, erik, projekt, s2, diagram } = await setup();
+    const { apogee, notion, anna, erik, projekt, s2, diagram } = await setup();
     const före = (await apogee.historik(projekt)).at(-1)!;
     await apogee.moveScope(projekt, s2, 90, erik);
-    await apogee.markAvslutat(projekt, erik);
+    const { id: demo } = await apogee.addMilstolpe({ projekt }, { namn: "Demo", datum: "2026-12-01" }, erik);
     const innan = await diagram();
 
     const åter = await apogee.återställHit(projekt, före.id, anna);
-    expect(åter!.projekt).toEqual({ före: { avslutat: true }, efter: { avslutat: false } });
-    expect(await apogee.getProjekt(projekt)).toMatchObject({ markeradAvslutat: false });
+    expect(åter!.projekt).toEqual({
+      före: { milstolpar: [{ id: demo, namn: "Demo", datum: "2026-12-01" }] },
+      efter: { milstolpar: [] },
+    });
+    expect((await apogee.getProjekt(projekt)).tidsplan.milstolpar).toEqual([]);
     expect((await diagram()).find(([id]) => id === s2)![2]).toBe(38);
 
     await apogee.ångra(projekt, åter!.id, anna);
-    expect(await apogee.getProjekt(projekt)).toMatchObject({ markeradAvslutat: true });
+    expect((await apogee.getProjekt(projekt)).tidsplan.milstolpar).toMatchObject([{ id: demo }]);
     expect(await diagram()).toEqual(innan);
-  });
-
-  it("Visa shows whether the Projekt was marked Avslutat at that point", async () => {
-    const { apogee, anna, projekt } = await setup();
-    const markera = await apogee.markAvslutat(projekt, anna);
-    await apogee.reopenProjekt(projekt, anna);
-    expect(await apogee.förhandsvisa(projekt, markera!.id)).toMatchObject({ markeradAvslutat: true, avslutat: true });
   });
 });
 
-describe("Visa with dates and Milstolpar", () => {
-  it("shows the dates and Milstolpar at that point and which of them differ from now", async () => {
-    const { apogee, anna, projekt } = await setup();
-    const datum = await apogee.setDatum({ projekt }, { startdatum: "2026-11-02", slutdatum: "2026-12-14" }, anna);
-    const { id: demo } = await apogee.addMilstolpe({ projekt }, { namn: "Demo", datum: "2026-12-01" }, anna);
+describe("a Historik from before status followed Läge alone", () => {
+  /** Markera Avslutat and Öppna igen as the old format wrote them, with a Milstolpe in between. */
+  async function medGamlaMarkeringar() {
+    const f = await medGammalData();
+    const markering = (id: string, avslutat: boolean, tid: string) => ({
+      id,
+      typ: avslutat ? "avslutat" : "öppna igen",
+      vem: f.anna,
+      tid,
+      ändringar: [],
+      projekt: { före: { avslutat: !avslutat }, efter: { avslutat } },
+    });
+    const gamla = [
+      markering("markerad", true, "2026-11-25T11:00:00.000Z"),
+      {
+        id: "med-milstolpe",
+        typ: "milstolpe",
+        vem: f.anna,
+        tid: "2026-11-25T11:01:00.000Z",
+        ändringar: [],
+        projekt: {
+          före: { avslutat: false, milstolpar: [] },
+          efter: { avslutat: true, milstolpar: [{ id: "m1", namn: "Demo", datum: "2026-12-01" }] },
+        },
+      },
+      markering("öppnad", false, "2026-11-25T11:02:00.000Z"),
+    ] as unknown as Uppdatering[];
+    for (const u of gamla) await f.storage.appendUppdatering(f.projekt, u);
+    return f;
+  }
+
+  it("ignores the old Avslutat marks: status follows Läge alone", async () => {
+    const { apogee, projekt } = await medGamlaMarkeringar();
+    expect(await apogee.getProjekt(projekt)).toMatchObject({ status: "pågående", avslutat: false, avslutad: null });
+    expect((await apogee.getProjekt(projekt)).tidsplan.milstolpar).toEqual([{ id: "m1", namn: "Demo", datum: "2026-12-01" }]);
+  });
+
+  it("leaves the marks out of the Historik, keeping the Milstolpe change", async () => {
+    const { apogee, projekt } = await medGamlaMarkeringar();
+    const logg = await apogee.historik(projekt);
+    expect(logg.map((u) => u.id)).not.toContain("markerad");
+    expect(logg.map((u) => u.id)).not.toContain("öppnad");
+    expect(logg.at(-1)).toMatchObject({
+      id: "med-milstolpe",
+      projekt: { före: { milstolpar: [] }, efter: { milstolpar: [{ id: "m1" }] } },
+    });
+    expect(logg.at(-1)!.projekt!.efter).not.toHaveProperty("avslutat");
+    expect((await apogee.historikVy(projekt)).map((r) => r.id)).not.toContain("markerad");
+    expect(await apogee.förhandsvisa(projekt, "med-milstolpe")).toMatchObject({ fältSkiljer: [], sammaSomNu: true });
+  });
+});
+
+describe("Visa with Milstolpar", () => {
+  it("shows the dates and Milstolpar at that point and which Milstolpar differ from now", async () => {
+    const { apogee, notion, anna, projekt } = await setup();
+    const { id: demo, uppdatering: första } = await apogee.addMilstolpe(
+      { projekt },
+      { namn: "Demo", datum: "2026-12-01" },
+      anna,
+    );
     const { id: test, uppdatering: tillagd } = await apogee.addMilstolpe(
       { projekt },
       { namn: "Test", datum: "2026-12-05" },
@@ -288,44 +338,119 @@ describe("Visa with dates and Milstolpar", () => {
       milstolparSkiljer: [],
     });
 
-    await apogee.setDatum({ projekt }, { startdatum: "2026-11-02", slutdatum: "2026-12-21" }, anna);
+    await notion.ändraProjekt("Kassan", { startdatum: "2026-11-02", slutdatum: "2026-12-21" });
     await apogee.changeMilstolpe({ projekt }, demo, { datum: "2026-12-02" }, anna);
-    const vy = await apogee.förhandsvisa(projekt, datum!.id);
+    const vy = await apogee.förhandsvisa(projekt, första!.id);
 
-    expect(vy.tidsplan).toEqual({ startdatum: "2026-11-02", slutdatum: "2026-12-14", milstolpar: [] });
-    expect(vy.skiljer).toEqual([]);
+    // The dates are not in the Historik: Visa shows today's.
+    expect(vy.tidsplan).toEqual({
+      startdatum: "2026-11-02",
+      slutdatum: "2026-12-21",
+      milstolpar: [{ id: demo, namn: "Demo", datum: "2026-12-01" }],
+    });
     expect(vy.sammaSomNu).toBe(false);
-    expect([...vy.fältSkiljer].sort()).toEqual(["milstolpar", "slutdatum"]);
+    expect(vy.fältSkiljer).toEqual(["milstolpar"]);
     expect([...vy.milstolparSkiljer].sort()).toEqual([demo, test].sort());
-
-    const senare = await apogee.förhandsvisa(projekt, tillagd!.id);
-    expect(senare.tidsplan.milstolpar.map((m) => [m.namn, m.datum])).toEqual([
-      ["Demo", "2026-12-01"],
-      ["Test", "2026-12-05"],
-    ]);
-    expect(senare.milstolparSkiljer).toEqual([demo]);
   });
 
-  it("a date-only change since makes Visa differ, so Återställ hit has something to do", async () => {
-    const { apogee, anna, projekt } = await setup();
+  it("a date change since leaves Visa the same as now, and Återställ hit has nothing to do", async () => {
+    const { apogee, notion, anna, projekt } = await setup();
     const sista = (await apogee.historik(projekt)).at(-1)!;
-    await apogee.setDatum({ projekt }, { startdatum: "2026-11-02", slutdatum: "2026-12-14" }, anna);
-    expect(await apogee.förhandsvisa(projekt, sista.id)).toMatchObject({ skiljer: [], sammaSomNu: false });
-    expect(await apogee.återställHit(projekt, sista.id, anna)).not.toBeNull();
-    expect((await apogee.getProjekt(projekt)).tidsplan.slutdatum).toBeNull();
+    await notion.ändraProjekt("Kassan", { startdatum: "2026-11-02", slutdatum: "2026-12-14" });
+    expect(await apogee.förhandsvisa(projekt, sista.id)).toMatchObject({ skiljer: [], sammaSomNu: true });
+    expect(await apogee.återställHit(projekt, sista.id, anna)).toBeNull();
+    expect((await apogee.getProjekt(projekt)).tidsplan.slutdatum).toBe("2026-12-14");
+  });
+});
+
+describe("a Historik from before dates moved onto the Projekt", () => {
+  /** Uppdateringar as the old format wrote them: dates were Projekt-level fields. */
+  async function medGamlaDatum() {
+    const f = await medGammalData();
+    const { storage, projekt, s2 } = f;
+    const sista = (await f.apogee.historik(projekt)).at(-1)!;
+    const gamla = [
+      {
+        id: "gammalt-datum",
+        typ: "datum",
+        vem: f.anna,
+        tid: "2026-11-25T11:00:00.000Z",
+        ändringar: [],
+        projekt: {
+          före: { startdatum: null, slutdatum: null },
+          efter: { startdatum: "2026-11-02", slutdatum: "2026-12-14" },
+        },
+      },
+      {
+        id: "gammal-milstolpe",
+        typ: "milstolpe",
+        vem: f.anna,
+        tid: "2026-11-25T11:01:00.000Z",
+        ändringar: [],
+        projekt: { före: { milstolpar: [] }, efter: { milstolpar: [{ id: "m1", namn: "Demo", datum: "2026-12-01" }] } },
+      },
+      {
+        id: "gammal-återställning",
+        typ: "återställning",
+        vem: f.anna,
+        tid: "2026-11-25T11:02:00.000Z",
+        mål: sista.id,
+        ändringar: [
+          {
+            scopeId: s2,
+            före: { namn: "Kassaflöde", läge: 38, ägare: f.erik },
+            efter: { namn: "Kassaflöde", läge: 40, ägare: f.erik },
+          },
+        ],
+        projekt: { före: { slutdatum: "2026-12-14" }, efter: { slutdatum: "2026-12-21" } },
+      },
+    ] as unknown as Uppdatering[];
+    for (const u of gamla) await storage.appendUppdatering(projekt, u);
+    return { ...f, sista };
+  }
+
+  it("ignores its date changes but still folds its Milstolpar", async () => {
+    const { apogee, projekt } = await medGamlaDatum();
+    expect((await apogee.getProjekt(projekt)).tidsplan).toEqual({
+      startdatum: null,
+      slutdatum: null,
+      milstolpar: [{ id: "m1", namn: "Demo", datum: "2026-12-01" }],
+    });
+  });
+
+  it("shows only Scope and Milstolpe changes in the Historik", async () => {
+    const { apogee, projekt } = await medGamlaDatum();
+    const rader = await apogee.historikVy(projekt);
+    expect(rader.map((r) => r.id)).not.toContain("gammalt-datum");
+    expect(rader[0]).toMatchObject({ id: "gammal-återställning" });
+    expect(rader[0]!.projekt).toBeUndefined();
+    expect(rader[1]).toMatchObject({ id: "gammal-milstolpe" });
+    expect((await apogee.historik(projekt)).some((u) => u.typ === "datum")).toBe(false);
+  });
+
+  it("Ångra and Återställ hit never write dates", async () => {
+    const { apogee, anna, projekt, sista } = await medGamlaDatum();
+    const ångrad = await apogee.ångra(projekt, "gammal-återställning", anna);
+    expect(ångrad.projekt).toBeUndefined();
+    const åter = await apogee.återställHit(projekt, sista.id, anna);
+    expect(åter!.projekt).toEqual({
+      före: { milstolpar: [{ id: "m1", namn: "Demo", datum: "2026-12-01" }] },
+      efter: { milstolpar: [] },
+    });
+    expect((await apogee.getProjekt(projekt)).tidsplan).toEqual({ startdatum: null, slutdatum: null, milstolpar: [] });
   });
 });
 
 describe("Återställning and Ångra rules", () => {
   it("restoring to where the chart already is writes nothing", async () => {
-    const { apogee, anna, projekt } = await setup();
+    const { apogee, notion, anna, projekt } = await setup();
     const logg = await apogee.historik(projekt);
     expect(await apogee.återställHit(projekt, logg.at(-1)!.id, anna)).toBeNull();
     expect(await apogee.historik(projekt)).toHaveLength(logg.length);
   });
 
   it("need an active Signatur and an Uppdatering of that Projekt", async () => {
-    const { apogee, anna, projekt } = await setup();
+    const { apogee, notion, anna, projekt } = await setup();
     const första = (await apogee.historik(projekt))[0]!.id;
     for (const ogiltig of [null, "okänd"]) {
       await expect(apogee.återställHit(projekt, första, ogiltig)).rejects.toMatchObject({ code: "signatur" });
@@ -337,7 +462,7 @@ describe("Återställning and Ångra rules", () => {
   });
 
   it("may bring back an inaktiv Ägare, flagged on the chart", async () => {
-    const { apogee, storage, anna, erik, projekt, s2 } = await setup();
+    const { apogee, notion, storage, anna, erik, projekt, s2 } = await setup();
     const byte = await apogee.changeScopeÄgare(projekt, s2, anna, anna);
     await storage.savePersoner((await storage.listPersoner()).map((p) => (p.id === erik ? { ...p, aktiv: false } : p)));
     await apogee.ångra(projekt, byte!.id, anna);

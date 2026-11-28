@@ -1,7 +1,7 @@
 // Input and reference rules shared by the commands. Pure; each throws a
 // DomainError when the rule is broken.
 import { DomainError } from "../errors.js";
-import type { Funktionsområde, Person, PersonId } from "../types.js";
+import type { Person, PersonId } from "../types.js";
 import { personVy } from "./vyer.js";
 
 const MAX_NAMN = 200;
@@ -56,12 +56,6 @@ export function requireBekräftelse(namn: string, bekräftelse: string): void {
   if (String(bekräftelse ?? "").trim() !== namn) {
     throw new DomainError("ogiltig", `Skriv namnet exakt, ${namn}, för att radera`);
   }
-}
-
-/** New or moved Projekt can only go into a shown Funktionsområde. */
-export function inteBorttaget(fo: Funktionsområde): Funktionsområde {
-  if (fo.borttagen) throw new DomainError("ogiltig", `${fo.namn} är borttaget`);
-  return fo;
 }
 
 /** Läge is a whole number, clamped to 0–100. */

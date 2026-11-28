@@ -101,6 +101,64 @@ export function storageContract(name: string, makeFixture: () => Promise<Storage
       ]);
     });
 
+    it("keeps a Projekt's Startdatum and Slutdatum, set or cleared, across a reopen", async () => {
+      const fixture = await makeFixture();
+      const daterat: Projekt = { ...projekt("p1", "Sökindex"), startdatum: "2026-11-02", slutdatum: "2026-12-14" };
+      const baraSlut: Projekt = { ...projekt("p2", "Betaltjänst"), startdatum: null, slutdatum: "2026-12-21" };
+      await fixture.storage.saveProjekt(daterat);
+      await fixture.storage.saveProjekt(baraSlut);
+      (await fixture.storage.getProjekt("p1"))!.slutdatum = "2027-01-01";
+
+      for (const s of [fixture.storage, fixture.reopen()]) {
+        expect(await s.getProjekt("p1")).toEqual(daterat);
+        expect(await s.getProjekt("p2")).toEqual(baraSlut);
+      }
+      await fixture.storage.saveProjekt({ ...daterat, startdatum: null, slutdatum: null });
+      expect(await fixture.reopen().getProjekt("p1")).toMatchObject({ startdatum: null, slutdatum: null });
+    });
+
+    it("keeps a Projekt without a Funktionsområde, also across a reopen", async () => {
+      const fixture = await makeFixture();
+      const utan: Projekt = { id: "p1", namn: "Sökindex", skapad: "2026-11-24T10:00:00.000Z" };
+      await fixture.storage.saveProjekt(utan);
+      await fixture.storage.saveProjekt(projekt("p2", "Betaltjänst"));
+      await fixture.storage.saveProjekt({ ...projekt("p2", "Betaltjänst"), funktionsområdeId: undefined });
+      for (const s of [fixture.storage, fixture.reopen()]) {
+        expect(await s.getProjekt("p1")).toEqual(utan);
+        expect((await s.getProjekt("p2"))?.funktionsområdeId).toBeUndefined();
+      }
+    });
+
+    it("keeps the Notion id and page URL of a Projekt and a Funktionsområde across a reopen", async () => {
+      const fixture = await makeFixture();
+      const notion = { notionId: "n1", notionUrl: "https://www.notion.so/n1" };
+      await fixture.storage.saveProjekt({ ...projekt("p1", "Sökindex"), ...notion });
+      await fixture.storage.saveFunktionsområden([{ ...fo("f1", "Ekonomi"), ...notion }]);
+      const s = fixture.reopen();
+      expect(await s.getProjekt("p1")).toMatchObject(notion);
+      expect(await s.listFunktionsområden()).toMatchObject([notion]);
+    });
+
+    it("keeps the Projektledare, the Funktionsansvarig and a Person's Notion id across a reopen", async () => {
+      const fixture = await makeFixture();
+      const ledd: Projekt = { ...projekt("p1", "Sökindex"), projektledare: "a1" };
+      const ansvarig: Funktionsområde = { ...fo("f1", "Ekonomi"), funktionsansvarig: "a1" };
+      const länkad: Person = { ...person("a1", "Anna"), notionId: "u-anna" };
+      await fixture.storage.saveProjekt(ledd);
+      await fixture.storage.saveProjekt(projekt("p2", "Betaltjänst"));
+      await fixture.storage.saveFunktionsområden([ansvarig, fo("f2", "Plattform")]);
+      await fixture.storage.savePersoner([länkad, person("b1", "Bo")]);
+      (await fixture.storage.getProjekt("p1"))!.projektledare = "b1";
+      (await fixture.storage.listPersoner())[0]!.notionId = "ändrad";
+
+      for (const s of [fixture.storage, fixture.reopen()]) {
+        expect(await s.getProjekt("p1")).toEqual(ledd);
+        expect((await s.getProjekt("p2"))?.projektledare).toBeUndefined();
+        expect(await s.listFunktionsområden()).toEqual([ansvarig, fo("f2", "Plattform")]);
+        expect(await s.listPersoner()).toEqual([länkad, person("b1", "Bo")]);
+      }
+    });
+
     it("keeps each Projekt's Historik separate and in append order", async () => {
       const { storage } = await makeFixture();
       await storage.saveProjekt(projekt("p1", "Sökindex"));

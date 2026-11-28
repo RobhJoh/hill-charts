@@ -2,7 +2,7 @@
 // from stored records and a Projekt's Historik.
 import { nuvarande, senastFlyttad } from "../diagram.js";
 import { nedräkning, nästaMilstolpe, ärÖverTid, type Nedräkning, type NästaMilstolpe } from "../datum.js";
-import { dagarSedan, projektFält, ärAvslutat, ärPågående, ärStilla } from "../status.js";
+import { dagarSedan, projektFält, projektStatus, ärStilla, type Status } from "../status.js";
 import type {
   Borttagen,
   Datum,
@@ -31,10 +31,13 @@ export type TidVy = {
 export type ProjektRad = {
   id: ProjektId;
   namn: string;
+  /** Derived from the Scopes' Läge alone (status.ts). */
+  status: Status;
+  /** Notion-status, exactly as in Notion; null when empty. Shown beside `status`, never derived from it. */
+  notionStatus: string | null;
   avslutat: boolean;
-  /** When it became Avslutat (ISO time); null while Pågående or if never edited. */
+  /** When it last became Avslutat (ISO time); null while it is not. */
   avslutad: string | null;
-  pågående: boolean;
   nedräkning: Nedräkning | null;
   nästaMilstolpe: NästaMilstolpe | null;
   överTid: boolean;
@@ -46,28 +49,55 @@ export type ProjektRad = {
 export type FunktionsområdeVy = {
   id: FunktionsområdeId;
   namn: string;
-  /** Who took it away and when; null while it is shown. */
+  /** Its page in Notion, where its namn and dates are changed ("Ändra i Notion"); null if none. */
+  notionUrl: string | null;
+  /** Its Funktionsansvarig, from Notion; null when empty there. */
+  funktionsansvarig: PersonVy | null;
+  /** When the sync took it away; null while it is shown. */
   borttagen: BorttagenVy | null;
+  /** Derived from its Projekt that are not Borttagna (status.ts). */
+  status: Status;
+  /** Notion-status, exactly as in Notion; null when empty. Shown beside `status`, never derived from it. */
+  notionStatus: string | null;
   /** Stilla Scopes across its Projekt. */
   stilla: number;
-  /** Its Projekt, except those taken away on their own (they went with it if it is Borttagen). */
+  /** Its Projekt that are not Borttagna. */
   projekt: ProjektRad[];
-  /** Projekt taken away on their own ("Borttagna Projekt"), newest first. */
+  /** Its Borttagna Projekt ("Borttagna Projekt"), newest first. */
   borttagnaProjekt: BorttagetProjekt[];
 } & TidVy;
-/** Who took something away (Ta bort) and when. */
-export type BorttagenVy = { vem: PersonVy; tid: string };
+/** When the Notion sync took something away. */
+export type BorttagenVy = { tid: string };
 /** A row in "Borttagna Projekt". */
 export type BorttagetProjekt = { id: ProjektId; namn: string; borttagen: BorttagenVy };
 export type Översikt = FunktionsområdeVy[];
+/**
+ * Utan funktionsområde: the Projekt that belong to no Funktionsområde.
+ * Not a Funktionsområde: no dates, status or Över tid of its own.
+ */
+export type UtanFunktionsområdeVy = {
+  /** The shown ones (not Borttagna), in name order. */
+  projekt: ProjektRad[];
+  /** The Borttagna ones ("Borttagna Projekt"), newest first. */
+  borttagnaProjekt: BorttagetProjekt[];
+};
 export type ProjektVy = {
   id: ProjektId;
   namn: string;
-  funktionsområde: { id: FunktionsområdeId; namn: string };
-  /** Who took it away and when (on its own or with its Funktionsområde); null while shown. */
+  /** Its page in Notion, where its namn, Funktionsområde and dates are changed; null if none. */
+  notionUrl: string | null;
+  /** Notion-status, exactly as in Notion; null when empty. Shown beside `status`, never derived from it. */
+  notionStatus: string | null;
+  /** Its Funktionsområde; null when it has none (Utan funktionsområde). */
+  funktionsområde: { id: FunktionsområdeId; namn: string } | null;
+  /** Its Projektledare, from Notion; null when empty there. The suggested Ägare of a new Scope. */
+  projektledare: PersonVy | null;
+  /** When the sync took it away; null while shown. */
   borttagen: BorttagenVy | null;
   /** Quiet warnings such as "slutar efter Funktionsområdet"; never block saving. */
   datumVarningar: string[];
+  /** When it last became Avslutat (ISO time); null while it is not. */
+  avslutad: string | null;
 } & DiagramVy &
   TidVy;
 
@@ -75,14 +105,10 @@ export type ProjektVy = {
 export type DiagramVy = {
   /** The Hill chart: current Scopes, highest Läge first. */
   scopes: ScopeVy[];
-  /** Marked Avslutat, or every Scope at Läge 100 (or none). */
+  /** Derived from the Scopes' Läge alone (status.ts). */
+  status: Status;
+  /** Status is Avslutat: it has Scopes and every one is at Läge 100. */
   avslutat: boolean;
-  /** Someone marked it Avslutat (it stays so until "Öppna igen"). */
-  markeradAvslutat: boolean;
-  /** When and by whom it was marked Avslutat (the status line's quiet ending); null unless marked. */
-  avslutadAv: { tid: string; vem: PersonVy | null } | null;
-  /** Neither Avslutat nor Borttagen. */
-  pågående: boolean;
 };
 
 /** A Scope as shown on the Hill chart and in the Scope index. */
@@ -168,13 +194,7 @@ export const ägareVy = (personer: Person[], id: PersonId): PersonVy => {
   return p ? personVy(p) : { id, namn: "Okänd", aktiv: false };
 };
 
-export const borttagenVy = (personer: Person[], b: Borttagen): BorttagenVy => ({
-  vem: ägareVy(personer, b.vem),
-  tid: b.tid,
-});
-
-/** Taken away on its own, not with its Funktionsområde. */
-export const borttagenEnsam = (p: Projekt): boolean => !!p.borttagen && !p.borttagen.medFunktionsområde;
+export const borttagenVy = (b: Borttagen): BorttagenVy => ({ tid: b.tid });
 
 export function tidVy(tidsplan: Tidsplan, avslutat: boolean, idag: Datum): TidVy {
   return {
@@ -185,18 +205,18 @@ export function tidVy(tidsplan: Tidsplan, avslutat: boolean, idag: Datum): TidVy
   };
 }
 
-/** A Projekt's dates, Milstolpar and countdown from its Historik. */
-export function projektTidVy(logg: Uppdatering[], avslutat: boolean, idag: Datum): TidVy {
-  const { startdatum, slutdatum, milstolpar } = projektFält(logg);
-  return tidVy({ startdatum, slutdatum, milstolpar }, avslutat, idag);
+/** A Projekt's dates (kept on the Projekt), Milstolpar (from its Historik) and countdown. */
+export function projektTidVy(p: Projekt, logg: Uppdatering[], avslutat: boolean, idag: Datum): TidVy {
+  const { milstolpar } = projektFält(logg);
+  return tidVy({ startdatum: p.startdatum ?? null, slutdatum: p.slutdatum ?? null, milstolpar }, avslutat, idag);
 }
 
 /** A Projekt's Hill chart and status from its Historik, against `nu`. */
-export function diagramVy(logg: Uppdatering[], personer: Person[], borttagen: boolean, nu: Date): DiagramVy {
+export function diagramVy(logg: Uppdatering[], personer: Person[], nu: Date): DiagramVy {
   const flyttad = senastFlyttad(logg);
   const diagram = Object.entries(nuvarande(logg));
-  const markeradAvslutat = projektFält(logg).avslutat;
-  const avslutat = ärAvslutat(markeradAvslutat, diagram.map(([, s]) => s.läge));
+  const status = projektStatus(diagram.map(([, s]) => s.läge));
+  const avslutat = status === "avslutat";
   const scopes = diagram
     .map(([scopeId, s]): ScopeVy => ({
       id: scopeId,
@@ -208,9 +228,5 @@ export function diagramVy(logg: Uppdatering[], personer: Person[], borttagen: bo
       stilla: ärStilla(flyttad[scopeId]!, nu, s.läge, avslutat),
     }))
     .sort((a, b) => b.läge - a.läge || efterNamn(a, b));
-  const markering = markeradAvslutat ? logg.findLast((u) => u.projekt?.efter.avslutat === true) : undefined;
-  const avslutadAv = markering
-    ? { tid: markering.tid, vem: markering.vem === null ? null : ägareVy(personer, markering.vem) }
-    : null;
-  return { scopes, avslutat, markeradAvslutat, avslutadAv, pågående: ärPågående({ avslutat, borttagen }) };
+  return { scopes, status, avslutat };
 }

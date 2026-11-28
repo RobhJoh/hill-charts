@@ -7,6 +7,6 @@
     "outDir": "dist/node",
     "lib": ["ES2023"]
   },
-  "include": ["src/core/**/*.ts", "src/storage/**/*.ts", "src/server/**/*.ts"],
+  "include": ["src/core/**/*.ts", "src/storage/**/*.ts", "src/notion/**/*.ts", "src/server/**/*.ts"],
   "exclude": ["src/**/*.test.ts", "src/**/*.contract.ts"]
 }

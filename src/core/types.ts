@@ -1,4 +1,5 @@
 // Domain records as the core stores them. Terms follow GLOSSARY.md.
+import type { NotionId } from "./notion.js";
 
 export type FunktionsområdeId = string;
 export type ProjektId = string;
@@ -21,9 +22,8 @@ export type Tidsplan = {
   milstolpar: Milstolpe[];
 };
 
-/** Who took something away (Ta bort) and when. Absent while it is shown. */
+/** When the Notion sync took something away (Borttagen). Absent while it is shown. */
 export type Borttagen = {
-  vem: PersonId;
   tid: string; // ISO timestamp
 };
 
@@ -34,18 +34,34 @@ export type Funktionsområde = {
   /** Its dates, saved without Historik. Missing = none (records from before #38). */
   tidsplan?: Tidsplan;
   borttagen?: Borttagen;
+  /** Its page in Notion, which owns its namn and dates (ADR 0003). */
+  notionId?: NotionId;
+  notionUrl?: string;
+  /** Notion-status: `Status` exactly as in Notion; drives nothing in Apogee. Missing = none. */
+  notionStatus?: string | null;
+  /** Its Funktionsansvarig, from Notion; absent = none. */
+  funktionsansvarig?: PersonId;
 };
 
 export type Projekt = {
   id: ProjektId;
   namn: string;
-  funktionsområdeId: FunktionsområdeId;
+  /** The one Funktionsområde it belongs to; absent = none (listed under Utan funktionsområde). */
+  funktionsområdeId?: FunktionsområdeId;
   skapad: string; // ISO timestamp
-  /**
-   * Set while Borttagen. `medFunktionsområde`: it went with its
-   * Funktionsområde and comes back with it; otherwise it was taken away on its own.
-   */
-  borttagen?: Borttagen & { medFunktionsområde: boolean };
+  /** Its Startdatum, saved on it without Historik. Missing = none. */
+  startdatum?: Datum | null;
+  /** Its Slutdatum, saved on it without Historik. Missing = none. */
+  slutdatum?: Datum | null;
+  /** Its page in Notion, which owns its namn, Funktionsområde and dates (ADR 0003). */
+  notionId?: NotionId;
+  notionUrl?: string;
+  /** Notion-status: `Status` exactly as in Notion; drives nothing in Apogee. Missing = none. */
+  notionStatus?: string | null;
+  /** Its Projektledare, from Notion; absent = none. */
+  projektledare?: PersonId;
+  /** Set while Borttaget: it is missing from Notion. It comes back when it returns. */
+  borttagen?: Borttagen;
 };
 
 /** Someone who can sign edits and own Scopes. Names are unique ignoring case. */
@@ -54,6 +70,8 @@ export type Person = {
   namn: string;
   aktiv: boolean;
   skapad: string; // ISO timestamp
+  /** The Notion person it is linked to; once set, the link holds whatever either side is named. */
+  notionId?: NotionId;
 };
 
 /** What happened to a Person, as recorded in the Personer-historik. */
@@ -90,16 +108,13 @@ export type ScopeValues = {
 export type Ändring = { scopeId: ScopeId; före: ScopeValues | null; efter: ScopeValues | null };
 
 /**
- * Projekt-level fields recorded in the Historik, as for Scopes: marked
- * Avslutat, the dates and the Milstolpar. Compare with `fältLika` (Milstolpar
- * is an array).
+ * Projekt-level fields recorded in the Historik, as for Scopes: the
+ * Milstolpar. The dates are on the Projekt itself (#73) and status follows
+ * Läge alone (#72). Compare with `fältLika` (Milstolpar is an array).
  */
-export type ProjektFält = {
-  /** Marked Avslutat (not the derived status; see status.ts). */
-  avslutat: boolean;
-} & Tidsplan;
+export type ProjektFält = Pick<Tidsplan, "milstolpar">;
 
-/** One recorded edit to a Projekt's Hill chart or its dates (see spec #31). */
+/** One recorded edit to a Projekt's Hill chart or its Milstolpar (see spec #31). */
 export type Uppdatering = {
   id: UppdateringId;
   typ: string;

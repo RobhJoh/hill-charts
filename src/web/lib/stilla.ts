@@ -1,6 +1,6 @@
 // Stilla (GLOSSARY.md): the one word and its explanation, used the same way on
 // every page, and the overview's summary of what needs attention.
-import { STILLA_EFTER_DAGAR, type Översikt, type ProjektRad } from "../../core/index.js";
+import { STILLA_EFTER_DAGAR, type Översikt, type ProjektRad, type UtanFunktionsområdeVy } from "../../core/index.js";
 
 /** The title and screen reader text of every stilla count. */
 export const STILLA_FÖRKLARING = `Ingen rörelse på över ${STILLA_EFTER_DAGAR} dagar`;
@@ -9,11 +9,11 @@ export const STILLA_FÖRKLARING = `Ingen rörelse på över ${STILLA_EFTER_DAGAR
 export const stillaI = (dagar: number): string => `stilla i ${dagar} d`;
 
 export type SamladStatus = {
-  /** Pågående Projekt. */
+  /** Projekt whose status is Pågående (Inte påbörjat ones are not counted). */
   pågående: number;
-  /** Stilla Scopes across all Pågående Projekt. */
+  /** Stilla Scopes across all Projekt that are not Avslutat. */
   stilla: number;
-  /** Pågående Projekt that are Över tid. */
+  /** Projekt not Avslutat that are Över tid. */
   överTid: number;
   /** The Projekt with stilla Scopes, in overview order. */
   stillaProjekt: ProjektRad[];
@@ -21,13 +21,17 @@ export type SamladStatus = {
   överTidProjekt: ProjektRad[];
 };
 
-/** The overview's one-line status: "5 pågående · 3 stilla · 1 över tid". */
-export function samladStatus(översikt: Översikt): SamladStatus {
-  const pågående = översikt.flatMap((fo) => fo.projekt).filter((p) => p.pågående);
-  const stillaProjekt = pågående.filter((p) => p.stilla > 0);
-  const överTidProjekt = pågående.filter((p) => p.överTid);
+/**
+ * The overview's one-line status: "5 pågående · 3 stilla · 1 över tid",
+ * across the Funktionsområden and then the Projekt Utan funktionsområde.
+ */
+export function samladStatus(översikt: Översikt, utan: UtanFunktionsområdeVy | null = null): SamladStatus {
+  const allaProjekt = [...översikt.flatMap((fo) => fo.projekt), ...(utan?.projekt ?? [])];
+  const ejAvslutade = allaProjekt.filter((p) => !p.avslutat);
+  const stillaProjekt = ejAvslutade.filter((p) => p.stilla > 0);
+  const överTidProjekt = ejAvslutade.filter((p) => p.överTid);
   return {
-    pågående: pågående.length,
+    pågående: ejAvslutade.filter((p) => p.status === "pågående").length,
     stilla: stillaProjekt.reduce((n, p) => n + p.stilla, 0),
     överTid: överTidProjekt.length,
     stillaProjekt,

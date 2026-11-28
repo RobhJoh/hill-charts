@@ -16,7 +16,8 @@ import type { Funktionsområde, Person, PersonHändelse, Projekt, ProjektId, Upp
  * Documents are written to a temp file and renamed into place, so a crash
  * leaves either the old or the new document. A Historik line cut off by a
  * crash is skipped on read. Every document carries `formatVersion` and is
- * upgraded on read; see `upgrade` below.
+ * upgraded on read; see `upgrade` below. Historik lines carry no version and
+ * are upgraded on read by shape; see `uppgraderaUppdatering`.
  */
 export function createJsonFileStorage(dir: string): Storage {
   const projektDir = join(dir, "projekt");
@@ -102,7 +103,7 @@ export function createJsonFileStorage(dir: string): Storage {
     async readHistorik(projektId) {
       if (!isSafeId(projektId)) return [];
       const text = await readText(historikFile(projektId));
-      return text === undefined ? [] : parseLog<Uppdatering>(text);
+      return text === undefined ? [] : parseLog<Uppdatering>(text).flatMap(uppgraderaUppdatering);
     },
   };
 }
@@ -110,7 +111,7 @@ export function createJsonFileStorage(dir: string): Storage {
 // ---------- format versions ----------
 
 /** The format version written by this code. */
-export const FORMAT_VERSION = 1;
+export const FORMAT_VERSION = 2;
 
 /*
  * Upgrading on read: each document kind has one step per older version,
@@ -136,6 +137,55 @@ function upgrade(raw: unknown, steps: Record<number, (doc: unknown) => Doc>): Do
   return doc as Doc;
 }
 
+/**
+ * Version 1 → 2, for a document holding `nyckel` (a list or one record):
+ * - A Projekt keeps its own Startdatum and Slutdatum (#73). Nothing is moved:
+ *   a Projekt without them simply has none; the dates an older Historik held
+ *   are dropped from it on read (`uppgraderaUppdatering`).
+ * - Borttagen is only ever set by the Notion sync (#76) and says when: the old
+ *   `vem` and `medFunktionsområde` are dropped.
+ */
+function tillVersion2(nyckel: string) {
+  return (doc: unknown): Doc => {
+    const värde = (doc as Doc)[nyckel];
+    const uppgraderat = Array.isArray(värde) ? värde.map(utanGammalBorttagen) : utanGammalBorttagen(värde);
+    return { ...(doc as Doc), [nyckel]: uppgraderat, formatVersion: 2 };
+  };
+}
+
+function utanGammalBorttagen(post: unknown): unknown {
+  if (!post || typeof post !== "object" || !("borttagen" in post)) return post;
+  const { borttagen, ...resten } = post as Doc & { borttagen?: { tid: string } };
+  return borttagen ? { ...resten, borttagen: { tid: borttagen.tid } } : resten;
+}
+
+/**
+ * Projekt-level fields an older Historik may hold and version 2 never writes:
+ * the dates, now kept on the Projekt (#73), and the Avslutat mark, now that
+ * status follows Läge alone (#72).
+ */
+const GAMLA_FÄLT = new Set(["startdatum", "slutdatum", "avslutat"]);
+
+const utanGamlaFält = (fält: object): Doc =>
+  Object.fromEntries(Object.entries(fält).filter(([f]) => !GAMLA_FÄLT.has(f)));
+
+/**
+ * The Historik log has no envelope to carry a format version, so an
+ * Uppdatering from version 1 is recognised by the fields version 2 never
+ * writes. Those are dropped; an Uppdatering left with no change at all (such
+ * as a Markera Avslutat) is dropped with them. Milstolpar and everything else
+ * are kept.
+ */
+function uppgraderaUppdatering(u: Uppdatering): Uppdatering[] {
+  if (!u.projekt) return [u];
+  const { projekt, ...resten } = u;
+  const efter = utanGamlaFält(projekt.efter);
+  if (Object.keys(efter).length > 0) {
+    return [{ ...resten, projekt: { före: utanGamlaFält(projekt.före), efter } } as Uppdatering];
+  }
+  return u.ändringar.length > 0 ? [resten] : [];
+}
+
 function versionOf(doc: unknown): number {
   if (doc && typeof doc === "object" && "formatVersion" in doc) {
     return Number((doc as Doc).formatVersion);
@@ -146,18 +196,20 @@ function versionOf(doc: unknown): number {
 function upgradeFunktionsområden(raw: unknown): Funktionsområde[] {
   const doc = upgrade(raw, {
     0: (bare) => ({ formatVersion: 1, funktionsområden: bare }),
+    1: tillVersion2("funktionsområden"),
   });
   return doc.funktionsområden as Funktionsområde[];
 }
 
 function upgradePersoner(raw: unknown): Person[] {
   // Personer arrived in format version 1, so there is nothing older to upgrade.
-  return upgrade(raw, {}).personer as Person[];
+  return upgrade(raw, { 1: tillVersion2("personer") }).personer as Person[];
 }
 
 function upgradeProjekt(raw: unknown): Projekt {
   const doc = upgrade(raw, {
     0: (bare) => ({ formatVersion: 1, projekt: bare }),
+    1: tillVersion2("projekt"),
   });
   return doc.projekt as Projekt;
 }

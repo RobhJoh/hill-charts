@@ -2,10 +2,14 @@
 // the injected clock and ids, and the lookups and writes all commands use.
 import { idagFrån } from "../datum.js";
 import { DomainError } from "../errors.js";
+import type { NotionKälla } from "../notion.js";
 import type { Storage } from "../storage.js";
 import type { Funktionsområde, FunktionsområdeId, Person, PersonId, Projekt, ProjektId, Uppdatering, UppdateringId } from "../types.js";
 import { requireSignatur } from "./regler.js";
 import { diagramVy, projektTidVy, type DiagramVy, type TidVy } from "./vyer.js";
+
+/** Runs a write step in turn with every other write (ADR 0001: one process serializes writes). */
+export type Skrivkö = <T>(steg: () => Promise<T>) => Promise<T>;
 
 export type ApogeeDeps = {
   storage: Storage;
@@ -13,12 +17,22 @@ export type ApogeeDeps = {
   now: () => Date;
   /** Id generator; injected so tests are deterministic. */
   newId: () => string;
+  /** Where the structure comes from (ADR 0003). Without it, `synkaFrånNotion` fails. */
+  notion?: NotionKälla;
+  /**
+   * Runs the sync's writes in turn with every other write (ADR 0001). The
+   * server passes its write queue; without it the writes run at once.
+   */
+  skrivkö?: Skrivkö;
 };
 
 export type Kärna = ReturnType<typeof skapaKärna>;
 
-/** `storage` must already announce Uppdateringar (see live.ts). */
-export function skapaKärna({ storage, now, newId }: ApogeeDeps) {
+/**
+ * `storage` must already announce Uppdateringar (see live.ts). Older data is
+ * upgraded by the storage adapter on read (ADR 0001), never here.
+ */
+export function skapaKärna({ storage, now, newId }: Pick<ApogeeDeps, "storage" | "now" | "newId">) {
   return {
     storage,
     now,
@@ -57,13 +71,13 @@ export function skapaKärna({ storage, now, newId }: ApogeeDeps) {
     },
 
     /** A Projekt's Hill chart and status from its Historik, against the clock's "now". */
-    diagramVy(logg: Uppdatering[], personer: Person[], borttagen: boolean): DiagramVy {
-      return diagramVy(logg, personer, borttagen, now());
+    diagramVy(logg: Uppdatering[], personer: Person[]): DiagramVy {
+      return diagramVy(logg, personer, now());
     },
 
-    /** A Projekt's dates, Milstolpar and countdown from its Historik, against today. */
-    projektTidVy(logg: Uppdatering[], avslutat: boolean): TidVy {
-      return projektTidVy(logg, avslutat, idagFrån(now()));
+    /** A Projekt's dates, Milstolpar (from its Historik) and countdown, against today. */
+    projektTidVy(p: Projekt, logg: Uppdatering[], avslutat: boolean): TidVy {
+      return projektTidVy(p, logg, avslutat, idagFrån(now()));
     },
   };
 }

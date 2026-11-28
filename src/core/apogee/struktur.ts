@@ -1,36 +1,47 @@
-// Funktionsområden and Projekt as records: create, rename, move, Ta bort,
-// Återställ, Radera, and the views that list them (overview, pages).
+// Funktionsområden and Projekt as records: Radera, and the views that list
+// them (overview, pages). They are created, named, moved, dated, taken away
+// (Borttagen) and brought back only by the Notion sync (./notion.ts, ADR 0003).
 import { datumVarningar, idagFrån, TOM_TIDSPLAN } from "../datum.js";
 import { DomainError } from "../errors.js";
 import type { Funktionsområde, FunktionsområdeId, Person, PersonId, Projekt, ProjektId } from "../types.js";
 import type { Kärna } from "./karna.js";
-import { avslutadTid } from "../status.js";
-import { inteBorttaget, namnFrån, requireBekräftelse } from "./regler.js";
+import { avslutadTid, funktionsområdeStatus } from "../status.js";
+import { requireBekräftelse } from "./regler.js";
 import {
-  borttagenEnsam,
   borttagenVy,
   efterNamn,
-  svenskOrdning,
   tidVy,
+  ägareVy,
+  type BorttagetProjekt,
   type FunktionsområdeVy,
   type ProjektRad,
   type ProjektVy,
+  type UtanFunktionsområdeVy,
   type Översikt,
 } from "./vyer.js";
 
+/** The Borttagna among `projekt`, as "Borttagna Projekt" rows, newest first. */
+function borttagnaRader(projekt: Projekt[]): BorttagetProjekt[] {
+  return projekt
+    .filter((p) => p.borttagen)
+    .map((p) => ({ id: p.id, namn: p.namn, borttagen: borttagenVy(p.borttagen!) }))
+    .sort((a, b) => b.borttagen.tid.localeCompare(a.borttagen.tid) || efterNamn(a, b));
+}
+
 export function struktur(k: Kärna) {
-  const { storage, now, newId, signatur, requireFunktionsområde, requireProjekt } = k;
+  const { storage, now, signatur, requireFunktionsområde, requireProjekt } = k;
 
   async function projektRad(p: Projekt, personer: Person[]): Promise<ProjektRad> {
     const logg = await storage.readHistorik(p.id);
-    const { scopes, avslutat, pågående } = k.diagramVy(logg, personer, !!p.borttagen);
-    const { nedräkning, nästaMilstolpe, överTid } = k.projektTidVy(logg, avslutat);
+    const { scopes, status, avslutat } = k.diagramVy(logg, personer);
+    const { nedräkning, nästaMilstolpe, överTid } = k.projektTidVy(p, logg, avslutat);
     return {
       id: p.id,
       namn: p.namn,
+      status,
+      notionStatus: p.notionStatus ?? null,
       avslutat,
       avslutad: avslutadTid(logg),
-      pågående,
       nedräkning,
       nästaMilstolpe,
       överTid,
@@ -43,14 +54,11 @@ export function struktur(k: Kärna) {
     const egna = allProjekt.filter((p) => p.funktionsområdeId === fo.id);
     const projekt = await Promise.all(
       egna
-        .filter((p) => !borttagenEnsam(p))
+        .filter((p) => !p.borttagen)
         .sort(efterNamn)
         .map((p) => projektRad(p, personer)),
     );
-    const borttagnaProjekt = egna
-      .filter(borttagenEnsam)
-      .map((p) => ({ id: p.id, namn: p.namn, borttagen: borttagenVy(personer, p.borttagen!) }))
-      .sort((a, b) => b.borttagen.tid.localeCompare(a.borttagen.tid) || efterNamn(a, b));
+    const borttagnaProjekt = borttagnaRader(egna);
     // Över tid while any Projekt is not Avslutat; "Avslutat" only once the
     // Slutdatum has passed with every Projekt Avslutat.
     const tidsplan = fo.tidsplan ?? TOM_TIDSPLAN;
@@ -60,7 +68,11 @@ export function struktur(k: Kärna) {
     return {
       id: fo.id,
       namn: fo.namn,
-      borttagen: fo.borttagen ? borttagenVy(personer, fo.borttagen) : null,
+      notionUrl: fo.notionUrl ?? null,
+      funktionsansvarig: fo.funktionsansvarig === undefined ? null : ägareVy(personer, fo.funktionsansvarig),
+      borttagen: fo.borttagen ? borttagenVy(fo.borttagen) : null,
+      status: funktionsområdeStatus(projekt.map((p) => p.status)),
+      notionStatus: fo.notionStatus ?? null,
       stilla: projekt.reduce((n, p) => n + p.stilla, 0),
       projekt,
       borttagnaProjekt,
@@ -69,149 +81,27 @@ export function struktur(k: Kärna) {
   }
 
   return {
-    async createFunktionsområde(namn: string, vem: PersonId | null): Promise<Funktionsområde> {
-      await signatur(vem);
-      const fo: Funktionsområde = { id: newId(), namn: namnFrån(namn), skapad: now().toISOString() };
-      const all = await storage.listFunktionsområden();
-      await storage.saveFunktionsområden([...all, fo]);
-      return fo;
-    },
-
-    async createProjekt(
-      funktionsområdeId: FunktionsområdeId,
-      namn: string,
-      vem: PersonId | null,
-    ): Promise<Projekt> {
-      await signatur(vem);
-      const giltigt = namnFrån(namn);
-      inteBorttaget(await requireFunktionsområde(funktionsområdeId));
-      const p: Projekt = { id: newId(), namn: giltigt, funktionsområdeId, skapad: now().toISOString() };
-      await storage.saveProjekt(p);
-      return p;
-    },
-
-    async renameFunktionsområde(id: FunktionsområdeId, nyttNamn: string, vem: PersonId | null): Promise<void> {
-      await signatur(vem);
-      const namn = namnFrån(nyttNamn);
-      await requireFunktionsområde(id);
-      const all = await storage.listFunktionsområden();
-      await storage.saveFunktionsområden(all.map((f) => (f.id === id ? { ...f, namn } : f)));
-    },
-
-    async renameProjekt(id: ProjektId, namn: string, vem: PersonId | null): Promise<void> {
-      await signatur(vem);
-      const giltigt = namnFrån(namn);
-      const p = await requireProjekt(id);
-      await storage.saveProjekt({ ...p, namn: giltigt });
-    },
-
-    async moveProjekt(
-      id: ProjektId,
-      funktionsområdeId: FunktionsområdeId,
-      vem: PersonId | null,
-    ): Promise<void> {
-      await signatur(vem);
-      const p = await requireProjekt(id);
-      inteBorttaget(await requireFunktionsområde(funktionsområdeId));
-      await storage.saveProjekt({ ...p, funktionsområdeId });
-    },
-
-    /** Ta bort: hides a Projekt (always allowed). It stays whole, Historik included, until Radera. */
-    async taBortProjekt(id: ProjektId, vem: PersonId | null): Promise<void> {
-      const signerad = await signatur(vem);
-      const p = await requireProjekt(id);
-      if (p.borttagen) throw new DomainError("ogiltig", `${p.namn} är redan borttaget`);
-      const borttagen = { vem: signerad.id, tid: now().toISOString(), medFunktionsområde: false };
-      await storage.saveProjekt({ ...p, borttagen });
-    },
-
-    /** Återställ: brings back a Projekt taken away on its own, whole. */
-    async återställProjekt(id: ProjektId, vem: PersonId | null): Promise<void> {
-      await signatur(vem);
-      const { borttagen, ...p } = await requireProjekt(id);
-      if (!borttagen) throw new DomainError("ogiltig", `${p.namn} är inte borttaget`);
-      const fo = await requireFunktionsområde(p.funktionsområdeId);
-      if (fo.borttagen) {
-        throw new DomainError("ogiltig", `${fo.namn} är borttaget; återställ Funktionsområdet först`);
-      }
-      if (borttagen.medFunktionsområde) {
-        throw new DomainError("ogiltig", `${p.namn} togs bort med sitt Funktionsområde; återställ Funktionsområdet`);
-      }
-      await storage.saveProjekt(p);
-    },
-
     /**
-     * Ta bort: hides a Funktionsområde and, as one unit, its Projekt. Only
-     * when none of its Projekt is Pågående; those taken away on their own
-     * earlier stay so.
-     */
-    async taBortFunktionsområde(id: FunktionsområdeId, vem: PersonId | null): Promise<void> {
-      const signerad = await signatur(vem);
-      const fo = inteBorttaget(await requireFunktionsområde(id));
-      const [allProjekt, personer] = await Promise.all([storage.listProjekt(), storage.listPersoner()]);
-      const medFo = allProjekt.filter((p) => p.funktionsområdeId === id && !p.borttagen);
-      const pågående: string[] = [];
-      for (const p of medFo) {
-        if (k.diagramVy(await storage.readHistorik(p.id), personer, false).pågående) pågående.push(p.namn);
-      }
-      if (pågående.length > 0) {
-        throw new DomainError(
-          "ogiltig",
-          `${fo.namn} kan tas bort först när alla dess Projekt är Avslutade. Pågående: ${pågående.sort(svenskOrdning.compare).join(", ")}`,
-        );
-      }
-      const tid = now().toISOString();
-      for (const p of medFo) {
-        await storage.saveProjekt({ ...p, borttagen: { vem: signerad.id, tid, medFunktionsområde: true } });
-      }
-      const all = await storage.listFunktionsområden();
-      await storage.saveFunktionsområden(
-        all.map((f) => (f.id === id ? { ...f, borttagen: { vem: signerad.id, tid } } : f)),
-      );
-    },
-
-    /** Återställ: brings back a Funktionsområde with the Projekt that went with it. */
-    async återställFunktionsområde(id: FunktionsområdeId, vem: PersonId | null): Promise<void> {
-      await signatur(vem);
-      const fo = await requireFunktionsområde(id);
-      if (!fo.borttagen) throw new DomainError("ogiltig", `${fo.namn} är inte borttaget`);
-      for (const { borttagen, ...p } of await storage.listProjekt()) {
-        if (p.funktionsområdeId === id && borttagen?.medFunktionsområde) await storage.saveProjekt(p);
-      }
-      const all = await storage.listFunktionsområden();
-      await storage.saveFunktionsområden(
-        all.map((f) => {
-          if (f.id !== id) return f;
-          const { borttagen: _, ...kvar } = f;
-          return kvar;
-        }),
-      );
-    },
-
-    /**
-     * Radera: erases a Projekt taken away on its own, Historik included, for
-     * good. Confirmed by typing its exact name.
+     * Radera: erases a Borttaget Projekt, Historik included, for good.
+     * Confirmed by typing its exact name. Ticked again in Notion later, it
+     * comes back as a new Projekt with an empty Hill chart.
      */
     async raderaProjekt(id: ProjektId, bekräftelse: string, vem: PersonId | null): Promise<void> {
       await signatur(vem);
       const p = await requireProjekt(id);
-      if (!p.borttagen) throw new DomainError("ogiltig", `Ta bort ${p.namn} innan det kan raderas`);
-      if (p.borttagen.medFunktionsområde) {
-        throw new DomainError("ogiltig", `${p.namn} togs bort med sitt Funktionsområde och raderas bara med det`);
-      }
+      if (!p.borttagen) throw new DomainError("ogiltig", `${p.namn} raderas först när det är borttaget i Notion`);
       requireBekräftelse(p.namn, bekräftelse);
       await storage.eraseProjekt(id);
     },
 
     /**
      * Radera: erases a Borttaget Funktionsområde and every Projekt in it
-     * (also those taken away on their own) for good. Confirmed by typing its
-     * exact name.
+     * (all Borttagna) for good. Confirmed by typing its exact name.
      */
     async raderaFunktionsområde(id: FunktionsområdeId, bekräftelse: string, vem: PersonId | null): Promise<void> {
       await signatur(vem);
       const fo = await requireFunktionsområde(id);
-      if (!fo.borttagen) throw new DomainError("ogiltig", `Ta bort ${fo.namn} innan det kan raderas`);
+      if (!fo.borttagen) throw new DomainError("ogiltig", `${fo.namn} raderas först när det är borttaget`);
       requireBekräftelse(fo.namn, bekräftelse);
       for (const p of await storage.listProjekt()) {
         if (p.funktionsområdeId === id) await storage.eraseProjekt(p.id);
@@ -232,9 +122,22 @@ export function struktur(k: Kärna) {
     },
 
     /**
-     * "Borttagna Funktionsområden", newest first: each with the Projekt that
-     * went with it (`projekt`) and those taken away on their own before.
+     * The Utan funktionsområde group on the start page, after the
+     * Funktionsområden, with its Borttagna Projekt apart; null when no
+     * Projekt at all lacks a Funktionsområde.
      */
+    async utanFunktionsområde(): Promise<UtanFunktionsområdeVy | null> {
+      const [allProjekt, personer] = await Promise.all([storage.listProjekt(), storage.listPersoner()]);
+      const utan = allProjekt.filter((p) => p.funktionsområdeId === undefined);
+      if (utan.length === 0) return null;
+      const synliga = utan.filter((p) => !p.borttagen).sort(efterNamn);
+      return {
+        projekt: await Promise.all(synliga.map((p) => projektRad(p, personer))),
+        borttagnaProjekt: borttagnaRader(utan),
+      };
+    },
+
+    /** "Borttagna Funktionsområden", newest first, each with its (Borttagna) Projekt. */
     async borttagnaFunktionsområden(): Promise<FunktionsområdeVy[]> {
       const [all, allProjekt, personer] = await Promise.all([
         storage.listFunktionsområden(),
@@ -255,16 +158,20 @@ export function struktur(k: Kärna) {
 
     async getProjekt(id: ProjektId): Promise<ProjektVy> {
       const p = await requireProjekt(id);
-      const fo = await requireFunktionsområde(p.funktionsområdeId);
+      const fo = p.funktionsområdeId === undefined ? null : await requireFunktionsområde(p.funktionsområdeId);
       const [logg, personer] = await Promise.all([storage.readHistorik(id), storage.listPersoner()]);
-      const diagram = k.diagramVy(logg, personer, !!p.borttagen);
-      const tid = k.projektTidVy(logg, diagram.avslutat);
+      const diagram = k.diagramVy(logg, personer);
+      const tid = k.projektTidVy(p, logg, diagram.avslutat);
       return {
         id: p.id,
         namn: p.namn,
-        funktionsområde: { id: fo.id, namn: fo.namn },
-        borttagen: p.borttagen ? borttagenVy(personer, p.borttagen) : null,
-        datumVarningar: datumVarningar(tid.tidsplan, fo.tidsplan ?? TOM_TIDSPLAN),
+        notionUrl: p.notionUrl ?? null,
+        notionStatus: p.notionStatus ?? null,
+        funktionsområde: fo && { id: fo.id, namn: fo.namn },
+        projektledare: p.projektledare === undefined ? null : ägareVy(personer, p.projektledare),
+        borttagen: p.borttagen ? borttagenVy(p.borttagen) : null,
+        datumVarningar: datumVarningar(tid.tidsplan, fo?.tidsplan ?? TOM_TIDSPLAN),
+        avslutad: avslutadTid(logg),
         ...diagram,
         ...tid,
       };

@@ -56,10 +56,10 @@ export function historik(k: Kärna) {
       const milstolparSkiljer = [...new Set([...milstolpeDå.keys(), ...milstolpeNu.keys()])].filter(
         (id) => !fältLika(milstolpeDå.get(id) ?? null, milstolpeNu.get(id) ?? null),
       );
-      const diagram = k.diagramVy(fram, personer, !!p.borttagen);
+      const diagram = k.diagramVy(fram, personer);
       return {
         ...diagram,
-        ...k.projektTidVy(fram, diagram.avslutat),
+        ...k.projektTidVy(p, fram, diagram.avslutat),
         skiljer,
         fältSkiljer,
         milstolparSkiljer,

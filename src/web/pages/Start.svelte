@@ -1,24 +1,34 @@
 <script lang="ts">
   import { felText } from "../lib/fel.js";
-  import type { FunktionsområdeVy, Översikt } from "../../core/index.js";
+  import type { FunktionsområdeVy, SynkStatus, UtanFunktionsområdeVy, Översikt } from "../../core/index.js";
   import Borttagna from "../components/Borttagna.svelte";
-  import NamnForm from "../components/NamnForm.svelte";
   import Nedrakning from "../components/Nedrakning.svelte";
   import ProjektCells from "../components/ProjektCells.svelte";
   import { api } from "../lib/api.js";
   import { signatur } from "../lib/signatur.svelte.js";
   import { funktionsområdeHref, projektHref } from "../lib/links.js";
   import StillaAntal from "../components/StillaAntal.svelte";
+  import NotionStatus from "../components/NotionStatus.svelte";
   import { samladStatus } from "../lib/stilla.js";
+  import { STATUS_ORD } from "../lib/status.js";
+  import { visaTid } from "../lib/historik.js";
 
   let översikt = $state<Översikt | undefined>();
+  let utan = $state<UtanFunktionsområdeVy | null>(null);
   let borttagna = $state<FunktionsområdeVy[]>([]);
+  let synk = $state<SynkStatus | undefined>();
   let loadError = $state("");
-  let skapar = $state(false);
+  let hämtar = $state(false);
+  let synkError = $state("");
 
   async function load() {
     try {
-      [översikt, borttagna] = await Promise.all([api.overview(), api.borttagnaFunktionsområden()]);
+      [översikt, utan, borttagna, synk] = await Promise.all([
+        api.overview(),
+        api.utanFunktionsområde(),
+        api.borttagnaFunktionsområden(),
+        api.synkStatus(),
+      ]);
     } catch (e) {
       loadError = felText(e, "Kunde inte läsa in");
     }
@@ -26,7 +36,7 @@
   load();
 
   /** "5 pågående · 3 stilla · 1 över tid", naming the Projekt that need attention. */
-  const status = $derived(översikt ? samladStatus(översikt) : undefined);
+  const status = $derived(översikt ? samladStatus(översikt, utan) : undefined);
 
   /** Each Borttaget Funktionsområde with every Projekt Radera would erase with it. */
   const borttagnaRader = $derived(
@@ -37,20 +47,30 @@
     })),
   );
 
-  async function återställ(id: string) {
-    await signatur.signera((vem) => api.återställFunktionsområde(id, vem));
-    await load();
-  }
-
   async function radera(id: string, namn: string) {
     await signatur.signera((vem) => api.raderaFunktionsområde(id, namn, vem));
     await load();
   }
 
-  async function skapa(namn: string) {
-    await signatur.signera((vem) => api.createFunktionsområde(namn, vem));
-    skapar = false;
+  async function raderaProjekt(id: string, namn: string) {
+    await signatur.signera((vem) => api.raderaProjekt(id, namn, vem));
     await load();
+  }
+
+  /** Hämta från Notion nu: needs no Signatur, since it only reads Notion. */
+  async function hämta() {
+    hämtar = true;
+    synkError = "";
+    try {
+      await api.synkaFrånNotion();
+      await load();
+    } catch (e) {
+      // A failed fetch is recorded in the sync state; show that warning, not a second one.
+      synk = await api.synkStatus().catch(() => synk);
+      if (!synk?.fel) synkError = felText(e, "Kunde inte hämta från Notion");
+    } finally {
+      hämtar = false;
+    }
   }
 </script>
 
@@ -73,32 +93,35 @@
         </p>
       {/if}
     </div>
-    {#if !skapar}
-      <!-- A plain outlined button: the rarest action here does not get the accent (Q1 c). -->
-      <button onclick={() => (skapar = true)}>Nytt Funktionsområde</button>
-    {/if}
+    <!-- Funktionsområden and Projekt come from Notion (ADR 0003); a plain outlined button, as before. -->
+    <div class="synk">
+      <button onclick={hämta} disabled={hämtar}>{hämtar ? "Hämtar…" : "Hämta från Notion nu"}</button>
+      {#if synk}
+        <p class="meta">
+          Senast hämtat från Notion: {synk.senastHämtat ? visaTid(synk.senastHämtat) : "aldrig"}
+        </p>
+        {#if synk.fel}
+          <!-- A failed fetch changed nothing: Apogee shows what it last fetched. -->
+          <p class="error" role="status">
+            Kunde inte hämta från Notion {visaTid(synk.fel.tid)}. Visar det som senast hämtades.
+          </p>
+        {/if}
+      {/if}
+      {#if synkError}<p class="error" role="alert">{synkError}</p>{/if}
+    </div>
   </div>
-
-  {#if skapar}
-    <NamnForm
-      label="Namn på Funktionsområdet"
-      submitLabel="Skapa"
-      onsubmit={skapa}
-      oncancel={() => (skapar = false)}
-    />
-  {/if}
 
   {#if loadError}
     <p class="error">{loadError}</p>
-  {:else if översikt && översikt.length === 0}
-    <p class="empty">Inga Funktionsområden ännu. Skapa det första för att samla Projekt i det.</p>
+  {:else if översikt && översikt.length === 0 && !utan}
+    <p class="empty">Inga Projekt ännu. Kryssa i Apogee på ett Projekt i Notion för att hämta hit det.</p>
   {:else if översikt}
     {#each översikt as fo (fo.id)}
       <section>
         <h2>
           <a href={funktionsområdeHref(fo)}>{fo.namn}<span class="pil" aria-hidden="true">›</span></a>
           <span
-            >{fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}</span
+            >{STATUS_ORD[fo.status]}<NotionStatus status={fo.notionStatus} före=" · " /> · {fo.projekt.length} Projekt{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}</span
           >
         </h2>
         {#if fo.nedräkning || fo.nästaMilstolpe}
@@ -107,9 +130,20 @@
         <ProjektCells projekt={fo.projekt} />
       </section>
     {/each}
+    {#if utan}
+      <!-- Not a Funktionsområde: no page, dates, status or Över tid of its own (GLOSSARY). -->
+      <section>
+        <h2>
+          <span class="utan">Utan funktionsområde</span>
+          <span>{utan.projekt.length} Projekt</span>
+        </h2>
+        {#if utan.projekt.length > 0}<ProjektCells projekt={utan.projekt} />{/if}
+        <Borttagna rubrik="Borttagna Projekt utan funktionsområde" rader={utan.borttagnaProjekt} onradera={raderaProjekt} />
+      </section>
+    {/if}
   {/if}
 
-  <Borttagna rubrik="Borttagna Funktionsområden" rader={borttagnaRader} onåterställ={återställ} onradera={radera} />
+  <Borttagna rubrik="Borttagna Funktionsområden" rader={borttagnaRader} onradera={radera} />
 </div>
 
 <style>
@@ -127,6 +161,10 @@
   }
   h2 a {
     text-decoration: none;
+  }
+  h2 span.utan {
+    font: inherit;
+    color: var(--tx);
   }
   h2 a:hover {
     text-decoration: underline;
@@ -156,6 +194,16 @@
   }
   .status {
     margin: 0;
+  }
+  .synk {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+  .synk p {
+    margin: 0;
+    text-align: right;
   }
   .status a {
     color: inherit;

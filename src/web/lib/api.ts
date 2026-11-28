@@ -2,19 +2,18 @@
 // Signatur (`vem`, a Person id) and send it in the Apogee-Signatur header;
 // pages get it from `signatur.signera` in signatur.svelte.ts.
 import type {
-  DatumInput,
   Mål,
   Förhandsvisning,
-  Funktionsområde,
   FunktionsområdeVy,
   HistorikRad,
   PersonHändelse,
   PersonRad,
   PersonVy,
-  Projekt,
   ProjektVy,
   StjärnkartaVy,
+  SynkStatus,
   Uppdatering,
+  UtanFunktionsområdeVy,
   Översikt,
 } from "../../core/index.js";
 
@@ -54,6 +53,7 @@ const målPath = (mål: Mål) =>
 
 export const api = {
   overview: () => call<Översikt>("GET", "/oversikt"),
+  utanFunktionsområde: () => call<UtanFunktionsområdeVy | null>("GET", "/utan-funktionsomrade"),
   getFunktionsområde: (id: string) => call<FunktionsområdeVy>("GET", `/funktionsomraden/${enc(id)}`),
   getProjekt: (id: string) => call<ProjektVy>("GET", `/projekt/${enc(id)}`),
   listPersoner: () => call<PersonVy[]>("GET", "/personer"),
@@ -62,7 +62,7 @@ export const api = {
   createPerson: (namn: string, vem: string | null) => call<PersonVy>("POST", "/personer", { namn }, vem),
   renamePerson: (id: string, namn: string, vem: string) =>
     call<PersonVy>("PATCH", `/personer/${enc(id)}`, { namn }, vem),
-  /** Hands their Scopes in Pågående Projekt to `nyÄgare` and makes them inaktiv. */
+  /** Hands their Scopes in Projekt not Avslutat to `nyÄgare` and makes them inaktiv. */
   removePerson: (id: string, nyÄgare: string, vem: string) =>
     call<{ uppdateringar: Uppdatering[] }>("DELETE", `/personer/${enc(id)}`, { nyÄgare }, vem),
   reactivatePerson: (id: string, vem: string) =>
@@ -72,34 +72,13 @@ export const api = {
   personerÖversikt: () => call<PersonRad[]>("GET", "/personer/oversikt"),
   /** A Person's Stjärnkarta; 404 for an inaktiv or unknown Person. */
   stjärnkarta: (personId: string) => call<StjärnkartaVy>("GET", `/personer/${enc(personId)}/stjarnkarta`),
-  createFunktionsområde: (namn: string, vem: string) =>
-    call<Funktionsområde>("POST", "/funktionsomraden", { namn }, vem),
-  renameFunktionsområde: (id: string, namn: string, vem: string) =>
-    call<void>("PATCH", `/funktionsomraden/${enc(id)}`, { namn }, vem),
-  createProjekt: (funktionsområdeId: string, namn: string, vem: string) =>
-    call<Projekt>("POST", "/projekt", { funktionsområdeId, namn }, vem),
-  renameProjekt: (id: string, namn: string, vem: string) =>
-    call<void>("PATCH", `/projekt/${enc(id)}`, { namn }, vem),
-  moveProjekt: (id: string, funktionsområdeId: string, vem: string) =>
-    call<void>("PATCH", `/projekt/${enc(id)}`, { funktionsområdeId }, vem),
+  /** The sync state: when Apogee last fetched from Notion, and whether the latest fetch failed. */
+  synkStatus: () => call<SynkStatus>("GET", "/notion/synk"),
+  /** Hämta från Notion nu: waits for the sync (or joins one already running). */
+  synkaFrånNotion: () => call<SynkStatus>("POST", "/notion/synk"),
 
-  /** Marks a Projekt Avslutat. The Uppdatering is null when it already was. */
-  markAvslutat: (projektId: string, vem: string) =>
-    call<{ uppdatering: Uppdatering | null }>("POST", `/projekt/${enc(projektId)}/avslutat`, undefined, vem),
-  /** "Öppna igen". The Uppdatering is null when it was not marked. */
-  reopenProjekt: (projektId: string, vem: string) =>
-    call<{ uppdatering: Uppdatering | null }>("DELETE", `/projekt/${enc(projektId)}/avslutat`, undefined, vem),
-
-  /** Ta bort: always allowed for a Projekt; a Funktionsområde only when all its Projekt are Avslutade. */
-  taBortProjekt: (id: string, vem: string) => call<void>("POST", `/projekt/${enc(id)}/borttagen`, undefined, vem),
-  återställProjekt: (id: string, vem: string) =>
-    call<void>("DELETE", `/projekt/${enc(id)}/borttagen`, undefined, vem),
   /** Radera a Borttagen Projekt for good; `namn` is the typed confirmation. */
   raderaProjekt: (id: string, namn: string, vem: string) => call<void>("DELETE", `/projekt/${enc(id)}`, { namn }, vem),
-  taBortFunktionsområde: (id: string, vem: string) =>
-    call<void>("POST", `/funktionsomraden/${enc(id)}/borttagen`, undefined, vem),
-  återställFunktionsområde: (id: string, vem: string) =>
-    call<void>("DELETE", `/funktionsomraden/${enc(id)}/borttagen`, undefined, vem),
   /** Radera a Borttaget Funktionsområde and every Projekt in it, for good. */
   raderaFunktionsområde: (id: string, namn: string, vem: string) =>
     call<void>("DELETE", `/funktionsomraden/${enc(id)}`, { namn }, vem),
@@ -125,9 +104,6 @@ export const api = {
   removeScope: (projektId: string, scopeId: string, vem: string) =>
     call<{ uppdatering: Uppdatering }>("DELETE", `/projekt/${enc(projektId)}/scopes/${enc(scopeId)}`, undefined, vem),
 
-  /** Dates of a Projekt (an Uppdatering) or Funktionsområde (uppdatering always null). */
-  setDatum: (mål: Mål, input: DatumInput, vem: string) =>
-    call<{ uppdatering: Uppdatering | null }>("PUT", `${målPath(mål)}/datum`, input, vem),
   addMilstolpe: (mål: Mål, milstolpe: { namn: string; datum: string }, vem: string) =>
     call<{ id: string; uppdatering: Uppdatering | null }>("POST", `${målPath(mål)}/milstolpar`, milstolpe, vem),
   changeMilstolpe: (mål: Mål, milstolpeId: string, ändring: { namn?: string; datum?: string }, vem: string) =>

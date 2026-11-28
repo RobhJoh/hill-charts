@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from "svelte";
+  import { tick, untrack } from "svelte";
   import { felText } from "../lib/fel.js";
   // The Scope index beside the Hill chart: Namn, Ägare and Läge, highest Läge
   // first, with the colour legend. Rows edit Namn and Ägare and remove a
@@ -15,12 +15,12 @@
     tema,
     valt = null,
     nyScope = $bindable(false),
+    förslag = "",
     onvälj,
     onlägg,
     onbytnamn,
     onbytägare,
     ontabort,
-    skrivskyddad = false,
   }: {
     scopes: ScopeVy[];
     /** All Personer; only active ones can be chosen as Ägare. */
@@ -29,13 +29,13 @@
     valt?: string | null;
     /** Whether the "Ny Scope" form is open. */
     nyScope?: boolean;
+    /** The Ägare the "Ny Scope" form pre-selects (the Projektledare); "" for none. */
+    förslag?: string;
     onvälj: (id: string | null) => void;
     onlägg: (namn: string, ägare: string) => Promise<unknown>;
     onbytnamn: (id: string, namn: string) => Promise<unknown>;
     onbytägare: (id: string, ägare: string) => Promise<unknown>;
     ontabort: (id: string) => Promise<unknown>;
-    /** An Avslutat Projekt (Q8 b): Scopes shown, not edited, until Öppna igen. */
-    skrivskyddad?: boolean;
   } = $props();
 
   const aktiva = $derived(personer.filter((p) => p.aktiv));
@@ -49,8 +49,10 @@
 
   // Focus Namn once the form is on screen, and bring it into view (on a phone
   // it opens far below the Ny Scope button). autofocus doesn't take here.
+  // Each time it opens, the form starts from the suggested Ägare.
   $effect(() => {
     if (!nyScope) return;
+    nyÄgare = untrack(() => förslag);
     tick().then(() => {
       nyNamnFält?.focus();
       nyForm?.scrollIntoView({ block: "nearest" });
@@ -205,7 +207,7 @@
             </td>
             <td class="num">{s.läge}{#if s.stilla}<span class="stilla" title="Ingen rörelse på {s.stillaDagar} dagar">{s.stillaDagar} d</span>{/if}</td>
           </tr>
-          {#if s.id === valt && !skrivskyddad}
+          {#if s.id === valt}
             <tr class="valt åtg">
               <td></td>
               <td colspan="3">
@@ -246,9 +248,6 @@
     <div class="bar" style:background={rampGradient(tema)}></div>
     <div class="ticks"><span>0 uppför</span><span>50 krön</span><span>100 klar</span></div>
   </div>
-  {#if skrivskyddad}
-    <p class="meta">Projektet är Avslutat, så stjärnorna står still. Välj Öppna igen för att flytta dem eller ändra Ägare.</p>
-  {/if}
 </section>
 
 <style>

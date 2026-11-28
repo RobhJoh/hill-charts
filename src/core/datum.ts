@@ -36,45 +36,6 @@ export function datumFrån(input: unknown): Datum {
   return d;
 }
 
-/**
- * How dates are entered: two dates (either may be null to clear it), a
- * Startdatum plus a number of weeks, or a new Startdatum that keeps the Appetit
- * (the Slutdatum moves with it).
- */
-export type DatumInput =
-  | { startdatum: Datum | null; slutdatum: Datum | null }
-  | { startdatum: Datum; veckor: number }
-  | { startdatum: Datum; behållAppetit: true };
-
-/** The Startdatum and Slutdatum after applying `input` to the current ones. */
-export function nyaDatum(
-  nu: Pick<Tidsplan, "startdatum" | "slutdatum">,
-  input: DatumInput,
-): Pick<Tidsplan, "startdatum" | "slutdatum"> {
-  let startdatum: Datum | null;
-  let slutdatum: Datum | null;
-  if ("veckor" in input) {
-    const veckor = input.veckor;
-    if (typeof veckor !== "number" || !Number.isInteger(veckor) || veckor < 1) {
-      throw new DomainError("ogiltig", "Antal veckor måste vara ett heltal från 1");
-    }
-    startdatum = datumFrån(input.startdatum);
-    slutdatum = plusDagar(startdatum, veckor * 7);
-  } else if ("behållAppetit" in input) {
-    startdatum = datumFrån(input.startdatum);
-    slutdatum =
-      nu.startdatum && nu.slutdatum ? plusDagar(startdatum, dagarMellan(nu.startdatum, nu.slutdatum)) : nu.slutdatum;
-  } else {
-    startdatum = input.startdatum === null ? null : datumFrån(input.startdatum);
-    slutdatum = input.slutdatum === null ? null : datumFrån(input.slutdatum);
-  }
-  if (startdatum && !slutdatum) throw new DomainError("ogiltig", "Ange ett Slutdatum eller antal veckor");
-  if (startdatum && slutdatum && slutdatum < startdatum) {
-    throw new DomainError("ogiltig", "Slutdatum kan inte vara före Startdatum");
-  }
-  return { startdatum, slutdatum };
-}
-
 /** Milstolpar in date order (then name). */
 export const iOrdning = (milstolpar: readonly Milstolpe[]): Milstolpe[] =>
   [...milstolpar].sort((a, b) => a.datum.localeCompare(b.datum) || a.namn.localeCompare(b.namn, "sv"));

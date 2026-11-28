@@ -3,12 +3,14 @@
 import { annonseraUppdateringar } from "./live.js";
 import { historik } from "./apogee/historik.js";
 import { skapaKärna, type ApogeeDeps } from "./apogee/karna.js";
+import { notionSynk } from "./apogee/notion.js";
 import { personer } from "./apogee/personer.js";
 import { projektfält } from "./apogee/projektfalt.js";
 import { scopes } from "./apogee/scopes.js";
 import { struktur } from "./apogee/struktur.js";
 
-export type { ApogeeDeps } from "./apogee/karna.js";
+export type { ApogeeDeps, Skrivkö } from "./apogee/karna.js";
+export type { SynkStatus } from "./apogee/notion.js";
 export type { Mål } from "./apogee/projektfalt.js";
 export type {
   BorttagenVy,
@@ -25,6 +27,7 @@ export type {
   StjärnkartaProjekt,
   StjärnkartaVy,
   TidVy,
+  UtanFunktionsområdeVy,
   Översikt,
 } from "./apogee/vyer.js";
 
@@ -33,7 +36,7 @@ export type Apogee = ReturnType<typeof createApogee>;
 /**
  * The Apogee core: every domain rule lives behind these commands and queries.
  */
-export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
+export function createApogee({ storage: lagring, now, newId, notion, skrivkö }: ApogeeDeps) {
   // Every Uppdatering written to a Historik is announced via `påUppdatering`.
   const { storage, påUppdatering } = annonseraUppdateringar(lagring);
   const k = skapaKärna({ storage, now, newId });
@@ -45,5 +48,6 @@ export function createApogee({ storage: lagring, now, newId }: ApogeeDeps) {
     ...scopes(k),
     ...projektfält(k),
     ...historik(k),
+    ...notionSynk(k, notion, skrivkö),
   };
 }

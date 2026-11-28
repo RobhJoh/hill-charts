@@ -60,7 +60,11 @@ export async function slåUpp(apogee: Apogee, slag: Slag, id: string): Promise<S
         finns: true,
         href: projektHref(p),
         namn: p.namn,
-        beskrivning: p.borttagen ? BORTTAGET.projekt : `Projekt i ${p.funktionsområde.namn}`,
+        beskrivning: p.borttagen
+          ? BORTTAGET.projekt
+          : p.funktionsområde
+            ? `Projekt i ${p.funktionsområde.namn}`
+            : "Projekt utan funktionsområde",
         borttagen: !!p.borttagen,
       };
     }

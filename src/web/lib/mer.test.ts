@@ -1,25 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { menyFokus, taBortSpärr } from "./mer.js";
-
-describe("taBortSpärr: why a Funktionsområde can't be taken away yet", () => {
-  it("allows Ta bort when every Projekt is Avslutat", () => {
-    expect(taBortSpärr([{ pågående: false }, { pågående: false }])).toBeNull();
-  });
-
-  it("allows Ta bort with no Projekt at all", () => {
-    expect(taBortSpärr([])).toBeNull();
-  });
-
-  it("explains the block and counts the Pågående Projekt", () => {
-    expect(taBortSpärr([{ pågående: true }, { pågående: false }, { pågående: true }])).toBe(
-      "Kan tas bort när alla Projekt är Avslutade (2 pågår)",
-    );
-  });
-
-  it("says the same for a single Pågående Projekt", () => {
-    expect(taBortSpärr([{ pågående: true }])).toBe("Kan tas bort när alla Projekt är Avslutade (1 pågår)");
-  });
-});
+import { menyFokus } from "./mer.js";
 
 describe("menyFokus: arrow keys in the Mer menu", () => {
   it("moves down and wraps to the first item", () => {

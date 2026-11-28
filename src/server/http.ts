@@ -2,7 +2,7 @@ import { readFile, stat } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { extname, join, normalize, sep } from "node:path";
-import { DomainError, type Apogee, type DatumInput, type Mål } from "../core/index.js";
+import { DomainError, type Apogee, type Mål, type Skrivkö } from "../core/index.js";
 import { attachLive } from "./live.js";
 import { medHuvud, sidaFrånPath, slåUpp } from "./sidor.js";
 
@@ -44,6 +44,11 @@ export type ServerOptions = {
    * Open Graph tags. Without it the request's Host (and X-Forwarded-Proto) is used.
    */
   publicUrl?: string;
+  /**
+   * The write queue, shared with the core's Notion sync (`skrivkö` in
+   * ApogeeDeps) so its writes run in turn with these. Default: a queue of its own.
+   */
+  skrivkö?: Skrivkö;
 };
 
 export type RunningServer = {
@@ -88,8 +93,19 @@ class HttpError extends Error {
 
 type Reply = { status: number; body?: unknown };
 
-export function createHandler({ apogee, webDir, publicUrl }: ServerOptions) {
-  const serialize = createWriteQueue();
+export function createHandler({ apogee, webDir, publicUrl, skrivkö }: ServerOptions) {
+  const serialize = skrivkö ?? createWriteQueue();
+
+  /** Hämta från Notion nu: a failed fetch is a 502 and changes nothing. */
+  async function synkaNu() {
+    try {
+      return await apogee.synkaFrånNotion();
+    } catch (error) {
+      if (error instanceof DomainError) throw error;
+      console.error(error);
+      throw new HttpError(502, "notion", "Kunde inte hämta från Notion");
+    }
+  }
 
   async function api(method: string, path: string, req: IncomingMessage): Promise<Reply> {
     const parts = path.split("/").filter(Boolean).map(decodeURIComponent); // ["api", ...]
@@ -98,28 +114,22 @@ export function createHandler({ apogee, webDir, publicUrl }: ServerOptions) {
 
     const vem = signaturFrån(req);
 
+    if (resource === "notion" && id === "synk" && sub === undefined) {
+      if (method === "GET") return { status: 200, body: apogee.synkStatus() };
+      // Not through `serialize`: the sync queues its own writes, and fetching
+      // from Notion must not hold up other writes.
+      if (method === "POST") return { status: 200, body: await synkaNu() };
+    }
+    if (ägsAvNotion(method, resource, id, sub, subId)) {
+      throw new HttpError(405, "notion", "Namn, Funktionsområde och datum ändras i Notion");
+    }
     if (id !== undefined && sub !== undefined && TIDSPLAN_DELAR.has(sub)) {
       if (resource === "projekt") return tidsplanDel(method, { projekt: id }, sub, subId, req, vem);
       if (resource === "funktionsomraden") return tidsplanDel(method, { funktionsområde: id }, sub, subId, req, vem);
     }
-    // Ta bort (POST) and Återställ (DELETE) a Projekt or Funktionsområde.
-    if (
-      (resource === "projekt" || resource === "funktionsomraden") &&
-      id !== undefined &&
-      sub === "borttagen" &&
-      subId === undefined &&
-      (method === "POST" || method === "DELETE")
-    ) {
-      await serialize(() =>
-        resource === "projekt"
-          ? method === "POST"
-            ? apogee.taBortProjekt(id, vem)
-            : apogee.återställProjekt(id, vem)
-          : method === "POST"
-            ? apogee.taBortFunktionsområde(id, vem)
-            : apogee.återställFunktionsområde(id, vem),
-      );
-      return { status: 204 };
+    // Borttagen follows Notion (#76): nothing is taken away or restored by hand.
+    if ((resource === "projekt" || resource === "funktionsomraden") && sub === "borttagen" && subId === undefined) {
+      throw new HttpError(405, "notion", "Tas bort och kommer tillbaka i Notion");
     }
     if (resource === "projekt" && id !== undefined && sub !== undefined) {
       return projektDel(method, id, sub, subId, req, vem);
@@ -150,41 +160,17 @@ export function createHandler({ apogee, webDir, publicUrl }: ServerOptions) {
     if (method === "GET" && resource === "oversikt" && id === undefined) {
       return { status: 200, body: await apogee.overview() };
     }
+    if (method === "GET" && resource === "utan-funktionsomrade" && id === undefined) {
+      return { status: 200, body: await apogee.utanFunktionsområde() };
+    }
     if (resource === "funktionsomraden") {
       if (method === "GET" && id !== undefined) {
         return { status: 200, body: await apogee.getFunktionsområde(id) };
-      }
-      if (method === "POST" && id === undefined) {
-        const body = await readJson(req);
-        const fo = await serialize(() => apogee.createFunktionsområde(text(body.namn), vem));
-        return { status: 201, body: fo };
-      }
-      if (method === "PATCH" && id !== undefined) {
-        const body = await readJson(req);
-        await serialize(() => apogee.renameFunktionsområde(id, text(body.namn), vem));
-        return { status: 204 };
       }
     }
     if (resource === "projekt") {
       if (method === "GET" && id !== undefined) {
         return { status: 200, body: await apogee.getProjekt(id) };
-      }
-      if (method === "POST" && id === undefined) {
-        const body = await readJson(req);
-        const p = await serialize(() =>
-          apogee.createProjekt(text(body.funktionsområdeId), text(body.namn), vem),
-        );
-        return { status: 201, body: p };
-      }
-      if (method === "PATCH" && id !== undefined) {
-        const body = await readJson(req);
-        await serialize(async () => {
-          if (body.namn !== undefined) await apogee.renameProjekt(id, text(body.namn), vem);
-          if (body.funktionsområdeId !== undefined) {
-            await apogee.moveProjekt(id, text(body.funktionsområdeId), vem);
-          }
-        });
-        return { status: 204 };
       }
     }
     throw notFound();
@@ -233,10 +219,8 @@ export function createHandler({ apogee, webDir, publicUrl }: ServerOptions) {
   }
 
   /**
-   * A Projekt's Hill chart (Ta bort/Återställ at /api/projekt/:id/borttagen is handled in `api`):
+   * A Projekt's Hill chart:
    *   GET    /api/projekt/:id/historik            its Uppdateringar, oldest first
-   *   POST   /api/projekt/:id/avslutat            mark Avslutat → 200 { uppdatering } (null if already)
-   *   DELETE /api/projekt/:id/avslutat            "Öppna igen" → 200 { uppdatering } (null if not marked)
    *   POST   /api/projekt/:id/scopes              { namn, ägare } → 201 { id, uppdatering }
    *   PATCH  /api/projekt/:id/scopes/:scopeId     exactly one of { läge } | { namn } | { ägare }
    *                                                → 200 { uppdatering } (null if nothing changed)
@@ -254,12 +238,6 @@ export function createHandler({ apogee, webDir, publicUrl }: ServerOptions) {
       return { status: 200, body: await apogee.historik(projektId) };
     }
     if (HISTORIK_DELAR.has(sub)) return historikDel(method, projektId, sub, scopeId, req, vem);
-    if (sub === "avslutat" && scopeId === undefined && (method === "POST" || method === "DELETE")) {
-      const uppdatering = await serialize(() =>
-        method === "POST" ? apogee.markAvslutat(projektId, vem) : apogee.reopenProjekt(projektId, vem),
-      );
-      return { status: 200, body: { uppdatering } };
-    }
     if (sub !== "scopes") throw notFound();
     if (scopeId === undefined && method === "POST") {
       const body = await readJson(req);
@@ -321,9 +299,8 @@ export function createHandler({ apogee, webDir, publicUrl }: ServerOptions) {
   }
 
   /**
-   * Dates and Milstolpar of a Projekt (Uppdateringar) or Funktionsområde
-   * (saved without Historik; `uppdatering` is always null):
-   *   PUT    /api/{projekt|funktionsomraden}/:id/datum                  DatumInput → 200 { uppdatering }
+   * Milstolpar of a Projekt (as Uppdateringar) or Funktionsområde (saved
+   * without Historik; `uppdatering: null`). Dates come from Notion:
    *   POST   /api/{projekt|funktionsomraden}/:id/milstolpar             { namn, datum } → 201 { id, uppdatering }
    *   PATCH  /api/{projekt|funktionsomraden}/:id/milstolpar/:mid        { namn?, datum? } → 200 { uppdatering }
    *   DELETE /api/{projekt|funktionsomraden}/:id/milstolpar/:mid        → 200 { uppdatering }
@@ -336,11 +313,6 @@ export function createHandler({ apogee, webDir, publicUrl }: ServerOptions) {
     req: IncomingMessage,
     vem: string | null,
   ): Promise<Reply> {
-    if (sub === "datum" && subId === undefined && method === "PUT") {
-      const input = datumInput(await readJson(req));
-      const uppdatering = await serialize(() => apogee.setDatum(mål, input, vem));
-      return { status: 200, body: { uppdatering } };
-    }
     if (sub !== "milstolpar") throw notFound();
     if (subId === undefined && method === "POST") {
       const body = await readJson(req);
@@ -465,15 +437,24 @@ const DOMAIN_STATUS: Record<DomainError["code"], number> = {
   krock: 409,
 };
 
-/** Sub-resources of a Projekt served by `historikDel`. */
-const TIDSPLAN_DELAR = new Set(["datum", "milstolpar"]);
+/** Sub-resources of a Projekt or Funktionsområde served by `tidsplanDel`. */
+const TIDSPLAN_DELAR = new Set(["milstolpar"]);
 
-/** `{ startdatum, slutdatum }` (each a date or null), `{ startdatum, veckor }` or `{ startdatum, behållAppetit: true }`. */
-function datumInput(body: Record<string, unknown>): DatumInput {
-  if (body.veckor !== undefined) return { startdatum: text(body.startdatum), veckor: number(body.veckor) };
-  if (body.behållAppetit === true) return { startdatum: text(body.startdatum), behållAppetit: true };
-  const datumEllerNull = (v: unknown) => (v === null ? null : text(v));
-  return { startdatum: datumEllerNull(body.startdatum), slutdatum: datumEllerNull(body.slutdatum) };
+/**
+ * Writes to what Notion owns (ADR 0003), always rejected: creating, renaming
+ * and moving Funktionsområden and Projekt, and setting their dates.
+ */
+function ägsAvNotion(
+  method: string,
+  resource: string | undefined,
+  id: string | undefined,
+  sub: string | undefined,
+  subId: string | undefined,
+): boolean {
+  if (resource !== "projekt" && resource !== "funktionsomraden") return false;
+  if (subId !== undefined) return false;
+  if (sub === undefined) return (method === "POST" && id === undefined) || (method === "PATCH" && id !== undefined);
+  return sub === "datum" && id !== undefined && method === "PUT";
 }
 
 const HISTORIK_DELAR = new Set(["historik", "historikvy", "aterstallning", "angra"]);
@@ -534,7 +515,7 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> 
  * Runs write commands one at a time, in arrival order (ADR 0001: one process
  * serializes all writes). A failed command does not block the ones after it.
  */
-function createWriteQueue() {
+export function createWriteQueue(): Skrivkö {
   let tail: Promise<unknown> = Promise.resolve();
   return function serialize<T>(command: () => Promise<T>): Promise<T> {
     const run = tail.then(command, command);

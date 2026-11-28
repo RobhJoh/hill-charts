@@ -21,7 +21,7 @@ Unlike a percentage or a task count, the position shows *uncertainty*. Something
 
 ## Running it
 
-Needs Node 20.19 or newer. Everything runs as one Node process with no external services; data is stored as JSON files.
+Needs Node 20.19 or newer. Everything runs as one Node process; data is stored as JSON files. The only external service is Notion, which owns the Funktionsområden and Projekt ([ADR 0003](docs/adr/0003-notion-owns-structure.md), [Notion sync](docs/notion-sync.md)); without Notion settings the app reads `dev/notion.json`, a local file shaped like the Notion databases, instead.
 
 ```sh
 npm install
@@ -34,12 +34,15 @@ npm start          # the built app: http://127.0.0.1:3000
 
 Settings for `npm start` (and the API server in `npm run dev`): `PORT` (default 3000; dev uses `API_PORT`, default 3001), `HOST` (default `127.0.0.1`), `APOGEE_DATA_DIR` (default `./data`).
 
+Notion: `NOTION_TOKEN` (the integration's secret token), `NOTION_PROJEKT_DATA_SOURCE_ID` and `NOTION_FUNKTIONSOMRADEN_DATA_SOURCE_ID`. Set all three or none; with only some set, the server refuses to start. With none, `APOGEE_NOTION_FILE` names the local stand-in file (default `dev/notion.json`).
+
 ### Layout
 
 See [ADR 0001](docs/adr/0001-json-files-behind-a-storage-interface.md) for why.
 
 - `src/core`: the domain. Plain TypeScript, web standards only; clock and ids are injected. `createApogee({ storage, now, newId })` returns its commands and queries. It reaches storage only through the `Storage` interface in `src/core/storage.ts`.
 - `src/storage`: `Storage` adapters: in-memory (tests, dev) and JSON files (crash-safe writes, format version upgraded on read). `storage.contract.ts` is the suite every adapter passes.
+- `src/notion`: `NotionKälla` adapters: Notion's data-source query API, a local JSON file shaped like the databases (`dev/notion.json`), and in-memory (tests).
 - `src/server`: the Node process: JSON API under `/api`, the SPA for every other path, writes serialized, required headers on every response ([ADR 0002](docs/adr/0002-public-root-no-secret-prefix.md)).
 - `src/web`: the Svelte 5 + Vite SPA with a small client router. Swedish UI, Stjärnatlas theme.
 

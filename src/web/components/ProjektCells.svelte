@@ -4,7 +4,7 @@
   // list with a light-blue ✦ and the day they were Avslutade, without a mini
   // chart (Q4 c, Q11 a).
   import type { ProjektRad } from "../../core/index.js";
-  import { STATUS_ORD } from "../lib/avslutat.js";
+  import { STATUS_ORD } from "../lib/status.js";
   import NotionStatus from "./NotionStatus.svelte";
   import { tema } from "../lib/tema.svelte.js";
   import { projektHref } from "../lib/links.js";

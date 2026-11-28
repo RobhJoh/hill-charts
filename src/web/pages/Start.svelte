@@ -10,7 +10,7 @@
   import StillaAntal from "../components/StillaAntal.svelte";
   import NotionStatus from "../components/NotionStatus.svelte";
   import { samladStatus } from "../lib/stilla.js";
-  import { STATUS_ORD } from "../lib/avslutat.js";
+  import { STATUS_ORD } from "../lib/status.js";
   import { visaTid } from "../lib/historik.js";
 
   let översikt = $state<Översikt | undefined>();

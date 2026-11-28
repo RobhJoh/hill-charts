@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { statusText } from "./avslutat.js";
+import { statusText } from "./status.js";
 
 describe("statusText: the Projekt page's status line", () => {
   it("names Inte påbörjat and Pågående", () => {

@@ -10,7 +10,7 @@
   import Borttaget from "../components/Borttaget.svelte";
   import KopieraLank from "../components/KopieraLank.svelte";
   import Mer, { type MerPost } from "../components/Mer.svelte";
-  import { STATUS_ORD } from "../lib/avslutat.js";
+  import { STATUS_ORD } from "../lib/status.js";
   import { api, ApiError } from "../lib/api.js";
   import { signatur } from "../lib/signatur.svelte.js";
   import { funktionsområdeHref } from "../lib/links.js";

@@ -27,7 +27,7 @@
   import StillaAntal from "../components/StillaAntal.svelte";
   import { grannar as ordnaGrannar } from "../lib/grannar.js";
   import Saknas from "./Saknas.svelte";
-  import { statusText } from "../lib/avslutat.js";
+  import { statusText } from "../lib/status.js";
   import NotionStatus from "../components/NotionStatus.svelte";
 
   let { id }: { id: string } = $props();

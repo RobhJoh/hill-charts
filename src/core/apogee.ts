@@ -9,7 +9,7 @@ import { projektfält } from "./apogee/projektfalt.js";
 import { scopes } from "./apogee/scopes.js";
 import { struktur } from "./apogee/struktur.js";
 
-export type { ApogeeDeps } from "./apogee/karna.js";
+export type { ApogeeDeps, Skrivkö } from "./apogee/karna.js";
 export type { SynkStatus } from "./apogee/notion.js";
 export type { Mål } from "./apogee/projektfalt.js";
 export type {

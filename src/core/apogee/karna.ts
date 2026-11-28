@@ -8,6 +8,9 @@ import type { Funktionsområde, FunktionsområdeId, Person, PersonId, Projekt, P
 import { requireSignatur } from "./regler.js";
 import { diagramVy, projektTidVy, type DiagramVy, type TidVy } from "./vyer.js";
 
+/** Runs a write step in turn with every other write (ADR 0001: one process serializes writes). */
+export type Skrivkö = <T>(steg: () => Promise<T>) => Promise<T>;
+
 export type ApogeeDeps = {
   storage: Storage;
   /** The clock; injected so tests are deterministic. */
@@ -20,7 +23,7 @@ export type ApogeeDeps = {
    * Runs the sync's writes in turn with every other write (ADR 0001). The
    * server passes its write queue; without it the writes run at once.
    */
-  skrivkö?: <T>(steg: () => Promise<T>) => Promise<T>;
+  skrivkö?: Skrivkö;
 };
 
 export type Kärna = ReturnType<typeof skapaKärna>;

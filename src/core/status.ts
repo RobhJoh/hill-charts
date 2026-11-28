@@ -5,7 +5,7 @@ import type { ProjektFält, Uppdatering } from "./types.js";
 /** Projekt-level fields before any Uppdatering. */
 export const PROJEKT_START: ProjektFält = { milstolpar: [] };
 
-/** Equality of two Projekt-level field values (deep, for Milstolpar). */
+/** Deep equality of two plain JSON values: Projekt-level fields (Milstolpar) and stored records. */
 export const fältLika = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 /** The current Projekt-level fields: the fold of the Historik's `projekt` changes. */

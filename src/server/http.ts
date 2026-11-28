@@ -2,7 +2,7 @@ import { readFile, stat } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { extname, join, normalize, sep } from "node:path";
-import { DomainError, type Apogee, type Mål } from "../core/index.js";
+import { DomainError, type Apogee, type Mål, type Skrivkö } from "../core/index.js";
 import { attachLive } from "./live.js";
 import { medHuvud, sidaFrånPath, slåUpp } from "./sidor.js";
 
@@ -48,7 +48,7 @@ export type ServerOptions = {
    * The write queue, shared with the core's Notion sync (`skrivkö` in
    * ApogeeDeps) so its writes run in turn with these. Default: a queue of its own.
    */
-  skrivkö?: WriteQueue;
+  skrivkö?: Skrivkö;
 };
 
 export type RunningServer = {
@@ -511,13 +511,11 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> 
   return parsed as Record<string, unknown>;
 }
 
-export type WriteQueue = <T>(command: () => Promise<T>) => Promise<T>;
-
 /**
  * Runs write commands one at a time, in arrival order (ADR 0001: one process
  * serializes all writes). A failed command does not block the ones after it.
  */
-export function createWriteQueue(): WriteQueue {
+export function createWriteQueue(): Skrivkö {
   let tail: Promise<unknown> = Promise.resolve();
   return function serialize<T>(command: () => Promise<T>): Promise<T> {
     const run = tail.then(command, command);

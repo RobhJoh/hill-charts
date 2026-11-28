@@ -11,7 +11,7 @@
   import { beskrivRad, skillnaderMotNu, UTAN_NAMN, visaTid } from "../lib/historik.js";
   import { visaDatum } from "../lib/datum.js";
   import AndraINotion from "../components/AndraINotion.svelte";
-  import { föreslagenÄgare } from "../lib/agare.js";
+  import { föreslagenÄgare, personNamn } from "../lib/agare.js";
   import ScopeIndex from "../components/ScopeIndex.svelte";
   import Borttaget from "../components/Borttaget.svelte";
   import KopieraLank from "../components/KopieraLank.svelte";
@@ -257,7 +257,7 @@
                 : "Milstolpar"}
           </button>
           {#if projekt.projektledare}
-            <span class="ledare">Projektledare {projekt.projektledare.namn}{projekt.projektledare.aktiv ? "" : " (inaktiv)"}</span>
+            <span class="ledare">Projektledare {personNamn(projekt.projektledare)}</span>
           {/if}
           <!-- Namn, Funktionsområde, dates and Projektledare come from Notion (ADR 0003). -->
           <AndraINotion url={projekt.notionUrl} />

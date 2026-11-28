@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { personNamn } from "../lib/agare.js";
   import { felText } from "../lib/fel.js";
   import type { FunktionsområdeVy } from "../../core/index.js";
   import AndraINotion from "../components/AndraINotion.svelte";
@@ -94,7 +95,7 @@
             <AndraINotion url={fo.notionUrl} />
           </div>
           <div class="meta">
-            {STATUS_ORD[fo.status]}<NotionStatus status={fo.notionStatus} före=" · " /> · {fo.projekt.length} Projekt{#if fo.funktionsansvarig}{" · "}Funktionsansvarig {fo.funktionsansvarig.namn}{fo.funktionsansvarig.aktiv ? "" : " (inaktiv)"}{/if}{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}
+            {STATUS_ORD[fo.status]}<NotionStatus status={fo.notionStatus} före=" · " /> · {fo.projekt.length} Projekt{#if fo.funktionsansvarig}{" · "}Funktionsansvarig {personNamn(fo.funktionsansvarig)}{/if}{#if fo.stilla > 0}{" · "}<StillaAntal antal={fo.stilla} />{/if}
           </div>
           <div class="tid">
             <Nedrakning nedräkning={fo.nedräkning} nästaMilstolpe={fo.nästaMilstolpe} />

@@ -5,6 +5,10 @@ import type { PersonVy } from "../../core/index.js";
  * The Projektledare's id when they can own Scopes (aktiv); otherwise "" so
  * that no one is chosen and the Ägare is a deliberate choice.
  */
+/** A Person's name as shown beside a Projekt, Funktionsområde or Scope: "Bo (inaktiv)" when inaktiv. */
+export const personNamn = ({ namn, aktiv }: { namn: string; aktiv: boolean }): string =>
+  aktiv ? namn : `${namn} (inaktiv)`;
+
 export function föreslagenÄgare({ projektledare }: { projektledare: PersonVy | null }): string {
   return projektledare?.aktiv ? projektledare.id : "";
 }

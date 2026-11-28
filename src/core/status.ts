@@ -5,32 +5,6 @@ import type { ProjektFält, Uppdatering } from "./types.js";
 /** Projekt-level fields before any Uppdatering. */
 export const PROJEKT_START: ProjektFält = { milstolpar: [] };
 
-/**
- * Projekt-level fields an older Historik may hold and Apogee no longer keeps:
- * the dates, now kept on the Projekt (#73), and the Avslutat mark, now that
- * status follows Läge alone (#72).
- */
-const GAMLA_FÄLT = new Set(["startdatum", "slutdatum", "avslutat"]);
-
-const rensa = (fält: object): Partial<ProjektFält> =>
-  Object.fromEntries(Object.entries(fält).filter(([f]) => !GAMLA_FÄLT.has(f)));
-
-/**
- * A Historik as the core reads it: changes to fields Apogee no longer keeps
- * (old dates, old Avslutat marks) are dropped, and an Uppdatering left with
- * no change at all (such as a Markera Avslutat) is dropped with them.
- * Milstolpar and everything else are kept.
- */
-export function utanGamlaFält(logg: readonly Uppdatering[]): Uppdatering[] {
-  return logg.flatMap((u) => {
-    if (!u.projekt) return [u];
-    const { projekt, ...resten } = u;
-    const efter = rensa(projekt.efter);
-    if (Object.keys(efter).length > 0) return [{ ...resten, projekt: { före: rensa(projekt.före), efter } }];
-    return u.ändringar.length > 0 ? [resten] : [];
-  });
-}
-
 /** Equality of two Projekt-level field values (deep, for Milstolpar). */
 export const fältLika = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 

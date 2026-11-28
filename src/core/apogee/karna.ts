@@ -5,7 +5,6 @@ import { DomainError } from "../errors.js";
 import type { NotionKälla } from "../notion.js";
 import type { Storage } from "../storage.js";
 import type { Funktionsområde, FunktionsområdeId, Person, PersonId, Projekt, ProjektId, Uppdatering, UppdateringId } from "../types.js";
-import { utanGamlaFält } from "../status.js";
 import { requireSignatur } from "./regler.js";
 import { diagramVy, projektTidVy, type DiagramVy, type TidVy } from "./vyer.js";
 
@@ -27,14 +26,10 @@ export type ApogeeDeps = {
 export type Kärna = ReturnType<typeof skapaKärna>;
 
 /**
- * `lagring` must already announce Uppdateringar (see live.ts). Every Historik
- * is read without the fields an older Historik held (`utanGamlaFält`).
+ * `storage` must already announce Uppdateringar (see live.ts). Older data is
+ * upgraded by the storage adapter on read (ADR 0001), never here.
  */
-export function skapaKärna({ storage: lagring, now, newId }: Pick<ApogeeDeps, "storage" | "now" | "newId">) {
-  const storage: Storage = {
-    ...lagring,
-    readHistorik: async (projektId) => utanGamlaFält(await lagring.readHistorik(projektId)),
-  };
+export function skapaKärna({ storage, now, newId }: Pick<ApogeeDeps, "storage" | "now" | "newId">) {
   return {
     storage,
     now,

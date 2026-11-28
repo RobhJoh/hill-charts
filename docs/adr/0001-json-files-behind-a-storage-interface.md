@@ -12,5 +12,5 @@ The organization has not yet approved any hosting, and v1 must be developed full
 
 - Writes are serialized by running exactly one server process; scaling out needs a different adapter.
 - The adapter must make writes crash-safe itself (write to a temp file, then rename; skip a half-written last log line).
-- Each document carries a format version and is upgraded on read, since there are no migrations.
+- Each document carries a format version and is upgraded on read by the adapter, since there are no migrations. The append-only Historik log has no envelope, so an older Uppdatering is recognised and upgraded by its shape. The core only ever sees the current format.
 - Queries across Projekt are done in memory, which is fine at this size and the reason to add a database adapter if that changes.

@@ -1,4 +1,5 @@
 // Domain records as the core stores them. Terms follow GLOSSARY.md.
+import type { NotionId } from "./notion.js";
 
 export type FunktionsområdeId = string;
 export type ProjektId = string;
@@ -34,7 +35,7 @@ export type Funktionsområde = {
   tidsplan?: Tidsplan;
   borttagen?: Borttagen;
   /** Its page in Notion, which owns its namn and dates (ADR 0003). */
-  notionId?: string;
+  notionId?: NotionId;
   notionUrl?: string;
   /** Notion-status: `Status` exactly as in Notion; drives nothing in Apogee. Missing = none. */
   notionStatus?: string | null;
@@ -53,7 +54,7 @@ export type Projekt = {
   /** Its Slutdatum, saved on it without Historik. Missing = none. */
   slutdatum?: Datum | null;
   /** Its page in Notion, which owns its namn, Funktionsområde and dates (ADR 0003). */
-  notionId?: string;
+  notionId?: NotionId;
   notionUrl?: string;
   /** Notion-status: `Status` exactly as in Notion; drives nothing in Apogee. Missing = none. */
   notionStatus?: string | null;
@@ -70,7 +71,7 @@ export type Person = {
   aktiv: boolean;
   skapad: string; // ISO timestamp
   /** The Notion person it is linked to; once set, the link holds whatever either side is named. */
-  notionId?: string;
+  notionId?: NotionId;
 };
 
 /** What happened to a Person, as recorded in the Personer-historik. */

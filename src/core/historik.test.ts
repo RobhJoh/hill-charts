@@ -4,14 +4,24 @@ import { createMemoryStorage } from "../storage/memory.js";
 import { createMemoryNotion } from "../notion/minne.js";
 import { notionStruktur } from "./test-struktur.js";
 import type { Uppdatering } from "./types.js";
+import type { Storage } from "./storage.js";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createJsonFileStorage } from "../storage/json-file.js";
+
+/**
+ * Old Historik exists only on disk: the JSON-file adapter upgrades it on read
+ * (ADR 0001), so tests with old data go through that adapter.
+ */
+const medGammalData = async () => setup(createJsonFileStorage(await mkdtemp(join(tmpdir(), "apogee-test-"))));
 
 /**
  * The prototype/historik start state: Anna, Erik and Klottraren; a Projekt
  * with s1 Prislista 72/Anna, s2 Kassaflöde 38/Erik, s3 Kvittomejl 12/Anna,
  * s4 Rabattkoder 55/Erik (each added then moved by Anna), then +1 day.
  */
-async function setup() {
-  const storage = createMemoryStorage();
+async function setup(storage: Storage = createMemoryStorage()) {
   let n = 0;
   let klocka = new Date("2026-11-24T10:00:00Z");
   const källa = createMemoryNotion();
@@ -258,7 +268,7 @@ describe("Projekt-level Uppdateringar", () => {
 describe("a Historik from before status followed Läge alone", () => {
   /** Markera Avslutat and Öppna igen as the old format wrote them, with a Milstolpe in between. */
   async function medGamlaMarkeringar() {
-    const f = await setup();
+    const f = await medGammalData();
     const markering = (id: string, avslutat: boolean, tid: string) => ({
       id,
       typ: avslutat ? "avslutat" : "öppna igen",
@@ -356,7 +366,7 @@ describe("Visa with Milstolpar", () => {
 describe("a Historik from before dates moved onto the Projekt", () => {
   /** Uppdateringar as the old format wrote them: dates were Projekt-level fields. */
   async function medGamlaDatum() {
-    const f = await setup();
+    const f = await medGammalData();
     const { storage, projekt, s2 } = f;
     const sista = (await f.apogee.historik(projekt)).at(-1)!;
     const gamla = [

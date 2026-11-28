@@ -7,7 +7,7 @@ export type { Diagram, Grupp, Krock, ÅngraResultat } from "./diagram.js";
 export { historikRader } from "./historik.js";
 export type { HistorikRad } from "./historik.js";
 export type { BorttagenVy, BorttagetProjekt, PersonRad, PersonRäkning, StjärnkartaProjekt, StjärnkartaVy } from "./apogee.js";
-export type { Apogee, ApogeeDeps, Mål, TidVy, DiagramVy, Översikt, UtanFunktionsområdeVy, FunktionsområdeVy, ProjektRad, ProjektVy, PersonVy, ScopeVy } from "./apogee.js";
+export type { Apogee, ApogeeDeps, Skrivkö, Mål, TidVy, DiagramVy, Översikt, UtanFunktionsområdeVy, FunktionsområdeVy, ProjektRad, ProjektVy, PersonVy, ScopeVy } from "./apogee.js";
 export type { Förhandsvisning, SynkStatus } from "./apogee.js";
 export { datumFrånNotion } from "./notion.js";
 export type { NotionDatum, NotionFunktionsområde, NotionId, NotionKälla, NotionPerson, NotionProjekt, NotionSnapshot } from "./notion.js";

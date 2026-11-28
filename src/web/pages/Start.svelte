@@ -10,7 +10,7 @@
   import StillaAntal from "../components/StillaAntal.svelte";
   import NotionStatus from "../components/NotionStatus.svelte";
   import { samladStatus } from "../lib/stilla.js";
-  import { STATUS_ORD } from "../lib/avslutat.js";
+  import { STATUS_ORD } from "../lib/status.js";
   import { visaTid } from "../lib/historik.js";
 
   let översikt = $state<Översikt | undefined>();
@@ -36,7 +36,7 @@
   load();
 
   /** "5 pågående · 3 stilla · 1 över tid", naming the Projekt that need attention. */
-  const status = $derived(översikt ? samladStatus(översikt) : undefined);
+  const status = $derived(översikt ? samladStatus(översikt, utan) : undefined);
 
   /** Each Borttaget Funktionsområde with every Projekt Radera would erase with it. */
   const borttagnaRader = $derived(
@@ -49,6 +49,11 @@
 
   async function radera(id: string, namn: string) {
     await signatur.signera((vem) => api.raderaFunktionsområde(id, namn, vem));
+    await load();
+  }
+
+  async function raderaProjekt(id: string, namn: string) {
+    await signatur.signera((vem) => api.raderaProjekt(id, namn, vem));
     await load();
   }
 
@@ -132,7 +137,8 @@
           <span class="utan">Utan funktionsområde</span>
           <span>{utan.projekt.length} Projekt</span>
         </h2>
-        <ProjektCells projekt={utan.projekt} />
+        {#if utan.projekt.length > 0}<ProjektCells projekt={utan.projekt} />{/if}
+        <Borttagna rubrik="Borttagna Projekt utan funktionsområde" rader={utan.borttagnaProjekt} onradera={raderaProjekt} />
       </section>
     {/if}
   {/if}

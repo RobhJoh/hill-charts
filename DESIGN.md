@@ -310,7 +310,7 @@ Kullen är en cosinusbana från Läge 0 till 100 med krönet vid 50. Stjärnorna
 - **Vald (Q15 a):** Heldragen 2 px ring i accent (i dag 1,2 px), och **✦ före namnet** i etiketten och i listan, i `--redtx`, 600: "✦ Sessionshantering".
 - **Stilla:** Streckad ring i accent (`stroke-dasharray: 3 3`, 1,6 px) ovanpå en mörk halo (5 px `--halo`), plus ledarlinje och texten "Ingen rörelse på 26 dagar" i `--redtx` i stora diagrammet. I listor och embed: "26 d" i `--redtx`.
 - **Markerad (Historik, Visa):** Streckad ring i `--tx`, 1,2 px, `3 4`.
-- **Dimmad:** Opacitet 0,45; används för stjärnor i ett Avslutat Projekt (skrivskyddat tills Öppna igen, Q8 b).
+- **Dimmad:** Opacitet 0,45; används för stjärnorna i Avslutade Projekt på Stjärnkartan. Ett Avslutat Projekt är inte skrivskyddat: dess status följer Läge, så den som flyttar en Scope från 100 öppnar det igen.
 - **Etiketter:** Placeras utan krock, staplas med ledarlinjer (0,8 px) och hålls inom rutan; vid Läge nära 0 och 100 förankras de inåt.
 - **Ögonblick:** Släpp som korsar 50 eller landar på 100 får en kort glimt (300–400 ms). Inget under `prefers-reduced-motion`.
 

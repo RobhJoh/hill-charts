@@ -56,16 +56,25 @@ describe("a Projekt without a Funktionsområde", () => {
   it("the group has no dates, status or Över tid of its own", async () => {
     const { apogee, utan } = await setup();
     await utan("p1", "Sökindex");
-    expect(Object.keys((await apogee.utanFunktionsområde())!)).toEqual(["projekt"]);
+    expect(Object.keys((await apogee.utanFunktionsområde())!).sort()).toEqual(["borttagnaProjekt", "projekt"]);
   });
 
   it("there is no Utan funktionsområde group when every Projekt has a Funktionsområde", async () => {
-    const { apogee, notion, anna, utan } = await setup();
+    const { apogee, notion } = await setup();
     expect(await apogee.utanFunktionsområde()).toBeNull();
     await notion.projekt("Kassan", "Ekonomi");
     expect(await apogee.utanFunktionsområde()).toBeNull();
-    await notion.projekt("Sökindex");
+  });
+
+  it("lists its Borttagna Projekt apart, so they can be Raderade", async () => {
+    const { apogee, notion, anna } = await setup();
+    const id = await notion.projekt("Sökindex");
     await notion.avbocka("Sökindex");
+
+    const grupp = await apogee.utanFunktionsområde();
+    expect(grupp?.projekt).toEqual([]);
+    expect(grupp?.borttagnaProjekt).toEqual([{ id, namn: "Sökindex", borttagen: { tid: expect.any(String) } }]);
+    await apogee.raderaProjekt(id, "Sökindex", anna);
     expect(await apogee.utanFunktionsområde()).toBeNull();
   });
 

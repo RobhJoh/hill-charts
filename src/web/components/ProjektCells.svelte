@@ -1,8 +1,11 @@
 <script lang="ts">
-  // Pågående Projekt as mini sky charts: name, Scope count and a red Stilla
-  // count. Avslutade Projekt follow in a compact list with a light-blue ✦ and
-  // the day they were Avslutade, without a mini chart (Q4 c, Q11 a).
+  // Pågående Projekt as mini sky charts: name, status beside its Notion-status,
+  // Scope count and a red Stilla count. Avslutade Projekt follow in a compact
+  // list with a light-blue ✦ and the day they were Avslutade, without a mini
+  // chart (Q4 c, Q11 a).
   import type { ProjektRad } from "../../core/index.js";
+  import { STATUS_ORD } from "../lib/status.js";
+  import NotionStatus from "./NotionStatus.svelte";
   import { tema } from "../lib/tema.svelte.js";
   import { projektHref } from "../lib/links.js";
   import { avslutatRad, delaProjekt } from "../lib/avslutade.js";
@@ -29,6 +32,7 @@
       <a class="cell" href={projektHref(p)}>
         <MiniHill scopes={p.scopes} tema={tema.nu} width={stor ? 270 : 180} height={stor ? 75 : 50} />
         <b>{p.namn}</b>
+        <span class="meta">{STATUS_ORD[p.status]}<NotionStatus status={p.notionStatus} före=" · " /></span>
         <span class="meta">
           {antal(p.scopes.length, "Scope", "Scopes")}{#if p.stilla > 0}{" · "}<StillaAntal antal={p.stilla} />{/if}
         </span>
@@ -46,7 +50,7 @@
           <a href={projektHref(p)}>
             <span class="klar" aria-hidden="true">✦</span>
             <b>{p.namn}</b>
-            <span class="datum">{avslutatRad(p.avslutad)}</span>
+            <span class="datum">{avslutatRad(p.avslutad)}<NotionStatus status={p.notionStatus} före=" · " /></span>
           </a>
         </li>
       {/each}

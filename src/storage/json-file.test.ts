@@ -105,6 +105,63 @@ describe("JSON files: format versions", () => {
     expect(await storage.getProjekt("p1")).toEqual(projekt);
   });
 
+  it("upgrades a version 1 Borttagen to when it was taken away, dropping who and medFunktionsområde", async () => {
+    const dir = await tempDir();
+    await mkdir(join(dir, "projekt"));
+    const gammal = { vem: "person1", tid: "2026-11-20T10:00:00.000Z" };
+    await writeFile(
+      join(dir, "funktionsomraden.json"),
+      JSON.stringify({ formatVersion: 1, funktionsområden: [{ ...fo, borttagen: gammal }] }),
+    );
+    await writeFile(
+      join(dir, "projekt", "p1.json"),
+      JSON.stringify({ formatVersion: 1, projekt: { ...projekt, borttagen: { ...gammal, medFunktionsområde: true } } }),
+    );
+
+    const storage = createJsonFileStorage(dir);
+    expect(await storage.listFunktionsområden()).toEqual([{ ...fo, borttagen: { tid: gammal.tid } }]);
+    expect(await storage.getProjekt("p1")).toEqual({ ...projekt, borttagen: { tid: gammal.tid } });
+  });
+
+  it("reads an older Historik without the dates and Avslutat marks Apogee no longer keeps", async () => {
+    const dir = await tempDir();
+    await mkdir(join(dir, "projekt"));
+    const gamla = [
+      // A Markera Avslutat: nothing is left of it.
+      { ...uppdatering("markerad"), typ: "avslutat", projekt: { före: { avslutat: false }, efter: { avslutat: true } } },
+      // Old dates beside a Milstolpe: the Milstolpe stays.
+      {
+        ...uppdatering("blandad"),
+        typ: "milstolpe",
+        projekt: {
+          före: { slutdatum: null, avslutat: false, milstolpar: [] },
+          efter: { slutdatum: "2026-12-14", avslutat: false, milstolpar: [{ id: "m1", namn: "Demo" }] },
+        },
+      },
+      // Only old dates, but Scope changes too: the Uppdatering stays without `projekt`.
+      {
+        ...uppdatering("återställd"),
+        typ: "återställning",
+        ändringar: [{ scopeId: "s1", före: null, efter: { namn: "A", läge: 10, ägare: "person1" } }],
+        projekt: { före: { slutdatum: null }, efter: { slutdatum: "2026-12-21" } },
+      },
+    ];
+    await writeFile(join(dir, "projekt", "p1.historik.jsonl"), gamla.map((u) => JSON.stringify(u) + "\n").join(""));
+
+    expect(await createJsonFileStorage(dir).readHistorik("p1")).toEqual([
+      {
+        ...uppdatering("blandad"),
+        typ: "milstolpe",
+        projekt: { före: { milstolpar: [] }, efter: { milstolpar: [{ id: "m1", namn: "Demo" }] } },
+      },
+      {
+        ...uppdatering("återställd"),
+        typ: "återställning",
+        ändringar: [{ scopeId: "s1", före: null, efter: { namn: "A", läge: 10, ägare: "person1" } }],
+      },
+    ]);
+  });
+
   it("an upgraded document saved again reads back the same after a restart", async () => {
     const dir = await tempDir();
     await mkdir(join(dir, "projekt"));

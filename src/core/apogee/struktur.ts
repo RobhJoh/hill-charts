@@ -12,12 +12,21 @@ import {
   efterNamn,
   tidVy,
   ägareVy,
+  type BorttagetProjekt,
   type FunktionsområdeVy,
   type ProjektRad,
   type ProjektVy,
   type UtanFunktionsområdeVy,
   type Översikt,
 } from "./vyer.js";
+
+/** The Borttagna among `projekt`, as "Borttagna Projekt" rows, newest first. */
+function borttagnaRader(projekt: Projekt[]): BorttagetProjekt[] {
+  return projekt
+    .filter((p) => p.borttagen)
+    .map((p) => ({ id: p.id, namn: p.namn, borttagen: borttagenVy(p.borttagen!) }))
+    .sort((a, b) => b.borttagen.tid.localeCompare(a.borttagen.tid) || efterNamn(a, b));
+}
 
 export function struktur(k: Kärna) {
   const { storage, now, signatur, requireFunktionsområde, requireProjekt } = k;
@@ -49,10 +58,7 @@ export function struktur(k: Kärna) {
         .sort(efterNamn)
         .map((p) => projektRad(p, personer)),
     );
-    const borttagnaProjekt = egna
-      .filter((p) => p.borttagen)
-      .map((p) => ({ id: p.id, namn: p.namn, borttagen: borttagenVy(p.borttagen!) }))
-      .sort((a, b) => b.borttagen.tid.localeCompare(a.borttagen.tid) || efterNamn(a, b));
+    const borttagnaProjekt = borttagnaRader(egna);
     // Över tid while any Projekt is not Avslutat; "Avslutat" only once the
     // Slutdatum has passed with every Projekt Avslutat.
     const tidsplan = fo.tidsplan ?? TOM_TIDSPLAN;
@@ -117,13 +123,18 @@ export function struktur(k: Kärna) {
 
     /**
      * The Utan funktionsområde group on the start page, after the
-     * Funktionsområden; null when no shown Projekt lacks a Funktionsområde.
+     * Funktionsområden, with its Borttagna Projekt apart; null when no
+     * Projekt at all lacks a Funktionsområde.
      */
     async utanFunktionsområde(): Promise<UtanFunktionsområdeVy | null> {
       const [allProjekt, personer] = await Promise.all([storage.listProjekt(), storage.listPersoner()]);
-      const utan = allProjekt.filter((p) => p.funktionsområdeId === undefined && !p.borttagen).sort(efterNamn);
+      const utan = allProjekt.filter((p) => p.funktionsområdeId === undefined);
       if (utan.length === 0) return null;
-      return { projekt: await Promise.all(utan.map((p) => projektRad(p, personer))) };
+      const synliga = utan.filter((p) => !p.borttagen).sort(efterNamn);
+      return {
+        projekt: await Promise.all(synliga.map((p) => projektRad(p, personer))),
+        borttagnaProjekt: borttagnaRader(utan),
+      };
     },
 
     /** "Borttagna Funktionsområden", newest first, each with its (Borttagna) Projekt. */

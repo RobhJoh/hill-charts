@@ -14,6 +14,8 @@
     onradera: (id: string, namn: string) => Promise<void>;
   };
   let { rubrik, rader, onradera }: Props = $props();
+  // The start page can show two of these lists; each needs its own heading id.
+  const uid = $props.id();
 
   let raderar = $state<string | null>(null);
   let bekräftelse = $state("");
@@ -48,8 +50,8 @@
 </script>
 
 {#if rader.length > 0}
-  <section aria-labelledby="borttagna-rubrik">
-    <h2 id="borttagna-rubrik">{rubrik}</h2>
+  <section aria-labelledby="{uid}-rubrik">
+    <h2 id="{uid}-rubrik">{rubrik}</h2>
     <ul>
       {#each rader as rad (rad.id)}
         <li>

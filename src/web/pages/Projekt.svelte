@@ -11,7 +11,7 @@
   import { beskrivRad, skillnaderMotNu, UTAN_NAMN, visaTid } from "../lib/historik.js";
   import { visaDatum } from "../lib/datum.js";
   import AndraINotion from "../components/AndraINotion.svelte";
-  import { föreslagenÄgare } from "../lib/agare.js";
+  import { föreslagenÄgare, personNamn } from "../lib/agare.js";
   import ScopeIndex from "../components/ScopeIndex.svelte";
   import Borttaget from "../components/Borttaget.svelte";
   import KopieraLank from "../components/KopieraLank.svelte";
@@ -27,7 +27,7 @@
   import StillaAntal from "../components/StillaAntal.svelte";
   import { grannar as ordnaGrannar } from "../lib/grannar.js";
   import Saknas from "./Saknas.svelte";
-  import { statusText } from "../lib/avslutat.js";
+  import { statusText } from "../lib/status.js";
   import NotionStatus from "../components/NotionStatus.svelte";
 
   let { id }: { id: string } = $props();
@@ -194,7 +194,7 @@
         ? { href: "/", text: "Till Borttagna Funktionsområden" }
         : projekt.funktionsområde
           ? { href: funktionsområdeHref(projekt.funktionsområde), text: `Till Borttagna Projekt i ${projekt.funktionsområde.namn}` }
-          : { href: "/", text: "Till Alla Funktionsområden" }}
+          : { href: "/", text: "Till Borttagna Projekt utan funktionsområde" }}
     />
   {:else if projekt}
     {@const grupp = projekt.funktionsområde ? `i ${projekt.funktionsområde.namn}` : "utan funktionsområde"}
@@ -257,7 +257,7 @@
                 : "Milstolpar"}
           </button>
           {#if projekt.projektledare}
-            <span class="ledare">Projektledare {projekt.projektledare.namn}{projekt.projektledare.aktiv ? "" : " (inaktiv)"}</span>
+            <span class="ledare">Projektledare {personNamn(projekt.projektledare)}</span>
           {/if}
           <!-- Namn, Funktionsområde, dates and Projektledare come from Notion (ADR 0003). -->
           <AndraINotion url={projekt.notionUrl} />

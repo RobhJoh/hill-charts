@@ -12,13 +12,12 @@ import type {
   PersonId,
   ProjektFält,
   ProjektId,
-  Tidsplan,
   Uppdatering,
 } from "../types.js";
 import type { Kärna } from "./karna.js";
 import { namnFrån } from "./regler.js";
 
-/** Where dates and Milstolpar are changed: a Projekt (in its Historik) or a Funktionsområde. */
+/** Where Milstolpar are changed: a Projekt (in its Historik) or a Funktionsområde. */
 export type Mål = { projekt: ProjektId } | { funktionsområde: FunktionsområdeId };
 
 export function projektfält(k: Kärna) {
@@ -50,23 +49,22 @@ export function projektfält(k: Kärna) {
   }
 
   /**
-   * Changes the Milstolpar of a Projekt (an Uppdatering in its Historik) or
-   * of a Funktionsområde (saved without Historik;
-   * returns null).
+   * Changes the Milstolpar (only; dates come from Notion) of a Projekt, as a
+   * Milstolpe Uppdatering in its Historik, or of a Funktionsområde, saved
+   * without Historik (returns null).
    */
-  async function ändraTidsplan(
+  async function ändraMilstolpar(
     mål: Mål,
-    typ: string,
-    ändra: (före: Tidsplan) => Partial<Tidsplan>,
+    ändra: (före: Milstolpe[]) => Milstolpe[],
     vem: PersonId | null,
   ): Promise<Uppdatering | null> {
     if ("projekt" in mål) {
-      return ändraProjektFält(mål.projekt, typ, (f) => ({ milstolpar: ändra({ ...TOM_TIDSPLAN, ...f }).milstolpar }), vem);
+      return ändraProjektFält(mål.projekt, UPPDATERING_TYP.milstolpe, (f) => ({ milstolpar: ändra(f.milstolpar) }), vem);
     }
     await signatur(vem);
     const fo = await k.requireFunktionsområde(mål.funktionsområde);
     const före = fo.tidsplan ?? TOM_TIDSPLAN;
-    const tidsplan = { ...före, ...ändra(före) };
+    const tidsplan = { ...före, milstolpar: ändra(före.milstolpar) };
     const all = await storage.listFunktionsområden();
     await storage.saveFunktionsområden(all.map((f) => (f.id === fo.id ? { ...f, tidsplan } : f)));
     return null;
@@ -89,12 +87,7 @@ export function projektfält(k: Kärna) {
       await signatur(vem);
       await requireMål(mål);
       const ny: Milstolpe = { id: k.newId(), ...giltig };
-      const uppdatering = await ändraTidsplan(
-        mål,
-        UPPDATERING_TYP.milstolpe,
-        (t) => ({ milstolpar: iOrdning([...t.milstolpar, ny]) }),
-        vem,
-      );
+      const uppdatering = await ändraMilstolpar(mål, (alla) => iOrdning([...alla, ny]), vem);
       return { id: ny.id, uppdatering };
     },
 
@@ -107,23 +100,15 @@ export function projektfält(k: Kärna) {
     ) {
       const namn = ändring.namn === undefined ? undefined : namnFrån(ändring.namn);
       const datum = ändring.datum === undefined ? undefined : datumFrån(ändring.datum);
-      return ändraTidsplan(
+      return ändraMilstolpar(
         mål,
-        UPPDATERING_TYP.milstolpe,
-        (t) => ({
-          milstolpar: ändraMilstolpe(t.milstolpar, id, (m) => ({ ...m, namn: namn ?? m.namn, datum: datum ?? m.datum })),
-        }),
+        (alla) => ändraMilstolpe(alla, id, (m) => ({ ...m, namn: namn ?? m.namn, datum: datum ?? m.datum })),
         vem,
       );
     },
 
     async removeMilstolpe(mål: Mål, id: MilstolpeId, vem: PersonId | null) {
-      return ändraTidsplan(
-        mål,
-        UPPDATERING_TYP.milstolpe,
-        (t) => ({ milstolpar: ändraMilstolpe(t.milstolpar, id, () => null) }),
-        vem,
-      );
+      return ändraMilstolpar(mål, (alla) => ändraMilstolpe(alla, id, () => null), vem);
     },
   };
 }

@@ -4,7 +4,8 @@
 import type { NotionFunktionsområde, NotionId, NotionKälla, NotionProjekt, NotionSnapshot } from "../notion.js";
 import { PERSON_HÄNDELSE_TYP } from "../typer.js";
 import type { Funktionsområde, FunktionsområdeId, Person, PersonId, Projekt } from "../types.js";
-import type { Kärna } from "./karna.js";
+import type { Kärna, Skrivkö } from "./karna.js";
+import { fältLika } from "../status.js";
 
 /** How fresh the structure from Notion is. Held in memory; a sync runs at startup. */
 export type SynkStatus = {
@@ -13,9 +14,6 @@ export type SynkStatus = {
   /** Why the latest fetch failed, and when; null once a fetch succeeds. Nothing changed then. */
   fel: { tid: string; meddelande: string } | null;
 };
-
-/** Runs a write step in turn with every other write (ADR 0001: one process serializes writes). */
-export type Skrivkö = <T>(steg: () => Promise<T>) => Promise<T>;
 
 const ingenKälla: NotionKälla = {
   hämta: () => Promise.reject(new Error("Ingen Notion-källa är konfigurerad")),
@@ -129,14 +127,14 @@ export function notionSynk(k: Kärna, källa: NotionKälla = ingenKälla, iTur: 
       }
       return fo.borttagen ? fo : { ...fo, borttagen: { tid } };
     });
-    if (JSON.stringify(efter) !== JSON.stringify(före)) await storage.saveFunktionsområden(efter);
+    if (!fältLika(efter, före)) await storage.saveFunktionsområden(efter);
   }
 
   /** Upserts the Funktionsområden a ticked Projekt references; returns their ids by Notion id. */
   async function upsertFunktionsområden(
     snapshot: NotionSnapshot,
     personIds: Map<NotionId, PersonId>,
-  ): Promise<Map<string, FunktionsområdeId>> {
+  ): Promise<Map<NotionId, FunktionsområdeId>> {
     const refererade = new Set(snapshot.projekt.map((p) => p.funktionsområde));
     const ur = snapshot.funktionsområden.filter((f) => refererade.has(f.notionId));
     const före = await storage.listFunktionsområden();
@@ -146,7 +144,7 @@ export function notionSynk(k: Kärna, källa: NotionKälla = ingenKälla, iTur: 
       if (i === -1) efter.push(nyttFunktionsområde(nf, personIds));
       else efter[i] = uppdateratFunktionsområde(efter[i]!, nf, personIds);
     }
-    if (JSON.stringify(efter) !== JSON.stringify(före)) await storage.saveFunktionsområden(efter);
+    if (!fältLika(efter, före)) await storage.saveFunktionsområden(efter);
     return new Map(efter.filter((f) => f.notionId !== undefined).map((f) => [f.notionId!, f.id]));
   }
 
@@ -173,7 +171,7 @@ export function notionSynk(k: Kärna, källa: NotionKälla = ingenKälla, iTur: 
 
   async function upsertProjekt(
     np: NotionProjekt,
-    foIds: Map<string, FunktionsområdeId>,
+    foIds: Map<NotionId, FunktionsområdeId>,
     personIds: Map<NotionId, PersonId>,
   ): Promise<void> {
     const finns = (await storage.listProjekt()).find((p) => p.notionId === np.notionId);
@@ -195,7 +193,7 @@ export function notionSynk(k: Kärna, källa: NotionKälla = ingenKälla, iTur: 
       notionStatus: np.notionStatus,
       ...(projektledare !== undefined && { projektledare }),
     };
-    if (JSON.stringify(p) !== JSON.stringify(finns)) await storage.saveProjekt(p);
+    if (!fältLika(p, finns)) await storage.saveProjekt(p);
   }
 
   return {

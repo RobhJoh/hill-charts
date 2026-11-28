@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { personNamn } from "../lib/agare.js";
   import { felText } from "../lib/fel.js";
   // The Notion embed (#43), variant B "Himmel + lista" of prototype/embed:
   // the Projekt's Hill chart beside a compact Scope list, filling whatever box
@@ -245,7 +246,7 @@
                 <span class="prick" style:background={lägeFärg(s.läge, tema.nu)}></span>
                 <span class="nm">
                   <span class="sn" title={s.namn}>{#if s.id === valt}<span class="vm">✦&nbsp;</span>{/if}{s.namn}</span>
-                  <span class="äg">{s.ägare.namn}{s.ägare.aktiv ? "" : " (inaktiv)"}</span>
+                  <span class="äg">{personNamn(s.ägare)}</span>
                 </span>
                 <span class="l">{s.läge}</span>
                 {#if s.stilla}

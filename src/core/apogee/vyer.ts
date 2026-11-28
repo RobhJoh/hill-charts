@@ -72,10 +72,15 @@ export type BorttagenVy = { tid: string };
 export type BorttagetProjekt = { id: ProjektId; namn: string; borttagen: BorttagenVy };
 export type Översikt = FunktionsområdeVy[];
 /**
- * Utan funktionsområde: the shown Projekt that belong to no Funktionsområde.
+ * Utan funktionsområde: the Projekt that belong to no Funktionsområde.
  * Not a Funktionsområde: no dates, status or Över tid of its own.
  */
-export type UtanFunktionsområdeVy = { projekt: ProjektRad[] };
+export type UtanFunktionsområdeVy = {
+  /** The shown ones (not Borttagna), in name order. */
+  projekt: ProjektRad[];
+  /** The Borttagna ones ("Borttagna Projekt"), newest first. */
+  borttagnaProjekt: BorttagetProjekt[];
+};
 export type ProjektVy = {
   id: ProjektId;
   namn: string;

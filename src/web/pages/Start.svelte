@@ -52,6 +52,11 @@
     await load();
   }
 
+  async function raderaProjekt(id: string, namn: string) {
+    await signatur.signera((vem) => api.raderaProjekt(id, namn, vem));
+    await load();
+  }
+
   /** Hämta från Notion nu: needs no Signatur, since it only reads Notion. */
   async function hämta() {
     hämtar = true;
@@ -132,7 +137,8 @@
           <span class="utan">Utan funktionsområde</span>
           <span>{utan.projekt.length} Projekt</span>
         </h2>
-        <ProjektCells projekt={utan.projekt} />
+        {#if utan.projekt.length > 0}<ProjektCells projekt={utan.projekt} />{/if}
+        <Borttagna rubrik="Borttagna Projekt utan funktionsområde" rader={utan.borttagnaProjekt} onradera={raderaProjekt} />
       </section>
     {/if}
   {/if}

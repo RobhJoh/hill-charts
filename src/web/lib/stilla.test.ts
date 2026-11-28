@@ -56,6 +56,7 @@ describe("samladStatus", () => {
   it("includes the Projekt Utan funktionsområde, after the Funktionsområden", () => {
     const status = samladStatus([fo("Plattform", [rad("Alfa", { stilla: 2 })])], {
       projekt: [rad("Fri", { stilla: 1, överTid: true }), rad("Ny", { status: "inte påbörjat" })],
+      borttagnaProjekt: [],
     });
     expect(status.pågående).toBe(2);
     expect(status.stilla).toBe(3);

@@ -194,7 +194,7 @@
         ? { href: "/", text: "Till Borttagna Funktionsområden" }
         : projekt.funktionsområde
           ? { href: funktionsområdeHref(projekt.funktionsområde), text: `Till Borttagna Projekt i ${projekt.funktionsområde.namn}` }
-          : { href: "/", text: "Till Alla Funktionsområden" }}
+          : { href: "/", text: "Till Borttagna Projekt utan funktionsområde" }}
     />
   {:else if projekt}
     {@const grupp = projekt.funktionsområde ? `i ${projekt.funktionsområde.namn}` : "utan funktionsområde"}
